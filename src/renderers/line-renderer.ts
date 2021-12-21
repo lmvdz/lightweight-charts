@@ -1,11 +1,19 @@
 import { PricedValue } from '../model/price-scale';
 import { SeriesItemsIndexesRange, TimedValue } from '../model/time-data';
 
-import { LinePoint, LineStyle, LineType, LineWidth, setLineStyle } from './draw-line';
+import {
+	LinePoint,
+	LineStyle,
+	LineType,
+	LineWidth,
+	setLineStyle,
+} from './draw-line';
 import { ScaledRenderer } from './scaled-renderer';
 import { walkLine } from './walk-line';
 
-export type LineItem = TimedValue & PricedValue & LinePoint & { color?: string };
+export type LineItem = TimedValue &
+	PricedValue &
+	LinePoint & { color?: string };
 
 export interface PaneRendererLineDataBase {
 	lineType: LineType;
@@ -20,7 +28,9 @@ export interface PaneRendererLineDataBase {
 	visibleRange: SeriesItemsIndexesRange | null;
 }
 
-export abstract class PaneRendererLineBase<TData extends PaneRendererLineDataBase> extends ScaledRenderer {
+export abstract class PaneRendererLineBase<
+	TData extends PaneRendererLineDataBase
+> extends ScaledRenderer {
 	protected _data: TData | null = null;
 
 	public setData(data: TData): void {
@@ -28,7 +38,11 @@ export abstract class PaneRendererLineBase<TData extends PaneRendererLineDataBas
 	}
 
 	protected _drawImpl(ctx: CanvasRenderingContext2D): void {
-		if (this._data === null || this._data.items.length === 0 || this._data.visibleRange === null) {
+		if (
+			this._data === null ||
+			this._data.items.length === 0 ||
+			this._data.visibleRange === null
+		) {
 			return;
 		}
 
@@ -53,13 +67,20 @@ export abstract class PaneRendererLineBase<TData extends PaneRendererLineDataBas
 				ctx.strokeStyle = point.color;
 			}
 		} else {
-			walkLine(ctx, this._data.items, this._data.lineType, this._data.visibleRange);
+			walkLine(
+				ctx,
+				this._data.items,
+				this._data.lineType,
+				this._data.visibleRange
+			);
 		}
 
 		ctx.stroke();
 	}
 
-	protected abstract _strokeStyle(ctx: CanvasRenderingContext2D): CanvasRenderingContext2D['strokeStyle'];
+	protected abstract _strokeStyle(
+		ctx: CanvasRenderingContext2D
+	): CanvasRenderingContext2D['strokeStyle'];
 }
 
 export interface PaneRendererLineData extends PaneRendererLineDataBase {

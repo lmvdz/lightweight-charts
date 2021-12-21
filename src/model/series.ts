@@ -5,7 +5,7 @@ import { VolumeFormatter } from '../formatters/volume-formatter';
 
 import { ensureNotNull } from '../helpers/assertions';
 import { IDestroyable } from '../helpers/idestroyable';
-import { isInteger, merge } from '../helpers/strict-type-checks';
+import { DeepPartial, isInteger, merge } from '../helpers/strict-type-checks';
 
 import { SeriesAreaPaneView } from '../views/pane/area-pane-view';
 import { SeriesBarsPaneView } from '../views/pane/bars-pane-view';
@@ -45,6 +45,7 @@ import {
 	BaselineStyleOptions,
 	HistogramStyleOptions,
 	LineStyleOptions,
+	SeriesOptionsCommon,
 	SeriesOptionsMap,
 	SeriesPartialOptionsMap,
 	SeriesType,
@@ -83,6 +84,10 @@ export interface SeriesDataAtTypeMap {
 	Baseline: BarPrice;
 	Line: BarPrice;
 	Histogram: BarPrice;
+}
+
+export interface SeriesUpdateInfo {
+	lastBarUpdatedOrNewBarsAddedToTheRight: boolean;
 }
 
 // TODO: uncomment following strings after fixing typescript bug
@@ -210,12 +215,13 @@ export class Series<T extends SeriesType = SeriesType> extends PriceDataSource i
 		return this._options as SeriesOptionsMap[T];
 	}
 
-	public applyOptions(options: SeriesPartialOptionsInternal<T>): void {
+	public applyOptions(options: SeriesPartialOptionsInternal<T> | DeepPartial<SeriesOptionsCommon>): void {
 		const targetPriceScaleId = options.priceScaleId;
 		if (targetPriceScaleId !== undefined && targetPriceScaleId !== this._options.priceScaleId) {
 			// series cannot do it itself, ask model
 			this.model().moveSeriesToScale(this, targetPriceScaleId);
 		}
+		const previousPaneIndex = this._options.pane ?? 0;
 		merge(this._options, options);
 
 		// eslint-disable-next-line deprecation/deprecation
@@ -230,6 +236,10 @@ export class Series<T extends SeriesType = SeriesType> extends PriceDataSource i
 			this._recreateFormatter();
 		}
 
+		if (options.pane && previousPaneIndex !== options.pane) {
+			this.model().moveSeriesToPane(this, previousPaneIndex, options.pane);
+		}
+
 		this.model().updateSource(this);
 
 		// a series might affect crosshair by some options (like crosshair markers)
@@ -239,14 +249,21 @@ export class Series<T extends SeriesType = SeriesType> extends PriceDataSource i
 		this._paneView.update('options');
 	}
 
-	public setData(data: readonly SeriesPlotRow<T>[]): void {
+	public setData(data: readonly SeriesPlotRow<T>[], updateInfo?: SeriesUpdateInfo): void {
 		this._data.setData(data);
 
 		this._recalculateMarkers();
 
 		this._paneView.update('data');
 		this._markersPaneView.update('data');
-		this._lastPriceAnimationPaneView?.update('data');
+
+		if (this._lastPriceAnimationPaneView !== null) {
+			if (updateInfo && updateInfo.lastBarUpdatedOrNewBarsAddedToTheRight) {
+				this._lastPriceAnimationPaneView.onNewRealtimeDataReceived();
+			} else if (data.length === 0) {
+				this._lastPriceAnimationPaneView.onDataCleared();
+			}
+		}
 
 		const sourcePane = this.model().paneForSource(this);
 		this.model().recalculatePane(sourcePane);
@@ -373,7 +390,7 @@ export class Series<T extends SeriesType = SeriesType> extends PriceDataSource i
 		return res;
 	}
 
-	public priceAxisViews(pane: Pane, priceScale: PriceScale): readonly IPriceAxisView[] {
+	public override priceAxisViews(pane: Pane, priceScale: PriceScale): readonly IPriceAxisView[] {
 		if (priceScale !== this._priceScale && !this._isOverlay()) {
 			return [];
 		}
@@ -421,8 +438,8 @@ export class Series<T extends SeriesType = SeriesType> extends PriceDataSource i
 		this._lastPriceAnimationPaneView?.update();
 	}
 
-	public priceScale(): PriceScale {
-		return ensureNotNull(this._priceScale);
+	public override priceScale(): PriceScale {
+		return ensureNotNull(super.priceScale());
 	}
 
 	public markerDataAtIndex(index: TimePointIndex): MarkerData | null {
@@ -447,7 +464,7 @@ export class Series<T extends SeriesType = SeriesType> extends PriceDataSource i
 		return this._options.title;
 	}
 
-	public visible(): boolean {
+	public override visible(): boolean {
 		return this._options.visible;
 	}
 

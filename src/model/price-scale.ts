@@ -20,6 +20,9 @@ import {
 	fromIndexedTo100,
 	fromLog,
 	fromPercent,
+	LogFormula,
+	logFormulaForPriceRange,
+	logFormulasAreSame,
 	toIndexedTo100,
 	toIndexedTo100Range,
 	toLog,
@@ -72,9 +75,13 @@ export interface PricedValue {
 
 /** Defines margins of the price scale. */
 export interface PriceScaleMargins {
-	/** Top margin in percentages. Must be greater or equal to 0 and less than 100. */
+	/**
+	 * Top margin in percentages. Must be greater or equal to 0 and less than 1.
+	 */
 	top: number;
-	/** Bottom margin in percentages. Must be greater or equal to 0 and less than 100. */
+	/**
+	 * Bottom margin in percentages. Must be greater or equal to 0 and less than 1.
+	 */
 	bottom: number;
 }
 
@@ -86,46 +93,92 @@ export type PriceAxisPosition = 'left' | 'right' | 'none';
 /** Structure that describes price scale options */
 export interface PriceScaleOptions {
 	/**
-	 * Automatically set price range based on visible data range.
+	 * Autoscaling is a feature that automatically adjusts a price scale to fit the visible range of data.
+	 * Note that overlay price scales are always auto-scaled.
+	 *
+	 * @defaultValue `true`
 	 */
 	autoScale: boolean;
-	/** Price scale mode. */
+
+	/**
+	 * Price scale mode.
+	 *
+	 * @defaultValue {@link PriceScaleMode.Normal}
+	 */
 	mode: PriceScaleMode;
+
 	/**
 	 * Invert the price scale, so that a upwards trend is shown as a downwards trend and vice versa.
 	 * Affects both the price scale and the data on the chart.
+	 *
+	 * @defaultValue `false`
 	 */
 	invertScale: boolean;
+
 	/**
 	 * Align price scale labels to prevent them from overlapping.
+	 *
+	 * @defaultValue `true`
 	 */
 	alignLabels: boolean;
+
 	/**
 	 * Price scale's position on the chart.
 	 *
-	 * @deprecated
+	 * @deprecated Use options for different price scales instead
 	 * @internal
 	 */
 	position?: PriceAxisPosition;
+
 	/**
 	 * Price scale margins.
+	 *
+	 * @defaultValue `{ bottom: 0.1, top: 0.2 }`
+	 * @example
+	 * ```js
+	 * chart.priceScale('right').applyOptions({
+	 *     scaleMargins: {
+	 *         top: 0.8,
+	 *         bottom: 0,
+	 *     },
+	 * });
+	 * ```
 	 */
 	scaleMargins: PriceScaleMargins;
+
 	/**
 	 * Set true to draw a border between the price scale and the chart area.
+	 *
+	 * @defaultValue `true`
 	 */
 	borderVisible: boolean;
+
 	/**
 	 * Price scale border color.
+	 *
+	 * @defaultValue `'#2B2B43'`
 	 */
 	borderColor: string;
+
 	/**
 	 * Show top and bottom corner labels only if entire text is visible.
+	 *
+	 * @defaultValue `false`
 	 */
 	entireTextOnly: boolean;
-	/** Indicates if this price scale visible. Ignored by overlay price scales. */
+
+	/**
+	 * Indicates if this price scale visible. Ignored by overlay price scales.
+	 *
+	 * @defaultValue `true` for the right price scale and `false` for the left
+	 */
 	visible: boolean;
-	/** Draw small horizontal line on price axis labels. */
+
+	/**
+	 * Draw small horizontal line on price axis labels.
+	 *
+	 * @defaultValue `true`
+	 */
 	drawTicks: boolean;
 }
 
@@ -170,6 +223,8 @@ export class PriceScale {
 	private _scaleStartPoint: number | null = null;
 	private _scrollStartPoint: number | null = null;
 	private _formatter: IPriceFormatter = defaultPriceFormatter;
+
+	private _logFormula: LogFormula = logFormulaForPriceRange(null);
 
 	public constructor(id: string, options: PriceScaleOptions, layoutOptions: LayoutOptionsInternal, localizationOptions: LocalizationOptions) {
 		this._id = id;
@@ -260,8 +315,8 @@ export class PriceScale {
 
 		// define which scale converted from
 		if (oldMode.mode === PriceScaleMode.Logarithmic && newMode.mode !== oldMode.mode) {
-			if (canConvertPriceRangeFromLog(this._priceRange)) {
-				priceRange = convertPriceRangeFromLog(this._priceRange);
+			if (canConvertPriceRangeFromLog(this._priceRange, this._logFormula)) {
+				priceRange = convertPriceRangeFromLog(this._priceRange, this._logFormula);
 
 				if (priceRange !== null) {
 					this.setPriceRange(priceRange);
@@ -273,7 +328,7 @@ export class PriceScale {
 
 		// define which scale converted to
 		if (newMode.mode === PriceScaleMode.Logarithmic && newMode.mode !== oldMode.mode) {
-			priceRange = convertPriceRangeToLog(this._priceRange);
+			priceRange = convertPriceRangeToLog(this._priceRange, this._logFormula);
 
 			if (priceRange !== null) {
 				this.setPriceRange(priceRange);
@@ -790,7 +845,7 @@ export class PriceScale {
 			return 0 as Coordinate;
 		}
 
-		logical = this.isLog() && logical ? toLog(logical) : logical;
+		logical = this.isLog() && logical ? toLog(logical, this._logFormula) : logical;
 		const range = ensureNotNull(this.priceRange());
 		const invCoordinate = this._bottomMarginPx() +
 			(this.internalHeight() - 1) * (logical - range.minValue()) / range.length();
@@ -808,7 +863,7 @@ export class PriceScale {
 		const range = ensureNotNull(this.priceRange());
 		const logical = range.minValue() + range.length() *
 			((invCoordinate - this._bottomMarginPx()) / (this.internalHeight() - 1));
-		return this.isLog() ? fromLog(logical) : logical;
+		return this.isLog() ? fromLog(logical, this._logFormula) : logical;
 	}
 
 	private _onIsInvertedChanged(): void {
@@ -845,7 +900,7 @@ export class PriceScale {
 			if (sourceRange !== null) {
 				switch (this._options.mode) {
 					case PriceScaleMode.Logarithmic:
-						sourceRange = convertPriceRangeToLog(sourceRange);
+						sourceRange = convertPriceRangeToLog(sourceRange, this._logFormula);
 						break;
 					case PriceScaleMode.Percentage:
 						sourceRange = toPercentRange(sourceRange, firstValue.value);
@@ -887,7 +942,29 @@ export class PriceScale {
 				// if price range is degenerated to 1 point let's extend it by 10 min move values
 				// to avoid incorrect range and empty (blank) scale (in case of min tick much greater than 1)
 				const extendValue = 5 * minMove;
+
+				if (this.isLog()) {
+					priceRange = convertPriceRangeFromLog(priceRange, this._logFormula);
+				}
+
 				priceRange = new PriceRangeImpl(priceRange.minValue() - extendValue, priceRange.maxValue() + extendValue);
+
+				if (this.isLog()) {
+					priceRange = convertPriceRangeToLog(priceRange, this._logFormula);
+				}
+			}
+
+			if (this.isLog()) {
+				const rawRange = convertPriceRangeFromLog(priceRange, this._logFormula);
+				const newLogFormula = logFormulaForPriceRange(rawRange);
+				if (!logFormulasAreSame(newLogFormula, this._logFormula)) {
+					const rawSnapshot = this._priceRangeSnapshot !== null ? convertPriceRangeFromLog(this._priceRangeSnapshot, this._logFormula) : null;
+					this._logFormula = newLogFormula;
+					priceRange = convertPriceRangeToLog(rawRange, newLogFormula);
+					if (rawSnapshot !== null) {
+						this._priceRangeSnapshot = convertPriceRangeToLog(rawSnapshot, newLogFormula);
+					}
+				}
 			}
 
 			this.setPriceRange(priceRange);
@@ -895,6 +972,7 @@ export class PriceScale {
 			// reset empty to default
 			if (this._priceRange === null) {
 				this.setPriceRange(new PriceRangeImpl(-0.5, 0.5));
+				this._logFormula = logFormulaForPriceRange(null);
 			}
 		}
 
@@ -907,7 +985,7 @@ export class PriceScale {
 		} else if (this.isIndexedTo100()) {
 			return toIndexedTo100;
 		} else if (this.isLog()) {
-			return toLog;
+			return (price: number) => toLog(price, this._logFormula);
 		}
 
 		return null;

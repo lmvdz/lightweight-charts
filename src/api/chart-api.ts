@@ -1,4 +1,5 @@
 import { ChartWidget, MouseEventParamsImpl, MouseEventParamsImplSupplier } from '../gui/chart-widget';
+import { PaneWidget } from '../gui/pane-widget';
 
 import { ensureDefined } from '../helpers/assertions';
 import { Delegate } from '../helpers/delegate';
@@ -227,7 +228,8 @@ export class ChartApi implements IChartApi, DataUpdatesConsumer<SeriesType> {
 		options = migrateOptions(options);
 		patchPriceFormat(options.priceFormat);
 
-		const strictOptions = merge(clone(seriesOptionsDefaults), baselineStyleDefaults, options) as BaselineSeriesOptions;
+		// to avoid assigning fields to defaults we have to clone them
+		const strictOptions = merge(clone(seriesOptionsDefaults), clone(baselineStyleDefaults), options) as BaselineSeriesOptions;
 		const series = this._chartWidget.model().createSeries('Baseline', strictOptions);
 
 		const res = new SeriesApi<'Baseline'>(series, this, this);
@@ -356,11 +358,23 @@ export class ChartApi implements IChartApi, DataUpdatesConsumer<SeriesType> {
 		return this._chartWidget.takeScreenshot();
 	}
 
+	public removePane(index: number): void {
+		this._chartWidget.model().removePane(index);
+	}
+
+	public swapPane(first: number, second: number): void {
+		this._chartWidget.model().swapPane(first, second);
+	}
+
+	public getPaneElements(): HTMLElement[] {
+		return this._chartWidget.paneWidgets().map((paneWidget: PaneWidget) => paneWidget.getPaneCell());
+	}
+
 	private _sendUpdateToChart(update: DataUpdateResponse): void {
 		const model = this._chartWidget.model();
 
 		model.updateTimeScale(update.timeScale.baseIndex, update.timeScale.points, update.timeScale.firstChangedPointIndex);
-		update.series.forEach((value: SeriesChanges, series: Series) => series.setData(value.data));
+		update.series.forEach((value: SeriesChanges, series: Series) => series.setData(value.data, value.info));
 
 		model.recalculateAllPanes();
 	}
@@ -380,6 +394,7 @@ export class ChartApi implements IChartApi, DataUpdatesConsumer<SeriesType> {
 		return {
 			time: param.time && (param.time.businessDay || param.time.timestamp),
 			point: param.point,
+			paneIndex: param.paneIndex,
 			hoveredSeries,
 			hoveredMarkerId: param.hoveredObject,
 			seriesPrices,

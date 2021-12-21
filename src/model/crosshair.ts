@@ -38,11 +38,11 @@ export type TimeAndCoordinateProvider = () => CrosshairTimeAndCoordinate;
  */
 export const enum CrosshairMode {
 	/**
-	 * Crosshair's horizontal line is anchored to the closest data point's close price.
+	 * This mode allows crosshair to move freely on the chart.
 	 */
 	Normal,
 	/**
-	 * Crosshair moves freely on the chart.
+	 * This mode sticks crosshair's horizontal line to the price value of a single-value series or to the close price of OHLC-based series.
 	 */
 	Magnet,
 }
@@ -51,37 +51,70 @@ export const enum CrosshairMode {
 export interface CrosshairLineOptions {
 	/**
 	 * Crosshair line color.
+	 *
+	 * @defaultValue `'#758696'`
 	 */
 	color: string;
+
 	/**
 	 * Crosshair line width.
+	 *
+	 * @defaultValue `1`
 	 */
 	width: LineWidth;
+
 	/**
 	 * Crosshair line style.
+	 *
+	 * @defaultValue {@link LineStyle.LargeDashed}
 	 */
 	style: LineStyle;
+
 	/**
-	 * Display the corosshair line.
+	 * Display the crosshair line.
+	 *
+	 * Note that disabling crosshair lines does not disable crosshair marker on Line and Area series.
+	 * It can be disabled by using `crosshairMarkerVisible` option of a relevant series.
+	 *
+	 * @see {@link LineStyleOptions.crosshairMarkerVisible}
+	 * @see {@link AreaStyleOptions.crosshairMarkerVisible}
+	 * @see {@link BaselineStyleOptions.crosshairMarkerVisible}
+	 * @defaultValue `true`
 	 */
 	visible: boolean;
+
 	/**
 	 * Display the crosshair label on the relevant scale.
+	 *
+	 * @defaultValue `true`
 	 */
 	labelVisible: boolean;
+
 	/**
 	 * Crosshair label background color.
+	 *
+	 * @defaultValue `'#4c525e'`
 	 */
 	labelBackgroundColor: string;
 }
 
 /** Structure describing crosshair options  */
 export interface CrosshairOptions {
-	/** Crosshair mode */
+	/**
+	 * Crosshair mode
+	 *
+	 * @defaultValue {@link CrosshairMode.Magnet}
+	 */
 	mode: CrosshairMode;
-	/** Vertical line options. */
+
+	/**
+	 * Vertical line options.
+	 */
 	vertLine: CrosshairLineOptions;
-	/** Horizontal line options. */
+
+	/**
+	 * Horizontal line options.
+	 */
 	horzLine: CrosshairLineOptions;
 }
 
@@ -199,7 +232,7 @@ export class Crosshair extends DataSource {
 		return this._y;
 	}
 
-	public visible(): boolean {
+	public override visible(): boolean {
 		return this._visible;
 	}
 
@@ -227,7 +260,7 @@ export class Crosshair extends DataSource {
 		return this._options.vertLine.visible;
 	}
 
-	public priceAxisViews(pane: Pane, priceScale: PriceScale): IPriceAxisView[] {
+	public override priceAxisViews(pane: Pane, priceScale: PriceScale): IPriceAxisView[] {
 		if (!this._visible || this._pane !== pane) {
 			this._priceAxisViews.clear();
 		}
@@ -240,7 +273,7 @@ export class Crosshair extends DataSource {
 		return views;
 	}
 
-	public timeAxisViews(): readonly ITimeAxisView[] {
+	public override timeAxisViews(): readonly ITimeAxisView[] {
 		return this._visible ? [this._timeAxisView] : [];
 	}
 

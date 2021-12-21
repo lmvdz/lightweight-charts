@@ -22,8 +22,9 @@ import { RangeImpl } from './range-impl';
 export type UTCTimestamp = Nominal<number, 'UTCTimestamp'>;
 
 /**
- * Represents a time as a day/week/month.
+ * Represents a time as a day/month/year.
  *
+ * @example
  * ```js
  * const day = { year: 2019, month: 6, day: 1 }; // June 1, 2019
  * ```
@@ -48,8 +49,30 @@ export interface TimePoint {
 	businessDay?: BusinessDay;
 }
 
+/**
+ * Describes a weight of tick mark, i.e. a part of a time that changed since previous time.
+ * Note that you can use any timezone to calculate this value, it is unnecessary to use UTC.
+ *
+ * @example Between 2020-01-01 and 2020-01-02 there is a day of difference, i.e. for 2020-01-02 weight would be a day.
+ * @example Between 2020-01-01 and 2020-02-02 there is a month of difference, i.e. for 2020-02-02 weight would be a month.
+ */
+export const enum TickMarkWeight {
+	LessThanSecond = 0,
+	Second = 10,
+	Minute1 = 20,
+	Minute5 = 21,
+	Minute30 = 22,
+	Hour1 = 30,
+	Hour3 = 31,
+	Hour6 = 32,
+	Hour12 = 33,
+	Day = 50,
+	Month = 60,
+	Year = 70,
+}
+
 export interface TimeScalePoint {
-	readonly timeWeight: number;
+	readonly timeWeight: TickMarkWeight;
 	readonly time: TimePoint;
 }
 
@@ -72,7 +95,7 @@ export type TimePointsRange = Range<TimePoint>;
 export type TimePointIndex = Nominal<number, 'TimePointIndex'>;
 
 /**
- * Represents the to or from `number` in a logical range.
+ * Represents the `to` or `from` number in a logical range.
  */
 export type Logical = Nominal<number, 'Logical'>;
 
