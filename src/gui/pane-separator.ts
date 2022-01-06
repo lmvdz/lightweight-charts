@@ -3,7 +3,11 @@ import { clamp } from '../helpers/mathex';
 
 import { createPreconfiguredCanvas, getContext2D, Size } from './canvas-utils';
 import { ChartWidget } from './chart-widget';
-import { MouseEventHandler, MouseEventHandlers, TouchMouseEvent } from './mouse-event-handler';
+import {
+	MouseEventHandler,
+	MouseEventHandlers,
+	TouchMouseEvent,
+} from './mouse-event-handler';
 import { PaneWidget } from './pane-widget';
 
 export const SEPARATOR_HEIGHT = 1;
@@ -26,7 +30,12 @@ export class PaneSeparator implements IDestroyable {
 	private _pixelStretchFactor: number = 0;
 	private _mouseActive: boolean = false;
 
-	public constructor(chartWidget: ChartWidget, topPaneIndex: number, bottomPaneIndex: number, disableResize: boolean) {
+	public constructor(
+		chartWidget: ChartWidget,
+		topPaneIndex: number,
+		bottomPaneIndex: number,
+		disableResize: boolean
+	) {
 		this._chartWidget = chartWidget;
 		this._paneA = chartWidget.paneWidgets()[topPaneIndex];
 		this._paneB = chartWidget.paneWidgets()[bottomPaneIndex];
@@ -53,8 +62,9 @@ export class PaneSeparator implements IDestroyable {
 			this._handle.style.top = '-4px';
 			this._handle.style.height = '9px';
 			this._handle.style.width = '100%';
-			this._handle.style.backgroundColor = '';
 			this._handle.style.cursor = 'row-resize';
+			this._handle.style.backgroundColor = '#0092ea';
+			this._handle.style.opacity = '0';
 			this._cell.appendChild(this._handle);
 			const handlers: MouseEventHandlers = {
 				mouseEnterEvent: this._mouseOverEvent.bind(this),
@@ -63,14 +73,10 @@ export class PaneSeparator implements IDestroyable {
 				pressedMouseMoveEvent: this._pressedMouseMoveEvent.bind(this),
 				mouseUpEvent: this._mouseUpEvent.bind(this),
 			};
-			this._mouseEventHandler = new MouseEventHandler(
-				this._handle,
-				handlers,
-				{
-					treatVertTouchDragAsPageScroll: false,
-					treatHorzTouchDragAsPageScroll: true,
-				}
-			);
+			this._mouseEventHandler = new MouseEventHandler(this._handle, handlers, {
+				treatVertTouchDragAsPageScroll: false,
+				treatHorzTouchDragAsPageScroll: true,
+			});
 		}
 	}
 
@@ -102,25 +108,29 @@ export class PaneSeparator implements IDestroyable {
 	}
 
 	private _updateBorderColor(): void {
-		this._cell.style.background = this._chartWidget.options().timeScale.borderColor;
+		this._cell.style.background =
+			this._chartWidget.options().timeScale.borderColor;
 	}
 
 	private _mouseOverEvent(event: TouchMouseEvent): void {
 		if (this._handle !== null) {
-			this._handle.style.backgroundColor = 'hsla(225,8%,72%,.2)';
+			this._handle.style.opacity = '0.05';
+			this._cell.style.background = '#0092ea';
 		}
 	}
 
 	private _mouseLeaveEvent(event: TouchMouseEvent): void {
 		if (this._handle !== null && !this._mouseActive) {
-			this._handle.style.backgroundColor = '';
+			this._handle.style.opacity = '0';
+			this._updateBorderColor();
 		}
 	}
 	private _mouseDownEvent(event: TouchMouseEvent): void {
 		this._startY = event.pageY;
 		this._deltaY = 0;
 		this._totalHeight = this._paneA.getSize().h + this._paneB.getSize().h;
-		this._totalStretch = this._paneA.stretchFactor() + this._paneB.stretchFactor();
+		this._totalStretch =
+			this._paneA.stretchFactor() + this._paneB.stretchFactor();
 		this._minPaneHeight = 30;
 		this._maxPaneHeight = this._totalHeight - this._minPaneHeight;
 		this._pixelStretchFactor = this._totalStretch / this._totalHeight;
@@ -128,9 +138,13 @@ export class PaneSeparator implements IDestroyable {
 	}
 
 	private _pressedMouseMoveEvent(event: TouchMouseEvent): void {
-		this._deltaY = (event.pageY - this._startY);
+		this._deltaY = event.pageY - this._startY;
 		const upperHeight = this._paneA.getSize().h;
-		const newUpperPaneHeight = clamp(upperHeight + this._deltaY, this._minPaneHeight, this._maxPaneHeight);
+		const newUpperPaneHeight = clamp(
+			upperHeight + this._deltaY,
+			this._minPaneHeight,
+			this._maxPaneHeight
+		);
 
 		const newUpperPaneStretch = newUpperPaneHeight * this._pixelStretchFactor;
 		const newLowerPaneStretch = this._totalStretch - newUpperPaneStretch;
