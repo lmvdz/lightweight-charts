@@ -47,6 +47,7 @@ export class PaneSeparator implements IDestroyable {
 		this._cell.style.position = 'relative';
 		this._cell.style.padding = '0';
 		this._cell.style.margin = '0';
+		this._cell.style.height = '1.5px';
 		this._cell.setAttribute('colspan', '3');
 
 		this._updateBorderColor();
@@ -59,7 +60,7 @@ export class PaneSeparator implements IDestroyable {
 			this._handle = document.createElement('div');
 			this._handle.style.position = 'absolute';
 			this._handle.style.zIndex = '50';
-			this._handle.style.top = '-4px';
+			this._handle.style.top = '-3.75px';
 			this._handle.style.height = '9px';
 			this._handle.style.width = '100%';
 			this._handle.style.cursor = 'row-resize';
@@ -114,7 +115,7 @@ export class PaneSeparator implements IDestroyable {
 
 	private _mouseOverEvent(event: TouchMouseEvent): void {
 		if (this._handle !== null) {
-			this._handle.style.opacity = '0.05';
+			this._handle.style.opacity = '0.15';
 			this._cell.style.background = '#0092ea';
 		}
 	}

@@ -131,6 +131,10 @@ export class PriceAxisWidget implements IDestroyable {
 		return this._cell;
 	}
 
+	public floating(): boolean {
+		return !!this._priceScale?.options().floating;
+	}
+
 	public lineColor(): string {
 		return ensureNotNull(this._priceScale).options().borderColor;
 	}
@@ -163,6 +167,23 @@ export class PriceAxisWidget implements IDestroyable {
 			this._font = options.font;
 		}
 
+		if (this._priceScale?.options().floating) {
+			if (this._isLeft) {
+				this._cell.style.bottom = '0';
+				this._cell.style.zIndex = '2';
+				this._cell.style.position = 'absolute';
+			} else {
+				this._cell.style.left = '-100%';
+			}
+			this._cell.style.pointerEvents = 'none';
+		} else {
+			this._cell.style.left = 'initial';
+			this._cell.style.bottom = 'initial';
+			this._cell.style.zIndex = 'initial';
+			this._cell.style.position = 'relative';
+			this._cell.style.pointerEvents = 'initial';
+		}
+
 		return options;
 	}
 
@@ -170,7 +191,6 @@ export class PriceAxisWidget implements IDestroyable {
 		if (this._priceScale === null) {
 			return 0;
 		}
-
 		// need some reasonable value for scale while initialization
 		let tickMarkMaxWidth = 34;
 		const rendererOptions = this.rendererOptions();

@@ -152,8 +152,10 @@ export class PaneWidget implements IDestroyable {
 		paneWrapper.style.height = '100%';
 		paneWrapper.style.position = 'relative';
 		paneWrapper.style.overflow = 'hidden';
+		paneWrapper.style.transform = 'translateZ(0px)';
 
 		this._leftAxisCell = document.createElement('td');
+		this._leftAxisCell.style.position = 'relative';
 		this._leftAxisCell.style.padding = '0';
 
 		this._rightAxisCell = document.createElement('td');

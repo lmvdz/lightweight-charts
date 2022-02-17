@@ -3,7 +3,7 @@ import { makeFont } from '../helpers/make-font';
 
 import { HoveredObject } from '../model/chart-model';
 import { Coordinate } from '../model/coordinate';
-import { SeriesMarkerShape } from '../model/series-markers';
+import { SeriesMarkerAnchor, SeriesMarkerShape, SeriesMarkerStroke } from '../model/series-markers';
 import { TextWidthCache } from '../model/text-width-cache';
 import { SeriesItemsIndexesRange, TimedValue } from '../model/time-data';
 
@@ -12,6 +12,7 @@ import { drawArrow, hitTestArrow } from './series-markers-arrow';
 import { drawCircle, hitTestCircle } from './series-markers-circle';
 import { drawSquare, hitTestSquare } from './series-markers-square';
 import { drawText, hitTestText } from './series-markers-text';
+import { drawTriangle, hitTestTriangle } from './series-markers-triangle';
 
 export interface SeriesMarkerText {
 	content: string;
@@ -24,6 +25,9 @@ export interface SeriesMarkerRendererDataItem extends TimedValue {
 	y: Coordinate;
 	size: number;
 	shape: SeriesMarkerShape;
+	stroke?: SeriesMarkerStroke;
+	anchor?: SeriesMarkerAnchor;
+	rotation?: number;
 	color: string;
 	internalId: number;
 	externalId?: string;
@@ -93,13 +97,27 @@ export class SeriesMarkersRenderer extends ScaledRenderer {
 }
 
 function drawItem(item: SeriesMarkerRendererDataItem, ctx: CanvasRenderingContext2D): void {
+	const rotation = item.rotation || (item.anchor === 'bottom' ? 180 : item.anchor === 'right' ? 90 : item.anchor === 'left' ? -90 : 0);
+	ctx.strokeStyle = item.stroke?.color || 'transparent';
+	ctx.lineWidth = item.stroke?.width || 1;
 	ctx.fillStyle = item.color;
 
 	if (item.text !== undefined) {
 		drawText(ctx, item.text.content, item.x - item.text.width / 2, item.text.y);
 	}
 
+	if (rotation) {
+		ctx.save();
+		ctx.translate(item.x, item.y);
+		ctx.rotate(rotation * (Math.PI / 180));
+		ctx.translate(-item.x, -item.y);
+	}
+
 	drawShape(item, ctx);
+
+	if (rotation) {
+		ctx.restore();
+	}
 }
 
 function drawShape(item: SeriesMarkerRendererDataItem, ctx: CanvasRenderingContext2D): void {
@@ -108,6 +126,9 @@ function drawShape(item: SeriesMarkerRendererDataItem, ctx: CanvasRenderingConte
 	}
 
 	switch (item.shape) {
+		case 'triangle':
+			drawTriangle(ctx, item.x, item.y, item.size);
+			return;
 		case 'arrowDown':
 			drawArrow(false, ctx, item.x, item.y, item.size);
 			return;
@@ -139,6 +160,8 @@ function hitTestShape(item: SeriesMarkerRendererDataItem, x: Coordinate, y: Coor
 	}
 
 	switch (item.shape) {
+		case 'triangle':
+			return hitTestTriangle(item.x, item.y, item.size, x, y);
 		case 'arrowDown':
 			return hitTestArrow(true, item.x, item.y, item.size, x, y);
 		case 'arrowUp':

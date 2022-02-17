@@ -46,6 +46,10 @@ export function walkLine(
 					const prevY = points[i - 1].y;
 					const currX = currItem.x;
 					ctx.lineTo(currX, prevY);
+				} else if (lineType === LineType.WithStepsUpsideDown) {
+					const prevX = points[i - 1].x;
+					const currY = currItem.y;
+					ctx.lineTo(prevX, currY);
 				}
 
 				ctx.lineTo(currItem.x, currItem.y);

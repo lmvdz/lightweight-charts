@@ -55,3 +55,7 @@ export function upperbound<TArrayElementType, TValueType>(
 
 	return start;
 }
+
+export function findLastIndex<T>(items: readonly T[], callback: (value: T, index: number) => boolean): number {
+	return items.reduce((acc: number, curr: T, index: number) => callback(curr, index) ? index : acc, 0);
+}

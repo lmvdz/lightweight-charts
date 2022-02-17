@@ -4,6 +4,7 @@ import { LineStyle } from '../../renderers/draw-line';
 export const priceLineOptionsDefaults: PriceLineOptions = {
 	color: '#FF0000',
 	price: 0,
+	visible: true,
 	lineStyle: LineStyle.Dashed,
 	lineWidth: 1,
 	axisLabelVisible: true,

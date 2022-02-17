@@ -1,4 +1,4 @@
-import { TimeScaleOptions } from '../../model/time-scale';
+import { TimeScaleMode, TimeScaleOptions } from '../../model/time-scale';
 
 export const timeScaleOptionsDefaults: TimeScaleOptions = {
 	rightOffset: 0,
@@ -10,6 +10,7 @@ export const timeScaleOptionsDefaults: TimeScaleOptions = {
 	rightBarStaysOnScroll: false,
 	borderVisible: true,
 	borderColor: '#2B2B43',
+	mode: TimeScaleMode.Normal,
 	visible: true,
 	timeVisible: false,
 	secondsVisible: true,

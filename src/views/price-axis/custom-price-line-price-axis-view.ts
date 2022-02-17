@@ -33,7 +33,7 @@ export class CustomPriceLinePriceAxisView extends PriceAxisView {
 
 		const series = this._series;
 
-		if (!labelVisible || !series.visible()) {
+		if (!labelVisible || !options.visible || !series.visible()) {
 			return;
 		}
 
