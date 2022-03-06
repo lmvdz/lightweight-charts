@@ -11,13 +11,29 @@ export type EmptyCallback = () => void;
 export type PinchEventCallback = (middlePoint: Position, scale: number) => void;
 
 export interface IInputEventListener {
-	onInputEvent(paneWidget: PaneWidget, eventType: MouseEventType, event?: TouchMouseEvent): void;
+	onInputEvent(paneWidget: PaneWidget, eventType: InputEventType, event?: TouchMouseEvent): void;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function isMouseEventListener(object: any): object is IInputEventListener {
+export function isInputEventListener(object: any): object is IInputEventListener {
 	// eslint-disable-next-line @typescript-eslint/tslint/config
 	return (object as IInputEventListener).onInputEvent !== undefined;
+}
+
+export const enum InputEventType {
+	Pinch,
+	PinchEnd,
+	PinchStart,
+	MouseClick,
+	MouseDoubleClick,
+	MouseDownOutside,
+	MouseDown,
+	MouseEnter,
+	MouseLeave,
+	MouseMove,
+	MouseUp,
+	PressedMouseMove,
+	LongTap,
 }
 
 export interface MouseEventHandlers {
@@ -34,22 +50,6 @@ export interface MouseEventHandlers {
 	mouseUpEvent?: HandlerEventCallback;
 	pressedMouseMoveEvent?: HandlerEventCallback;
 	longTapEvent?: HandlerEventCallback;
-}
-
-export const enum MouseEventType {
-	Pinch,
-	PinchEnd,
-	PinchStart,
-	MouseClick,
-	MouseDoubleClick,
-	MouseDownOutside,
-	MouseDown,
-	MouseEnter,
-	MouseLeave,
-	MouseMove,
-	MouseUp,
-	PressedMouseMove,
-	LongTap,
 }
 
 export interface TouchMouseEvent {

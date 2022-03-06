@@ -1,4 +1,4 @@
-import { IInputEventListener, MouseEventType, TouchMouseEvent } from '../../gui/mouse-event-handler';
+import { IInputEventListener, InputEventType, TouchMouseEvent } from '../../gui/mouse-event-handler';
 import { PaneWidget } from '../../gui/pane-widget';
 
 import { ensureNotNull } from '../../helpers/assertions';
@@ -38,20 +38,20 @@ export abstract class LineSourcePaneView implements IPaneView, IInputEventListen
 		this._model = model;
 	}
 
-	public onInputEvent(paneWidget: PaneWidget, eventType: MouseEventType, event?: TouchMouseEvent): void {
+	public onInputEvent(paneWidget: PaneWidget, eventType: InputEventType, event?: TouchMouseEvent): void {
 		if (!event || !this._renderer || !this._renderer.hitTest) { return; }
 
 		const crossHair = this._model.crosshairSource();
 		const appliedPoint = new Point(crossHair.appliedX(), crossHair.appliedY());
 		const originPoint = new Point(crossHair.originCoordX(), crossHair.originCoordY());
 
-		const changed = eventType === MouseEventType.PressedMouseMove
+		const changed = eventType === InputEventType.PressedMouseMove
 			? this._onPressedMouseMove(paneWidget, originPoint, appliedPoint)
-			: eventType === MouseEventType.MouseMove
+			: eventType === InputEventType.MouseMove
 			? this._onMouseMove(paneWidget, originPoint)
-			: eventType === MouseEventType.MouseDown
+			: eventType === InputEventType.MouseDown
 			? this._onMouseDown(paneWidget, originPoint)
-			: eventType === MouseEventType.MouseUp
+			: eventType === InputEventType.MouseUp
 			? this._onMouseUp()
 			: false;
 

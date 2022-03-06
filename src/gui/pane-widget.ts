@@ -26,9 +26,9 @@ import { createBoundCanvas, getContext2D, Size } from './canvas-utils';
 import { ChartWidget } from './chart-widget';
 import { KineticAnimation } from './kinetic-animation';
 import {
-	isMouseEventListener as isInputEventListener,
+	InputEventType,
+	isInputEventListener as isInputEventListener,
 	MouseEventHandler,
-	MouseEventType as InputEventType,
 	Position,
 	TouchMouseEvent,
 } from './mouse-event-handler';
