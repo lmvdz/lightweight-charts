@@ -9,6 +9,7 @@ import { DeepPartial, merge } from '../helpers/strict-type-checks';
 
 import { BarCoordinates, BarPrice, BarPrices } from './bar';
 import { Coordinate } from './coordinate';
+import { IDataSource } from './idata-source';
 import { FirstValue, IPriceDataSource } from './iprice-data-source';
 import { LayoutOptionsInternal } from './layout-options';
 import { LocalizationOptions } from './localization-options';
@@ -226,8 +227,8 @@ export class PriceScale {
 	private _modeChanged: Delegate<PriceScaleState, PriceScaleState> =
 		new Delegate();
 
-	private _dataSources: IPriceDataSource[] = [];
-	private _cachedOrderedSources: IPriceDataSource[] | null = null;
+	private _dataSources: IDataSource[] = [];
+	private _cachedOrderedSources: IDataSource[] | null = null;
 
 	private _marksCache: PriceMark[] | null = null;
 
@@ -598,16 +599,16 @@ export class PriceScale {
 		return value as BarPrice;
 	}
 
-	public dataSources(): readonly IPriceDataSource[] {
+	public dataSources(): readonly IDataSource[] {
 		return this._dataSources;
 	}
 
-	public orderedSources(): readonly IPriceDataSource[] {
+	public orderedSources(): readonly IDataSource[] {
 		if (this._cachedOrderedSources) {
 			return this._cachedOrderedSources;
 		}
 
-		let sources: IPriceDataSource[] = [];
+		let sources: IDataSource[] = [];
 		for (let i = 0; i < this._dataSources.length; i++) {
 			const ds = this._dataSources[i];
 			if (ds.zorder() === null) {
@@ -622,7 +623,7 @@ export class PriceScale {
 		return this._cachedOrderedSources;
 	}
 
-	public addDataSource(source: IPriceDataSource): void {
+	public addDataSource(source: IDataSource): void {
 		if (this._dataSources.indexOf(source) !== -1) {
 			return;
 		}
@@ -658,8 +659,9 @@ export class PriceScale {
 		let result: FirstValue | null = null;
 
 		for (const source of this._dataSources) {
-			const firstValue = source.firstValue();
-			if (firstValue === null) {
+			const priceSource = source as IPriceDataSource;
+			const firstValue = priceSource.firstValue?.bind(priceSource).call(this);
+			if (!firstValue) {
 				continue;
 			}
 
@@ -844,7 +846,7 @@ export class PriceScale {
 		return percentageFormatter.format(price);
 	}
 
-	public sourcesForAutoScale(): readonly IPriceDataSource[] {
+	public sourcesForAutoScale(): readonly IDataSource[] {
 		return this._dataSources;
 	}
 
@@ -856,7 +858,7 @@ export class PriceScale {
 	}
 
 	public updateAllViews(): void {
-		this._dataSources.forEach((s: IPriceDataSource) => s.updateAllViews());
+		this._dataSources.forEach((s: IDataSource) => s.updateAllViews());
 	}
 
 	public updateFormatter(): void {
@@ -899,7 +901,7 @@ export class PriceScale {
 	 * @returns The {@link IPriceDataSource} that will be used as the "formatter source" (take minMove for formatter).
 	 */
 	private _formatterSource(): IPriceDataSource | null {
-		return this._dataSources[0] || null;
+		return (this._dataSources[0] || null) as IPriceDataSource | null;
 	}
 
 	private _topMarginPx(): number {
@@ -977,16 +979,17 @@ export class PriceScale {
 		let marginBelow = 0;
 
 		for (const source of sources) {
-			if (!source.visible()) {
+			const priceSource = source as IPriceDataSource;
+			if (!priceSource.visible() || !priceSource.firstValue) {
 				continue;
 			}
 
-			const firstValue = source.firstValue();
+			const firstValue = priceSource.firstValue();
 			if (firstValue === null) {
 				continue;
 			}
 
-			const autoScaleInfo = source.autoscaleInfo(
+			const autoScaleInfo = priceSource.autoscaleInfo(
 				visibleBars.left(),
 				visibleBars.right()
 			);

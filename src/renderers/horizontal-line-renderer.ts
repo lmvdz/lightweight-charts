@@ -1,3 +1,4 @@
+import { CanvasRenderParams } from '../model/canvas-render-params';
 import { Coordinate } from '../model/coordinate';
 
 import { drawHorizontalLine, LineStyle, LineWidth, setLineStyle } from './draw-line';
@@ -21,7 +22,7 @@ export class HorizontalLineRenderer implements IPaneRenderer {
 		this._data = data;
 	}
 
-	public draw(ctx: CanvasRenderingContext2D, pixelRatio: number, isHovered: boolean, hitTestData?: unknown): void {
+	public draw(ctx: CanvasRenderingContext2D, renderParams: CanvasRenderParams): void {
 		if (this._data === null) {
 			return;
 		}
@@ -30,6 +31,7 @@ export class HorizontalLineRenderer implements IPaneRenderer {
 			return;
 		}
 
+		const pixelRatio = renderParams.pixelRatio;
 		const y = Math.round(this._data.y * pixelRatio);
 
 		if (y < 0 || y > Math.ceil(this._data.height * pixelRatio)) {

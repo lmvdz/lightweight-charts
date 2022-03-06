@@ -1,18 +1,17 @@
 import { ensureNever } from '../helpers/assertions';
 import { makeFont } from '../helpers/make-font';
 
-import { HoveredObject } from '../model/chart-model';
 import { Coordinate } from '../model/coordinate';
 import { SeriesMarkerAnchor, SeriesMarkerShape, SeriesMarkerStroke } from '../model/series-markers';
 import { TextWidthCache } from '../model/text-width-cache';
 import { SeriesItemsIndexesRange, TimedValue } from '../model/time-data';
 
 import { ScaledRenderer } from './scaled-renderer';
-import { drawArrow, hitTestArrow } from './series-markers-arrow';
-import { drawCircle, hitTestCircle } from './series-markers-circle';
-import { drawSquare, hitTestSquare } from './series-markers-square';
-import { drawText, hitTestText } from './series-markers-text';
-import { drawTriangle, hitTestTriangle } from './series-markers-triangle';
+import { drawArrow } from './series-markers-arrow';
+import { drawCircle } from './series-markers-circle';
+import { drawSquare } from './series-markers-square';
+import { drawText } from './series-markers-text';
+import { drawTriangle } from './series-markers-triangle';
 
 export interface SeriesMarkerText {
 	content: string;
@@ -59,25 +58,26 @@ export class SeriesMarkersRenderer extends ScaledRenderer {
 		}
 	}
 
-	public hitTest(x: Coordinate, y: Coordinate): HoveredObject | null {
-		if (this._data === null || this._data.visibleRange === null) {
-			return null;
-		}
+	// TODO: iosif check if neeeded
+	// public hitTest(point: Point): HoveredObject | null {
+	// 	if (this._data === null || this._data.visibleRange === null) {
+	// 		return null;
+	// 	}
 
-		for (let i = this._data.visibleRange.from; i < this._data.visibleRange.to; i++) {
-			const item = this._data.items[i];
-			if (hitTestItem(item, x, y)) {
-				return {
-					hitTestData: item.internalId,
-					externalId: item.externalId,
-				};
-			}
-		}
+	// 	for (let i = this._data.visibleRange.from; i < this._data.visibleRange.to; i++) {
+	// 		const item = this._data.items[i];
+	// 		if (hitTestItem(item, point.x, point.y)) {
+	// 			return {
+	// 				hitTestData: item.internalId,
+	// 				externalId: item.externalId,
+	// 			};
+	// 		}
+	// 	}
 
-		return null;
-	}
+	// 	return null;
+	// }
 
-	protected _drawImpl(ctx: CanvasRenderingContext2D, isHovered: boolean, hitTestData?: unknown): void {
+	protected _drawImpl(ctx: CanvasRenderingContext2D): void {
 		if (this._data === null || this._data.visibleRange === null) {
 			return;
 		}
@@ -146,29 +146,30 @@ function drawShape(item: SeriesMarkerRendererDataItem, ctx: CanvasRenderingConte
 	ensureNever(item.shape);
 }
 
-function hitTestItem(item: SeriesMarkerRendererDataItem, x: Coordinate, y: Coordinate): boolean {
-	if (item.text !== undefined && hitTestText(item.x, item.text.y, item.text.width, item.text.height, x, y)) {
-		return true;
-	}
+// TODO: iosif might not be needed
+// function hitTestItem(item: SeriesMarkerRendererDataItem, x: Coordinate, y: Coordinate): boolean {
+// 	if (item.text !== undefined && hitTestText(item.x, item.text.y, item.text.width, item.text.height, x, y)) {
+// 		return true;
+// 	}
 
-	return hitTestShape(item, x, y);
-}
+// 	return hitTestShape(item, x, y);
+// }
 
-function hitTestShape(item: SeriesMarkerRendererDataItem, x: Coordinate, y: Coordinate): boolean {
-	if (item.size === 0) {
-		return false;
-	}
+// function hitTestShape(item: SeriesMarkerRendererDataItem, x: Coordinate, y: Coordinate): boolean {
+// 	if (item.size === 0) {
+// 		return false;
+// 	}
 
-	switch (item.shape) {
-		case 'triangle':
-			return hitTestTriangle(item.x, item.y, item.size, x, y);
-		case 'arrowDown':
-			return hitTestArrow(true, item.x, item.y, item.size, x, y);
-		case 'arrowUp':
-			return hitTestArrow(false, item.x, item.y, item.size, x, y);
-		case 'circle':
-			return hitTestCircle(item.x, item.y, item.size, x, y);
-		case 'square':
-			return hitTestSquare(item.x, item.y, item.size, x, y);
-	}
-}
+// 	switch (item.shape) {
+// 		case 'triangle':
+// 			return hitTestTriangle(item.x, item.y, item.size, x, y);
+// 		case 'arrowDown':
+// 			return hitTestArrow(true, item.x, item.y, item.size, x, y);
+// 		case 'arrowUp':
+// 			return hitTestArrow(false, item.x, item.y, item.size, x, y);
+// 		case 'circle':
+// 			return hitTestCircle(item.x, item.y, item.size, x, y);
+// 		case 'square':
+// 			return hitTestSquare(item.x, item.y, item.size, x, y);
+// 	}
+// }

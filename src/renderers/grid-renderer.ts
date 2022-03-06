@@ -1,5 +1,6 @@
 import { ensureNotNull } from '../helpers/assertions';
 
+import { CanvasRenderParams } from '../model/canvas-render-params';
 import { PriceMark } from '../model/price-scale';
 
 import { LineStyle, setLineStyle, strokeInPixel } from './draw-line';
@@ -30,11 +31,12 @@ export class GridRenderer implements IPaneRenderer {
 		this._data = data;
 	}
 
-	public draw(ctx: CanvasRenderingContext2D, pixelRatio: number, isHovered: boolean, hitTestData?: unknown): void {
+	public draw(ctx: CanvasRenderingContext2D, renderParams: CanvasRenderParams): void {
 		if (this._data === null) {
 			return;
 		}
 
+		const pixelRatio = renderParams.pixelRatio;
 		const lineWidth = Math.max(1, Math.floor(pixelRatio));
 		ctx.lineWidth = lineWidth;
 

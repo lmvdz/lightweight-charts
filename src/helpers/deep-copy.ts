@@ -1,6 +1,4 @@
-export function deepCopy(
-	value: unknown | null | number | string | boolean | Record<string, unknown>
-): unknown {
+export function deepCopy<T>(value: T): T {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	let copy: any;
 	if (
@@ -29,5 +27,5 @@ export function deepCopy(
 		});
 	}
 
-	return copy;
+	return copy as T;
 }

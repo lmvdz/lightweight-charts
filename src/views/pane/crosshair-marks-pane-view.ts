@@ -60,7 +60,7 @@ export class CrosshairMarksPaneView implements IUpdatablePaneView {
 		this._validated.clear();
 	}
 
-	public renderer(height: number, width: number, pane: Pane, addAnchors?: boolean): IPaneRenderer | null {
+	public renderer(height: number, width: number, pane: Pane): IPaneRenderer | null {
 		let renderers = this._validated.get(pane);
 		if (!renderers) {
 			renderers = this._updateImpl(pane, height);

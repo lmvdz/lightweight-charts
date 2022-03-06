@@ -1,3 +1,5 @@
+import { CanvasRenderParams } from '../model/canvas-render-params';
+
 import { drawHorizontalLine, drawVerticalLine, LineStyle, LineWidth, setLineStyle } from './draw-line';
 import { IPaneRenderer } from './ipane-renderer';
 
@@ -24,11 +26,12 @@ export class CrosshairRenderer implements IPaneRenderer {
 		this._data = data;
 	}
 
-	public draw(ctx: CanvasRenderingContext2D, pixelRatio: number, isHovered: boolean, hitTestData?: unknown): void {
+	public draw(ctx: CanvasRenderingContext2D, renderParams: CanvasRenderParams): void {
 		if (this._data === null) {
 			return;
 		}
 
+		const pixelRatio = renderParams.pixelRatio;
 		const vertLinesVisible = this._data.vertLine.visible;
 		const horzLinesVisible = this._data.horzLine.visible;
 

@@ -1,3 +1,4 @@
+import { CanvasRenderParams } from '../model/canvas-render-params';
 import { PricedValue } from '../model/price-scale';
 import { SeriesItemsIndexesRange, TimedValue, TimePointIndex } from '../model/time-data';
 
@@ -36,10 +37,13 @@ export class PaneRendererHistogram implements IPaneRenderer {
 		this._precalculatedCache = [];
 	}
 
-	public draw(ctx: CanvasRenderingContext2D, pixelRatio: number, isHovered: boolean, hitTestData?: unknown): void {
+	public draw(ctx: CanvasRenderingContext2D, renderParams: CanvasRenderParams): void {
 		if (this._data === null || this._data.items.length === 0 || this._data.visibleRange === null) {
 			return;
 		}
+
+		const pixelRatio = renderParams.pixelRatio;
+
 		if (!this._precalculatedCache.length) {
 			this._fillPrecalculatedCache(pixelRatio);
 		}

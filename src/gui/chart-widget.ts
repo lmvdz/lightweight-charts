@@ -724,7 +724,7 @@ export class ChartWidget implements IDestroyable {
 
 		return {
 			time: clientTime,
-			point: (details && { x: details.x, y: details.y }) || undefined,
+			point: (details && new Point(details.x, details.y)) || undefined,
 			paneIndex: details?.paneIndex,
 			hoveredSeries,
 			seriesPrices,

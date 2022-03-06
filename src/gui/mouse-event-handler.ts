@@ -3,11 +3,22 @@ import { IDestroyable } from '../helpers/idestroyable';
 
 import { Coordinate } from '../model/coordinate';
 
+import { PaneWidget } from './pane-widget';
 import { mobileTouch } from './support-touch';
 
 export type HandlerEventCallback = (event: TouchMouseEvent) => void;
 export type EmptyCallback = () => void;
 export type PinchEventCallback = (middlePoint: Position, scale: number) => void;
+
+export interface IInputEventListener {
+	onInputEvent(paneWidget: PaneWidget, eventType: MouseEventType, event?: TouchMouseEvent): void;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function isMouseEventListener(object: any): object is IInputEventListener {
+	// eslint-disable-next-line @typescript-eslint/tslint/config
+	return (object as IInputEventListener).onInputEvent !== undefined;
+}
 
 export interface MouseEventHandlers {
 	pinchStartEvent?: EmptyCallback;
@@ -25,6 +36,22 @@ export interface MouseEventHandlers {
 	longTapEvent?: HandlerEventCallback;
 }
 
+export const enum MouseEventType {
+	Pinch,
+	PinchEnd,
+	PinchStart,
+	MouseClick,
+	MouseDoubleClick,
+	MouseDownOutside,
+	MouseDown,
+	MouseEnter,
+	MouseLeave,
+	MouseMove,
+	MouseUp,
+	PressedMouseMove,
+	LongTap,
+}
+
 export interface TouchMouseEvent {
 	readonly clientX: Coordinate;
 	readonly clientY: Coordinate;
@@ -40,6 +67,7 @@ export interface TouchMouseEvent {
 	readonly shiftKey: boolean;
 	readonly metaKey: boolean;
 
+	consumed?: boolean;
 	// TODO: remove this after rewriting MouseEventHandler to handle touch and mouse event separately
 	readonly type: 'touch' | 'mouse';
 

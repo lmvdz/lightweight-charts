@@ -5,10 +5,10 @@ import { clearRect, clearRectWithGradient, drawScaled } from '../helpers/canvas-
 import { IDestroyable } from '../helpers/idestroyable';
 import { makeFont } from '../helpers/make-font';
 
+import { CanvasRenderParams } from '../model/canvas-render-params';
 import { Coordinate } from '../model/coordinate';
 import { IDataSource } from '../model/idata-source';
 import { InvalidationLevel } from '../model/invalidate-mask';
-import { IPriceDataSource } from '../model/iprice-data-source';
 import { LayoutOptionsInternal } from '../model/layout-options';
 import { PriceScalePosition } from '../model/pane';
 import { PriceScale } from '../model/price-scale';
@@ -290,21 +290,25 @@ export class PriceAxisWidget implements IDestroyable {
 
 		if (type !== InvalidationLevel.Cursor) {
 			const ctx = getContext2D(this._canvasBinding.canvas);
+			const renderParams = this._pane.canvasRenderParams(this._canvasBinding);
+
 			this._alignLabels();
-			this._drawBackground(ctx, this._canvasBinding.pixelRatio);
-			this._drawBorder(ctx, this._canvasBinding.pixelRatio);
-			this._drawTickMarks(ctx, this._canvasBinding.pixelRatio);
-			this._drawBackLabels(ctx, this._canvasBinding.pixelRatio);
+			this._drawBackground(ctx, renderParams);
+			this._drawBorder(ctx, renderParams);
+			this._drawTickMarks(ctx, renderParams);
+			this._drawBackLabels(ctx, renderParams);
 		}
 
 		const topCtx = getContext2D(this._topCanvasBinding.canvas);
+		const renderParams = this._pane.canvasRenderParams(this._topCanvasBinding);
+
 		const width = this._size.w;
 		const height = this._size.h;
-		drawScaled(topCtx, this._topCanvasBinding.pixelRatio, () => {
+		drawScaled(topCtx, renderParams.pixelRatio, () => {
 			topCtx.clearRect(0, 0, width, height);
 		});
 
-		this._drawCrosshairLabel(topCtx, this._topCanvasBinding.pixelRatio);
+		this._drawCrosshairLabel(topCtx, renderParams);
 	}
 
 	public getImage(): HTMLCanvasElement {
@@ -401,13 +405,13 @@ export class PriceAxisWidget implements IDestroyable {
 		return res;
 	}
 
-	private _drawBackground(ctx: CanvasRenderingContext2D, pixelRatio: number): void {
+	private _drawBackground(ctx: CanvasRenderingContext2D, renderParams: CanvasRenderParams): void {
 		if (this._size === null) {
 			return;
 		}
 		const width = this._size.w;
 		const height = this._size.h;
-		drawScaled(ctx, pixelRatio, () => {
+		drawScaled(ctx, renderParams.pixelRatio, () => {
 			const model = this._pane.state().model();
 			const topColor = model.backgroundTopColor();
 			const bottomColor = model.backgroundBottomColor();
@@ -420,14 +424,14 @@ export class PriceAxisWidget implements IDestroyable {
 		});
 	}
 
-	private _drawBorder(ctx: CanvasRenderingContext2D, pixelRatio: number): void {
+	private _drawBorder(ctx: CanvasRenderingContext2D, renderParams: CanvasRenderParams): void {
 		if (this._size === null || this._priceScale === null || !this._priceScale.options().borderVisible) {
 			return;
 		}
 		ctx.save();
-
 		ctx.fillStyle = this.lineColor();
 
+		const pixelRatio = renderParams.pixelRatio;
 		const borderSize = Math.max(1, Math.floor(this.rendererOptions().borderSize * pixelRatio));
 
 		let left: number;
@@ -441,15 +445,14 @@ export class PriceAxisWidget implements IDestroyable {
 		ctx.restore();
 	}
 
-	private _drawTickMarks(ctx: CanvasRenderingContext2D, pixelRatio: number): void {
+	private _drawTickMarks(ctx: CanvasRenderingContext2D, renderParams: CanvasRenderParams): void {
 		if (this._size === null || this._priceScale === null) {
 			return;
 		}
-
+		const pixelRatio = renderParams.pixelRatio;
 		const tickMarks = this._priceScale.marks();
 
 		ctx.save();
-
 		ctx.strokeStyle = this.lineColor();
 
 		ctx.font = this.baseFont();
@@ -503,7 +506,7 @@ export class PriceAxisWidget implements IDestroyable {
 		const isDefault = this._priceScale === paneState.defaultVisiblePriceScale();
 
 		if (isDefault) {
-			this._pane.state().orderedSources().forEach((source: IPriceDataSource) => {
+			this._pane.state().orderedSources().forEach((source: IDataSource) => {
 				if (paneState.isOverlay(source)) {
 					orderedSources.push(source);
 				}
@@ -579,7 +582,7 @@ export class PriceAxisWidget implements IDestroyable {
 		}
 	}
 
-	private _drawBackLabels(ctx: CanvasRenderingContext2D, pixelRatio: number): void {
+	private _drawBackLabels(ctx: CanvasRenderingContext2D, renderParams: CanvasRenderParams): void {
 		if (this._size === null) {
 			return;
 		}
@@ -588,6 +591,7 @@ export class PriceAxisWidget implements IDestroyable {
 
 		const size = this._size;
 		const views = this._backLabels();
+		const pixelRatio = renderParams.pixelRatio;
 
 		const rendererOptions = this.rendererOptions();
 		const align = this._isLeft ? 'right' : 'left';
@@ -604,7 +608,7 @@ export class PriceAxisWidget implements IDestroyable {
 		ctx.restore();
 	}
 
-	private _drawCrosshairLabel(ctx: CanvasRenderingContext2D, pixelRatio: number): void {
+	private _drawCrosshairLabel(ctx: CanvasRenderingContext2D, renderParams: CanvasRenderParams): void {
 		if (this._size === null || this._priceScale === null) {
 			return;
 		}
@@ -613,6 +617,7 @@ export class PriceAxisWidget implements IDestroyable {
 
 		const size = this._size;
 		const model = this._pane.chart().model();
+		const pixelRatio = renderParams.pixelRatio;
 
 		const views: IPriceAxisViewArray[] = []; // array of arrays
 		const pane = this._pane.state();

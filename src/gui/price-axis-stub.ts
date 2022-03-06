@@ -3,6 +3,7 @@ import { Binding as CanvasCoordinateSpaceBinding } from 'fancy-canvas/coordinate
 import { clearRect, drawScaled } from '../helpers/canvas-helpers';
 import { IDestroyable } from '../helpers/idestroyable';
 
+import { CanvasRenderParams } from '../model/canvas-render-params';
 import { ChartOptionsInternal } from '../model/chart-model';
 import { InvalidationLevel } from '../model/invalidate-mask';
 import { PriceAxisRendererOptionsProvider } from '../renderers/price-axis-renderer-options-provider';
@@ -98,19 +99,22 @@ export class PriceAxisStub implements IDestroyable {
 		this._invalidated = false;
 
 		const ctx = getContext2D(this._canvasBinding.canvas);
-		this._drawBackground(ctx, this._canvasBinding.pixelRatio);
-		this._drawBorder(ctx, this._canvasBinding.pixelRatio);
+		const renderParams = { pixelRatio: this._canvasBinding.pixelRatio } as unknown as CanvasRenderParams;
+
+		this._drawBackground(ctx, renderParams);
+		this._drawBorder(ctx, renderParams);
 	}
 
 	public getImage(): HTMLCanvasElement {
 		return this._canvasBinding.canvas;
 	}
 
-	private _drawBorder(ctx: CanvasRenderingContext2D, pixelRatio: number): void {
+	private _drawBorder(ctx: CanvasRenderingContext2D, renderParams: CanvasRenderParams): void {
 		if (!this._borderVisible()) {
 			return;
 		}
 		const width = this._size.w;
+		const pixelRatio = renderParams.pixelRatio;
 
 		ctx.save();
 
@@ -124,8 +128,8 @@ export class PriceAxisStub implements IDestroyable {
 		ctx.restore();
 	}
 
-	private _drawBackground(ctx: CanvasRenderingContext2D, pixelRatio: number): void {
-		drawScaled(ctx, pixelRatio, () => {
+	private _drawBackground(ctx: CanvasRenderingContext2D, renderParams: CanvasRenderParams): void {
+		drawScaled(ctx, renderParams.pixelRatio, () => {
 			clearRect(ctx, 0, 0, this._size.w, this._size.h, this._bottomColor());
 		});
 	}

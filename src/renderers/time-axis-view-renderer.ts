@@ -1,11 +1,14 @@
 import { ensureNotNull } from '../helpers/assertions';
 import { drawScaled } from '../helpers/canvas-helpers';
 
+import { CanvasRenderParams } from '../model/canvas-render-params';
+
 import { ITimeAxisViewRenderer, TimeAxisViewRendererOptions } from './itime-axis-view-renderer';
 
 export interface TimeAxisViewRendererData {
 	width: number;
 	text: string;
+	tickVisible: boolean;
 	coordinate: number;
 	color: string;
 	background: string;
@@ -25,13 +28,14 @@ export class TimeAxisViewRenderer implements ITimeAxisViewRenderer {
 		this._data = data;
 	}
 
-	public draw(ctx: CanvasRenderingContext2D, rendererOptions: TimeAxisViewRendererOptions, pixelRatio: number): void {
+	public draw(ctx: CanvasRenderingContext2D, rendererOptions: TimeAxisViewRendererOptions, renderParams: CanvasRenderParams): void {
 		if (this._data === null || this._data.visible === false || this._data.text.length === 0) {
 			return;
 		}
 
 		ctx.font = rendererOptions.font;
 
+		const pixelRatio = renderParams.pixelRatio;
 		const textWidth = Math.round(rendererOptions.widthCache.measureText(ctx, this._data.text, optimizationReplacementRe));
 		if (textWidth <= 0) {
 			return;
@@ -73,20 +77,22 @@ export class TimeAxisViewRenderer implements ITimeAxisViewRenderer {
 		const y2scaled = Math.round(y2 * pixelRatio);
 		ctx.fillRect(x1scaled, y1scaled, x2scaled - x1scaled, y2scaled - y1scaled);
 
-		const tickX = Math.round(this._data.coordinate * pixelRatio);
-		const tickTop = y1scaled;
-		const tickBottom = Math.round((tickTop + rendererOptions.borderSize + rendererOptions.tickLength) * pixelRatio);
+		if (this._data.tickVisible) {
+			const tickX = Math.round(this._data.coordinate * pixelRatio);
+			const tickTop = y1scaled;
+			const tickBottom = Math.round((tickTop + rendererOptions.borderSize + rendererOptions.tickLength) * pixelRatio);
 
-		ctx.fillStyle = this._data.color;
-		const tickWidth = Math.max(1, Math.floor(pixelRatio));
-		const tickOffset = Math.floor(pixelRatio * 0.5);
-		ctx.fillRect(tickX - tickOffset, tickTop, tickWidth, tickBottom - tickTop);
+			ctx.fillStyle = this._data.color;
+			const tickWidth = Math.max(1, Math.floor(pixelRatio));
+			const tickOffset = Math.floor(pixelRatio * 0.5);
+			ctx.fillRect(tickX - tickOffset, tickTop, tickWidth, tickBottom - tickTop);
+		}
 
 		const yText = y2 - rendererOptions.baselineOffset - rendererOptions.paddingBottom;
 		ctx.textAlign = 'left';
 		ctx.fillStyle = this._data.color;
 
-		drawScaled(ctx, pixelRatio, () => {
+		drawScaled(ctx, renderParams.pixelRatio, () => {
 			ctx.fillText(ensureNotNull(this._data).text, x1 + horzMargin, yText);
 		});
 

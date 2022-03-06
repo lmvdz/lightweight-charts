@@ -33,20 +33,6 @@ export interface CrosshairTimeAndCoordinate {
 export type PriceAndCoordinateProvider = (priceScale: PriceScale) => CrosshairPriceAndCoordinate;
 export type TimeAndCoordinateProvider = () => CrosshairTimeAndCoordinate;
 
-/**
- * Represents the crosshair mode.
- */
-export const enum CrosshairMode {
-	/**
-	 * This mode allows crosshair to move freely on the chart.
-	 */
-	Normal,
-	/**
-	 * This mode sticks crosshair's horizontal line to the price value of a single-value series or to the close price of OHLC-based series.
-	 */
-	Magnet,
-}
-
 /** Structure describing a crosshair line (vertical or horizontal) */
 export interface CrosshairLineOptions {
 	/**
@@ -101,12 +87,9 @@ export interface CrosshairLineOptions {
 /** Structure describing crosshair options  */
 export interface CrosshairOptions {
 	/**
-	 * Crosshair mode
-	 *
-	 * @defaultValue {@link CrosshairMode.Magnet}
+	 * The threashold of the magnet
 	 */
-	mode: CrosshairMode;
-
+	magnetThreshold: number;
 	/**
 	 * Vertical line options.
 	 */
@@ -248,7 +231,7 @@ export class Crosshair extends DataSource {
 		this.clearOriginCoord();
 	}
 
-	public paneViews(pane: Pane): readonly IPaneView[] {
+	public paneViews(): readonly IPaneView[] {
 		return this._pane !== null ? [this._paneView, this._markersPaneView] : [];
 	}
 

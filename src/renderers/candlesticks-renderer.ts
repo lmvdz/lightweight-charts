@@ -1,5 +1,6 @@
 import { fillRectInnerBorder } from '../helpers/canvas-helpers';
 
+import { CanvasRenderParams } from '../model/canvas-render-params';
 import { SeriesItemsIndexesRange } from '../model/time-data';
 
 import { BarCandlestickItemBase } from './bars-renderer';
@@ -37,10 +38,11 @@ export class PaneRendererCandlesticks implements IPaneRenderer {
 		this._data = data;
 	}
 
-	public draw(ctx: CanvasRenderingContext2D, pixelRatio: number, isHovered: boolean, hitTestData?: unknown): void {
+	public draw(ctx: CanvasRenderingContext2D, renderParams: CanvasRenderParams): void {
 		if (this._data === null || this._data.bars.length === 0 || this._data.visibleRange === null) {
 			return;
 		}
+		const pixelRatio = renderParams.pixelRatio;
 
 		// now we know pixelRatio and we could calculate barWidth effectively
 		this._barWidth = optimalCandlestickWidth(this._data.barSpacing, pixelRatio);

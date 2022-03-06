@@ -7,6 +7,7 @@ import { clone, DeepPartial } from '../helpers/strict-type-checks';
 import { ChartModel, ChartOptions, OverlayPriceScaleOptions, VisiblePriceScaleOptions } from './chart-model';
 import { DefaultPriceScaleId, isDefaultPriceScale } from './default-price-scale';
 import { Grid } from './grid';
+import { IDataSource } from './idata-source';
 import { IPriceDataSource } from './iprice-data-source';
 import { PriceScale, PriceScaleOptions, PriceScaleState } from './price-scale';
 import { sortSources } from './sort-sources';
@@ -27,18 +28,30 @@ export interface PaneInfo {
 	paneIndex?: number;
 }
 
+export enum PaneCursorType {
+	Default = 'default',
+	Crosshair = 'crosshair',
+	Pointer = 'pointer',
+	Grabbing = 'grabbing',
+	ZoomIn = 'zoom-in',
+	VerticalResize = 'n-resize',
+	HorizontalResize = 'e-resize',
+	DiagonalNeSwResize = 'nesw-resize',
+	DiagonalNwSeResize = 'nwse-resize',
+}
+
 export class Pane implements IDestroyable {
 	private readonly _timeScale: TimeScale;
 	private readonly _model: ChartModel;
 	private readonly _grid: Grid;
 
-	private _dataSources: IPriceDataSource[] = [];
-	private _overlaySourcesByScaleId: Map<string, IPriceDataSource[]> = new Map();
+	private _dataSources: IDataSource[] = [];
+	private _overlaySourcesByScaleId: Map<string, IDataSource[]> = new Map();
 
 	private _height: number = 0;
 	private _width: number = 0;
 	private _stretchFactor: number = DEFAULT_STRETCH_FACTOR;
-	private _cachedOrderedSources: readonly IPriceDataSource[] | null = null;
+	private _cachedOrderedSources: readonly IDataSource[] | null = null;
 
 	private _destroyed: Delegate = new Delegate();
 
@@ -115,7 +128,7 @@ export class Pane implements IDestroyable {
 		this._leftPriceScale.modeChanged().unsubscribeAll(this);
 		this._rightPriceScale.modeChanged().unsubscribeAll(this);
 
-		this._dataSources.forEach((source: IPriceDataSource) => {
+		this._dataSources.forEach((source: IDataSource) => {
 			if (source.destroy) {
 				source.destroy();
 			}
@@ -155,7 +168,7 @@ export class Pane implements IDestroyable {
 		this._rightPriceScale.setHeight(height);
 
 		// process overlays
-		this._dataSources.forEach((ds: IPriceDataSource) => {
+		this._dataSources.forEach((ds: IDataSource) => {
 			if (this.isOverlay(ds)) {
 				const priceScale = ds.priceScale();
 				if (priceScale !== null) {
@@ -167,11 +180,11 @@ export class Pane implements IDestroyable {
 		this.updateAllSources();
 	}
 
-	public dataSources(): readonly IPriceDataSource[] {
+	public dataSources(): readonly IDataSource[] {
 		return this._dataSources;
 	}
 
-	public isOverlay(source: IPriceDataSource): boolean {
+	public isOverlay(source: IDataSource): boolean {
 		const priceScale = source.priceScale();
 		if (priceScale === null) {
 			return true;
@@ -179,7 +192,7 @@ export class Pane implements IDestroyable {
 		return this._leftPriceScale !== priceScale && this._rightPriceScale !== priceScale;
 	}
 
-	public addDataSource(source: IPriceDataSource, targetScaleId: string, zOrder?: number): void {
+	public addDataSource(source: IDataSource, targetScaleId: string, zOrder?: number): void {
 		const targetZOrder = (zOrder !== undefined) ? zOrder : this._getZOrderMinMax().maxZOrder + 1;
 		this._insertDataSource(source, targetScaleId, targetZOrder);
 	}
@@ -265,7 +278,7 @@ export class Pane implements IDestroyable {
 	}
 
 	public updateAllSources(): void {
-		this._dataSources.forEach((source: IPriceDataSource) => {
+		this._dataSources.forEach((source: IDataSource) => {
 			source.updateAllViews();
 		});
 	}
@@ -325,7 +338,7 @@ export class Pane implements IDestroyable {
 		this.recalculatePriceScale(this._leftPriceScale);
 		this.recalculatePriceScale(this._rightPriceScale);
 
-		this._dataSources.forEach((ds: IPriceDataSource) => {
+		this._dataSources.forEach((ds: IDataSource) => {
 			if (this.isOverlay(ds)) {
 				this.recalculatePriceScale(ds.priceScale());
 			}
@@ -335,7 +348,7 @@ export class Pane implements IDestroyable {
 		this._model.lightUpdate();
 	}
 
-	public orderedSources(): readonly IPriceDataSource[] {
+	public orderedSources(): readonly IDataSource[] {
 		if (this._cachedOrderedSources === null) {
 			this._cachedOrderedSources = sortSources(this._dataSources);
 		}
@@ -390,7 +403,7 @@ export class Pane implements IDestroyable {
 		return { minZOrder: minZOrder, maxZOrder: maxZOrder };
 	}
 
-	private _insertDataSource(source: IPriceDataSource, priceScaleId: string, zOrder: number): void {
+	private _insertDataSource(source: IDataSource, priceScaleId: string, zOrder: number): void {
 		let priceScale = this.priceScaleById(priceScaleId);
 
 		if (priceScale === null) {

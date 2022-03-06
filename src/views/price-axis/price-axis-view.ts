@@ -20,7 +20,7 @@ export abstract class PriceAxisView implements IPriceAxisView {
 	private readonly _axisRendererData: PriceAxisViewRendererData = {
 		text: '',
 		visible: false,
-		tickVisible: true,
+		tickVisible: false,
 		moveTextToInvisibleTick: false,
 		borderColor: '',
 	};

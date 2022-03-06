@@ -16,6 +16,7 @@ export class CrosshairTimeAxisView implements ITimeAxisView {
 	private readonly _rendererData: TimeAxisViewRendererData = {
 		visible: false,
 		background: '#4c525e',
+		tickVisible: false,
 		color: 'white',
 		text: '',
 		width: 0,

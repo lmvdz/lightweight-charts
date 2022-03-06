@@ -1,6 +1,7 @@
 import { ensureNotNull } from '../helpers/assertions';
 
 import { BarCoordinates, BarPrices } from '../model/bar';
+import { CanvasRenderParams } from '../model/canvas-render-params';
 import { SeriesItemsIndexesRange, TimedValue } from '../model/time-data';
 
 import { IPaneRenderer } from './ipane-renderer';
@@ -31,11 +32,12 @@ export class PaneRendererBars implements IPaneRenderer {
 	}
 
 	// eslint-disable-next-line complexity
-	public draw(ctx: CanvasRenderingContext2D, pixelRatio: number, isHovered: boolean, hitTestData?: unknown): void {
+	public draw(ctx: CanvasRenderingContext2D, renderParams: CanvasRenderParams): void {
 		if (this._data === null || this._data.bars.length === 0 || this._data.visibleRange === null) {
 			return;
 		}
 
+		const pixelRatio = renderParams.pixelRatio;
 		this._barWidth = this._calcBarWidth(pixelRatio);
 
 		// grid and crosshair have line width = Math.floor(pixelRatio)

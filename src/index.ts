@@ -2,12 +2,14 @@
 
 export { LineStyle, LineType } from './renderers/draw-line';
 
-export { CrosshairMode } from './model/crosshair';
 export { PriceScaleMode } from './model/price-scale';
 export { TimeScaleMode } from './model/time-scale';
 export { PriceLineSource, LastPriceAnimationMode, LasPriceAnimationMode } from './model/series-options';
+export { BoxHorizontalAlignment, BoxVerticalAlignment } from './model/line-tool-options';
 export { TickMarkType } from './model/time-scale';
 export { ColorType } from './model/layout-options';
+export { LineCap } from './renderers/draw-line';
+export { TextAlignment } from './model/line-tool-options';
 
 export {
 	isBusinessDay,

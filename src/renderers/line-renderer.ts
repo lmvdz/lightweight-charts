@@ -1,8 +1,8 @@
+import { IPoint } from '../model/point';
 import { PricedValue } from '../model/price-scale';
 import { SeriesItemsIndexesRange, TimedValue } from '../model/time-data';
 
 import {
-	LinePoint,
 	LineStyle,
 	LineType,
 	LineWidth,
@@ -13,7 +13,7 @@ import { walkLine } from './walk-line';
 
 export type LineItem = TimedValue &
 	PricedValue &
-	LinePoint & { color?: string };
+	IPoint & { color?: string };
 
 export interface PaneRendererLineDataBase {
 	lineType: LineType;

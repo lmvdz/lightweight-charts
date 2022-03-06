@@ -6,6 +6,7 @@ import { IDestroyable } from '../helpers/idestroyable';
 import { ISubscription } from '../helpers/isubscription';
 import { makeFont } from '../helpers/make-font';
 
+import { CanvasRenderParams } from '../model/canvas-render-params';
 import { IDataSource } from '../model/idata-source';
 import { InvalidationLevel } from '../model/invalidate-mask';
 import { LayoutOptionsInternal } from '../model/layout-options';
@@ -253,13 +254,12 @@ export class TimeAxisWidget implements MouseEventHandlers, IDestroyable {
 
 		if (type !== InvalidationLevel.Cursor) {
 			const ctx = getContext2D(this._canvasBinding.canvas);
-			this._drawBackground(ctx, this._canvasBinding.pixelRatio);
-			this._drawBorder(ctx, this._canvasBinding.pixelRatio);
+			const renderParams = this._chart.paneWidgets()[0].canvasRenderParams(this._canvasBinding);
 
-			this._drawTickMarks(ctx, this._canvasBinding.pixelRatio);
-			// atm we don't have sources to be drawn on time axis except crosshair which is rendered on top level canvas
-			// so let's don't call this code at all for now
-			// this._drawLabels(this._chart.model().dataSources(), ctx, pixelRatio);
+			this._drawBackground(ctx, renderParams);
+			this._drawBorder(ctx, renderParams);
+			this._drawTickMarks(ctx, renderParams);
+			this._drawLabels(this._chart.model().dataSources(), ctx, renderParams);
 
 			if (this._leftStub !== null) {
 				this._leftStub.paint(type);
@@ -270,24 +270,26 @@ export class TimeAxisWidget implements MouseEventHandlers, IDestroyable {
 		}
 
 		const topCtx = getContext2D(this._topCanvasBinding.canvas);
+		const renderParams = this._chart.paneWidgets()[0].canvasRenderParams(this._topCanvasBinding);
 		const pixelRatio = this._topCanvasBinding.pixelRatio;
 
 		topCtx.clearRect(0, 0, Math.ceil(this._size.w * pixelRatio), Math.ceil(this._size.h * pixelRatio));
-		this._drawLabels([this._chart.model().crosshairSource()], topCtx, pixelRatio);
+		this._drawLabels([this._chart.model().crosshairSource()], topCtx, renderParams);
 	}
 
-	private _drawBackground(ctx: CanvasRenderingContext2D, pixelRatio: number): void {
-		drawScaled(ctx, pixelRatio, () => {
+	private _drawBackground(ctx: CanvasRenderingContext2D, renderParams: CanvasRenderParams): void {
+		drawScaled(ctx, renderParams.pixelRatio, () => {
 			clearRect(ctx, 0, 0, this._size.w, this._size.h, this._chart.model().backgroundBottomColor());
 		});
 	}
 
-	private _drawBorder(ctx: CanvasRenderingContext2D, pixelRatio: number): void {
+	private _drawBorder(ctx: CanvasRenderingContext2D, renderParams: CanvasRenderParams): void {
 		if (this._chart.options().timeScale.borderVisible) {
 			ctx.save();
 
 			ctx.fillStyle = this._lineColor();
 
+			const pixelRatio = renderParams.pixelRatio;
 			const borderSize = Math.max(1, Math.floor(this._getRendererOptions().borderSize * pixelRatio));
 
 			ctx.fillRect(0, 0, Math.ceil(this._size.w * pixelRatio), borderSize);
@@ -295,13 +297,14 @@ export class TimeAxisWidget implements MouseEventHandlers, IDestroyable {
 		}
 	}
 
-	private _drawTickMarks(ctx: CanvasRenderingContext2D, pixelRatio: number): void {
+	private _drawTickMarks(ctx: CanvasRenderingContext2D, renderParams: CanvasRenderParams): void {
 		const tickMarks = this._chart.model().timeScale().marks();
 
 		if (!tickMarks || tickMarks.length === 0) {
 			return;
 		}
 
+		const pixelRatio = renderParams.pixelRatio;
 		let maxWeight = tickMarks.reduce(markWithGreaterWeight, tickMarks[0]).weight;
 
 		// special case: it looks strange if 15:00 is bold but 14:00 is not
@@ -343,7 +346,7 @@ export class TimeAxisWidget implements MouseEventHandlers, IDestroyable {
 
 		ctx.fillStyle = this._textColor();
 
-		drawScaled(ctx, pixelRatio, () => {
+		drawScaled(ctx, renderParams.pixelRatio, () => {
 			// draw base marks
 			ctx.font = this._baseFont();
 			for (const tickMark of tickMarks) {
@@ -376,12 +379,12 @@ export class TimeAxisWidget implements MouseEventHandlers, IDestroyable {
 		return coordinate;
 	}
 
-	private _drawLabels(sources: readonly IDataSource[], ctx: CanvasRenderingContext2D, pixelRatio: number): void {
+	private _drawLabels(sources: readonly IDataSource[], ctx: CanvasRenderingContext2D, renderParams: CanvasRenderParams): void {
 		const rendererOptions = this._getRendererOptions();
 		for (const source of sources) {
 			for (const view of source.timeAxisViews()) {
 				ctx.save();
-				view.renderer().draw(ctx, rendererOptions, pixelRatio);
+				view.renderer().draw(ctx, rendererOptions, renderParams);
 				ctx.restore();
 			}
 		}

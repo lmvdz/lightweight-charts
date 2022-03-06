@@ -1,4 +1,4 @@
-import { CrosshairMode, CrosshairOptions } from '../../model/crosshair';
+import { CrosshairOptions } from '../../model/crosshair';
 import { LineStyle } from '../../renderers/draw-line';
 
 export const crosshairOptionsDefaults: CrosshairOptions = {
@@ -18,5 +18,5 @@ export const crosshairOptionsDefaults: CrosshairOptions = {
 		labelVisible: true,
 		labelBackgroundColor: '#4c525e',
 	},
-	mode: CrosshairMode.Magnet,
+	magnetThreshold: 14,
 };

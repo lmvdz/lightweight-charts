@@ -506,12 +506,27 @@ export class TimeScale {
 	}
 
 	public timeToCoordinate(timePoint: TimePoint): Coordinate {
-		const intervalRange = this._visibleValueRange.logicalRange();
-		const start = intervalRange?.left() || 0;
-		const end = intervalRange?.right() || 0;
-
-		const utc = timePoint.timestamp as number;
-		return this._width * ((utc - start) / (end - start)) as Coordinate;
+		if (this._options.mode === TimeScaleMode.Euclidean) {
+			const intervalRange = this._visibleValueRange.logicalRange();
+			const start = intervalRange?.left() || 0;
+			const end = intervalRange?.right() || 0;
+			const utc = timePoint.timestamp as number;
+			return this._width * ((utc - start) / (end - start)) as Coordinate;
+		} else {
+			const index = this.timeToIndex(timePoint, true);
+			const timestamp = this._points[index as number].time.timestamp;
+			const x = this.indexToCoordinate(index as TimePointIndex);
+			if (timestamp === timePoint.timestamp) {
+				return x;
+			} else if (index === 0 || index === this._points.length - 1) {
+				const interval = this._points[1].time.timestamp - this._points[0].time.timestamp;
+				const timeDiff = timePoint.timestamp - timestamp;
+				const bars = timeDiff / interval;
+				return x + (bars * this.barSpacing()) as Coordinate;
+			} else {
+				return x;
+			}
+		}
 	}
 
 	public coordinateToIndex(x: Coordinate): TimePointIndex {
@@ -519,7 +534,17 @@ export class TimeScale {
 	}
 
 	public coordinateToTime(x: Coordinate): TimePoint {
+		const interval = this._points[1].time.timestamp - this._points[0].time.timestamp;
 		const index = this.coordinateToIndex(x);
+
+		if (index >= this._points.length) {
+			const extraTime = interval * (index - this._points.length);
+			return { timestamp: this._points[this._points.length - 1].time.timestamp + extraTime as UTCTimestamp };
+		} else if (index < 0) {
+			const extraTime = interval * -index;
+			return { timestamp: this._points[0].time.timestamp - extraTime as UTCTimestamp };
+		}
+
 		return this._points[index].time;
 	}
 
