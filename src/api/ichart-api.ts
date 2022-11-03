@@ -3,7 +3,7 @@ import { DeepPartial } from '../helpers/strict-type-checks';
 import { BarPrice, BarPrices } from '../model/bar';
 import { ChartOptions } from '../model/chart-model';
 import { LineToolPoint } from '../model/line-tool';
-import { TrendLineToolPartialOptions } from '../model/line-tool-options';
+import { LineToolPartialOptionsMap, LineToolType } from '../model/line-tool-options';
 import { Point } from '../model/point';
 import { SeriesMarker } from '../model/series-markers';
 import {
@@ -155,15 +155,13 @@ export interface IChartApi {
 
 	/**
 	 * Creates a line tool with specified parameters.
-	 *
-	 * @param options - Customization parameters of the tool being created.
-	 * @returns An interface of the created line tool.
-	 * @example
-	 * ```js
-	 * const series = chart.addLineSeries();
-	 * ```
 	 */
-	addTrendTool(options: TrendLineToolPartialOptions, points: LineToolPoint[]): ILineToolApi<'Trend'>;
+	addLineTool<T extends LineToolType>(name: T, points: LineToolPoint[], options: LineToolPartialOptionsMap[T]): ILineToolApi<T>;
+
+	/**
+	 * Sets the active line tool with specified parameters.
+	 */
+	setActiveLineTool<T extends LineToolType>(name: T, options: LineToolPartialOptionsMap[T]): void;
 
 	/**
 	 * Removes a series of any type. This is an irreversible operation, you cannot do anything with the series after removing it.

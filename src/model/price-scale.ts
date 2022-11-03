@@ -858,7 +858,7 @@ export class PriceScale {
 	}
 
 	public updateAllViews(): void {
-		this._dataSources.forEach((s: IDataSource) => s.updateAllViews());
+		this._dataSources.forEach((source: IDataSource) => source.updateAllViews());
 	}
 
 	public updateFormatter(): void {

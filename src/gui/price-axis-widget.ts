@@ -14,8 +14,9 @@ import { PriceScalePosition } from '../model/pane';
 import { PriceScale } from '../model/price-scale';
 import { TextWidthCache } from '../model/text-width-cache';
 import { PriceAxisViewRendererOptions } from '../renderers/iprice-axis-view-renderer';
-import { PriceAxisRendererOptionsProvider } from '../renderers/price-axis-renderer-options-provider';
+import { PriceAxisRendererOptionsProvider } from '../renderers/price-axis-label-renderer-options-provider';
 import { IPriceAxisView } from '../views/price-axis/iprice-axis-view';
+import { PriceAxisLabelView } from '../views/price-axis/price-axis-label-view';
 
 import { createBoundCanvas, getContext2D, Size } from './canvas-utils';
 import { LabelsImageCache } from './labels-image-cache';
@@ -153,6 +154,7 @@ export class PriceAxisWidget implements IDestroyable {
 
 	public rendererOptions(): Readonly<PriceAxisViewRendererOptions> {
 		const options = this._rendererOptionsProvider.options();
+		options.align = this._isLeft ? 'right' : 'left';
 
 		const isColorChanged = this._color !== options.color;
 		const isFontChanged = this._font !== options.font;
@@ -207,7 +209,7 @@ export class PriceAxisWidget implements IDestroyable {
 			);
 		}
 
-		const views = this._backLabels();
+		const views = this._dataSources().filter((view: IPriceAxisView) => view instanceof PriceAxisLabelView) as PriceAxisLabelView[];
 		for (let j = views.length; j--;) {
 			const width = this._widthCache.measureText(ctx, views[j].text());
 			if (width > tickMarkMaxWidth) {
@@ -295,8 +297,10 @@ export class PriceAxisWidget implements IDestroyable {
 			this._alignLabels();
 			this._drawBackground(ctx, renderParams);
 			this._drawBorder(ctx, renderParams);
+
+			this._drawSources(ctx, renderParams, true);
 			this._drawTickMarks(ctx, renderParams);
-			this._drawBackLabels(ctx, renderParams);
+			this._drawSources(ctx, renderParams);
 		}
 
 		const topCtx = getContext2D(this._topCanvasBinding.canvas);
@@ -383,7 +387,7 @@ export class PriceAxisWidget implements IDestroyable {
 		this._setCursor(CursorType.Default);
 	}
 
-	private _backLabels(): IPriceAxisView[] {
+	private _dataSources(): IPriceAxisView[] {
 		const res: IPriceAxisView[] = [];
 
 		const priceScale = (this._priceScale === null) ? undefined : this._priceScale;
@@ -496,7 +500,7 @@ export class PriceAxisWidget implements IDestroyable {
 		}
 		let center = this._size.h / 2;
 
-		const views: IPriceAxisView[] = [];
+		const views: PriceAxisLabelView[] = [];
 		const orderedSources = this._priceScale.orderedSources().slice(); // Copy of array
 		const pane = this._pane;
 		const paneState = pane.state();
@@ -519,10 +523,11 @@ export class PriceAxisWidget implements IDestroyable {
 
 		const updateForSources = (sources: IDataSource[]) => {
 			sources.forEach((source: IDataSource) => {
-				const sourceViews = source.priceAxisViews(paneState, priceScale);
+				const sourceViews = source.priceAxisViews(paneState, priceScale)
+					.filter((view: IPriceAxisView) => view instanceof PriceAxisLabelView) as PriceAxisLabelView[];
 				// never align selected sources
-				sourceViews.forEach((view: IPriceAxisView) => {
-					view.setFixedCoordinate(null);
+				sourceViews.forEach((view: PriceAxisLabelView) => {
+					view.setFixedCoordinate(undefined);
 					if (view.isVisible()) {
 						views.push(view);
 					}
@@ -537,20 +542,20 @@ export class PriceAxisWidget implements IDestroyable {
 		updateForSources(orderedSources);
 
 		// split into two parts
-		const top = views.filter((view: IPriceAxisView) => view.coordinate() <= center);
-		const bottom = views.filter((view: IPriceAxisView) => view.coordinate() > center);
+		const top = views.filter((view: PriceAxisLabelView) => view.coordinate() <= center);
+		const bottom = views.filter((view: PriceAxisLabelView) => view.coordinate() > center);
 
 		// sort top from center to top
-		top.sort((l: IPriceAxisView, r: IPriceAxisView) => r.coordinate() - l.coordinate());
+		top.sort((l: PriceAxisLabelView, r: PriceAxisLabelView) => r.coordinate() - l.coordinate());
 
 		// share center label
 		if (top.length && bottom.length) {
 			bottom.push(top[0]);
 		}
 
-		bottom.sort((l: IPriceAxisView, r: IPriceAxisView) => l.coordinate() - r.coordinate());
+		bottom.sort((l: PriceAxisLabelView, r: PriceAxisLabelView) => l.coordinate() - r.coordinate());
 
-		views.forEach((view: IPriceAxisView) => view.setFixedCoordinate(view.coordinate()));
+		views.forEach((view: PriceAxisLabelView) => view.setFixedCoordinate(view.coordinate()));
 
 		const options = this._priceScale.options();
 		if (!options.alignLabels) {
@@ -582,27 +587,27 @@ export class PriceAxisWidget implements IDestroyable {
 		}
 	}
 
-	private _drawBackLabels(ctx: CanvasRenderingContext2D, renderParams: CanvasRenderParams): void {
+	private _drawSources(ctx: CanvasRenderingContext2D, renderParams: CanvasRenderParams, background?: boolean): void {
 		if (this._size === null) {
 			return;
 		}
 
 		ctx.save();
 
-		const size = this._size;
-		const views = this._backLabels();
-		const pixelRatio = renderParams.pixelRatio;
-
+		const views = this._dataSources();
 		const rendererOptions = this.rendererOptions();
-		const align = this._isLeft ? 'right' : 'left';
 
 		views.forEach((view: IPriceAxisView) => {
-			if (view.isAxisLabelVisible()) {
-				const renderer = view.renderer(ensureNotNull(this._priceScale));
-				ctx.save();
-				renderer.draw(ctx, rendererOptions, this._widthCache, size.w, align, pixelRatio);
-				ctx.restore();
+			const renderer = view.renderer();
+			ctx.save();
+
+			if (background && renderer.drawBackground) {
+				renderer.drawBackground(ctx, rendererOptions, renderParams);
+			} else if (renderer.draw) {
+				renderer.draw(ctx, rendererOptions, renderParams);
 			}
+
+			ctx.restore();
 		});
 
 		ctx.restore();
@@ -615,10 +620,7 @@ export class PriceAxisWidget implements IDestroyable {
 
 		ctx.save();
 
-		const size = this._size;
 		const model = this._pane.chart().model();
-		const pixelRatio = renderParams.pixelRatio;
-
 		const views: IPriceAxisViewArray[] = []; // array of arrays
 		const pane = this._pane.state();
 
@@ -628,12 +630,13 @@ export class PriceAxisWidget implements IDestroyable {
 		}
 
 		const ro = this.rendererOptions();
-		const align = this._isLeft ? 'right' : 'left';
 
 		views.forEach((arr: IPriceAxisViewArray) => {
 			arr.forEach((view: IPriceAxisView) => {
+				const renderer = view.renderer();
 				ctx.save();
-				view.renderer(ensureNotNull(this._priceScale)).draw(ctx, ro, this._widthCache, size.w, align, pixelRatio);
+				if (!renderer.draw) { return; }
+				renderer.draw(ctx, ro, renderParams);
 				ctx.restore();
 			});
 		});

@@ -10,7 +10,7 @@ import { BarPrice, BarPrices } from '../model/bar';
 import { ChartOptions, ChartOptionsInternal } from '../model/chart-model';
 import { ColorType } from '../model/layout-options';
 import { LineToolPoint } from '../model/line-tool';
-import { LineToolOptionsMap, TrendLineToolPartialOptions } from '../model/line-tool-options';
+import { LineToolOptionsMap, LineToolPartialOptionsMap, LineToolType } from '../model/line-tool-options';
 import { Series } from '../model/series';
 import {
 	AreaSeriesOptions,
@@ -42,6 +42,7 @@ import { ISeriesApi } from './iseries-api';
 import { ITimeScaleApi } from './itime-scale-api';
 import { LineToolApi } from './line-tool-api';
 import { chartOptionsDefaults } from './options/chart-options-defaults';
+import { LineToolsOptionDefaults } from './options/line-tools-options-defaults';
 import {
 	areaStyleDefaults,
 	barStyleDefaults,
@@ -313,11 +314,14 @@ export class ChartApi implements IChartApi, DataUpdatesConsumer<SeriesType> {
 		this._seriesMapReversed.delete(series);
 	}
 
-	public addTrendTool(options: TrendLineToolPartialOptions = {}, points: LineToolPoint[]): ILineToolApi<'Trend'> {
-		// TODO: iosif merge with defaults
-		// const strictOptions = merge(clone(seriesOptionsDefaults), lineStyleDefaults, options) as TrendLineToolPartialOptions;
-		const tool = this._chartWidget.model().createLineTool('Trend', options as LineToolOptionsMap['Trend'], points);
-		return new LineToolApi<'Trend'>(tool);
+	public addLineTool<T extends LineToolType>(name: T, points: LineToolPoint[], options?: LineToolPartialOptionsMap[T]): ILineToolApi<T> {
+		const strictOptions = merge(clone(LineToolsOptionDefaults[name]), options || {}) as LineToolOptionsMap[T];
+		const tool = this._chartWidget.model().createLineTool(name, strictOptions, points);
+		return new LineToolApi<T>(tool);
+	}
+
+	public setActiveLineTool<T extends LineToolType>(name: T, options?: LineToolPartialOptionsMap[T]): void {
+		this._chartWidget.model().lineToolCreator().setActiveLineTool(name, options);
 	}
 
 	public applyNewData<TSeriesType extends SeriesType>(series: Series<TSeriesType>, data: SeriesDataItemTypeMap[TSeriesType][]): void {

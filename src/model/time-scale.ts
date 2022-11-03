@@ -311,13 +311,14 @@ export class TimeScale {
 
 		const time1 = this._points[index1]?.time.timestamp as number;
 		const time2 = this._points[index2]?.time.timestamp as number;
+		const firstTime = this._points[0]?.time.timestamp as number;
+		const lastTime = this._points[this._points.length - 1]?.time.timestamp as number;
+		const interval = this._points[1].time.timestamp - this._points[0].time.timestamp;
 
-		const lastValue = this._points[this._points.length - 1].time.timestamp;
-		const firstValue = this._points[0].time.timestamp;
-		const avg = (lastValue - firstValue) / this._points.length;
-
-		if (index > this._points.length - 1) {
-			return this._points[this._points.length - 1].time.timestamp + avg * (index - this._points.length + 1);
+		if (index >= this._points.length - 1) {
+			return lastTime + interval * (index - this._points.length + 1);
+		} else if (index < 0) {
+			return firstTime - interval * -index;
 		} else if (time1 && time2) {
 			return time1 + (time2 - time1) * (index - index1);
 		} else {
@@ -538,7 +539,7 @@ export class TimeScale {
 		const index = this.coordinateToIndex(x);
 
 		if (index >= this._points.length) {
-			const extraTime = interval * (index - this._points.length);
+			const extraTime = interval * (index - this._points.length + 1);
 			return { timestamp: this._points[this._points.length - 1].time.timestamp + extraTime as UTCTimestamp };
 		} else if (index < 0) {
 			const extraTime = interval * -index;

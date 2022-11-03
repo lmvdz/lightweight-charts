@@ -1,6 +1,7 @@
 import { makeFont } from '../helpers/make-font';
 
 import { ChartModel } from '../model/chart-model';
+import { TextWidthCache } from '../model/text-width-cache';
 
 import { PriceAxisViewRendererOptions } from './iprice-axis-view-renderer';
 
@@ -15,6 +16,7 @@ export class PriceAxisRendererOptionsProvider {
 	private readonly _rendererOptions: PriceAxisViewRendererOptions = {
 		borderSize: RendererConstants.BorderSize,
 		tickLength: RendererConstants.TickLength,
+		widthCache: new TextWidthCache(),
 		fontSize: NaN,
 		font: '',
 		fontFamily: '',
@@ -24,13 +26,14 @@ export class PriceAxisRendererOptionsProvider {
 		paddingOuter: 0,
 		paddingTop: 0,
 		baselineOffset: 0,
+		align: 'left',
 	};
 
 	public constructor(chartModel: ChartModel) {
 		this._chartModel = chartModel;
 	}
 
-	public options(): Readonly<PriceAxisViewRendererOptions> {
+	public options(): PriceAxisViewRendererOptions {
 		const rendererOptions = this._rendererOptions;
 
 		const currentFontSize = this._fontSize();
@@ -48,6 +51,7 @@ export class PriceAxisRendererOptionsProvider {
 			);
 			rendererOptions.paddingOuter = Math.ceil(currentFontSize / 2 + rendererOptions.tickLength / 2);
 			rendererOptions.baselineOffset = Math.round(currentFontSize / 10);
+			rendererOptions.widthCache.reset();
 		}
 
 		rendererOptions.color = this._textColor();

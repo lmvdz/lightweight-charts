@@ -6,7 +6,7 @@ import { IDestroyable } from '../helpers/idestroyable';
 import { CanvasRenderParams } from '../model/canvas-render-params';
 import { ChartOptionsInternal } from '../model/chart-model';
 import { InvalidationLevel } from '../model/invalidate-mask';
-import { PriceAxisRendererOptionsProvider } from '../renderers/price-axis-renderer-options-provider';
+import { PriceAxisRendererOptionsProvider } from '../renderers/price-axis-label-renderer-options-provider';
 
 import { createBoundCanvas, getContext2D, Size } from './canvas-utils';
 import { PriceAxisWidgetSide } from './price-axis-widget';

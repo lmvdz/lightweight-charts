@@ -16,11 +16,15 @@ export class AnchorPoint extends Point {
 	public data: number;
 	public square: boolean;
 
-	public constructor(x: number, y: number, data: number, square: boolean)
+	public constructor(x: number, y: number, data?: number, square?: boolean)
 	public constructor(x: Coordinate, y: Coordinate, data: number, square: boolean) {
 		super(x, y);
 		this.data = data;
 		this.square = square;
+	}
+
+	public override clone(): AnchorPoint {
+		return new AnchorPoint(this.x, this.y, this.data, this.square);
 	}
 }
 
@@ -34,7 +38,7 @@ export interface LineAnchorRendererData {
 	color: string;
 	radius: number;
 	strokeWidth: number;
-	selectedStrokeWidth: number;
+	hoveredStrokeWidth: number;
 	selected: boolean;
 	visible: boolean;
 	hitTestType: HitTestType;
@@ -115,7 +119,7 @@ export class LineAnchorRenderer implements IPaneRenderer {
 
 		const pixelRatioInt = Math.max(1, Math.floor(pixelRatio));
 		let radius = Math.round(data.radius * pixelRatio * 2);
-		if (radius % 2 !== pixelRatioInt % 2) { radius += 1; }
+		if (pixelRatio % 2 !== pixelRatioInt % 2) { radius += 1; }
 		const shift = pixelRatioInt % 2 / 2;
 
 		for (let d = 0; d < points.length; ++d) {
@@ -128,8 +132,8 @@ export class LineAnchorRenderer implements IPaneRenderer {
 
 				drawBody(ctx, new AnchorPoint(x, y, point.data, point.square), radius / 2, lineWidth);
 				if (point.subtract(currentPoint).length() <= data.radius + interactionTolerance.anchor) {
-					const selectedLineWidth = Math.max(1, Math.floor(data.selectedStrokeWidth * pixelRatio));
-					drawShadow(ctx, new AnchorPoint(x, y, point.data, point.square), radius / 2, selectedLineWidth);
+					const hoveredLineWidth = Math.max(1, Math.floor(data.hoveredStrokeWidth * pixelRatio));
+					drawShadow(ctx, new AnchorPoint(x, y, point.data, point.square), radius / 2, hoveredLineWidth);
 				}
 			}
 		}

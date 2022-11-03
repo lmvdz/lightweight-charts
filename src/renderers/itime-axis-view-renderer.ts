@@ -14,5 +14,6 @@ export interface TimeAxisViewRendererOptions {
 }
 
 export interface ITimeAxisViewRenderer {
-	draw(ctx: CanvasRenderingContext2D, rendererOptions: TimeAxisViewRendererOptions, renderParams: CanvasRenderParams): void;
+	draw?(ctx: CanvasRenderingContext2D, rendererOptions: TimeAxisViewRendererOptions, renderParams: CanvasRenderParams): void;
+	drawBackground?(ctx: CanvasRenderingContext2D, rendererOptions: TimeAxisViewRendererOptions, renderParams: CanvasRenderParams): void;
 }

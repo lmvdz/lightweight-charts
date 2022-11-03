@@ -1,5 +1,5 @@
 import { intersectLineAndBox, intersectLineSegmentAndBox, intersectRayAndBox } from '../model/interesection';
-import { Box, equalPoints, lineSegment, lineThroughPoints, Point } from '../model/point';
+import { Box, equalPoints, lineSegment, lineThroughPoints, Point, Segment } from '../model/point';
 
 /**
  * Represents the width of a line.
@@ -27,7 +27,7 @@ export const enum LineType {
 /**
  * Represents the possible line caps.
  */
-export const enum LineCap {
+export const enum LineEnd {
 	/**
 	 * No cap.
 	 */
@@ -84,18 +84,18 @@ export function computeDashPattern(ctx: CanvasRenderingContext2D): number[] {
 
 export function setLineStyle(ctx: CanvasRenderingContext2D, style: LineStyle): void {
 	ctx.lineStyle = style;
+	const dashPattern = computeDashPattern(ctx);
+	setLineDash(ctx, dashPattern);
+}
 
-	// TODO: Iosif check if needed
-	// const dashPatterns = {
-	// 	[LineStyle.Solid]: [],
-	// 	[LineStyle.Dotted]: [ctx.lineWidth, ctx.lineWidth],
-	// 	[LineStyle.Dashed]: [2 * ctx.lineWidth, 2 * ctx.lineWidth],
-	// 	[LineStyle.LargeDashed]: [6 * ctx.lineWidth, 6 * ctx.lineWidth],
-	// 	[LineStyle.SparseDotted]: [ctx.lineWidth, 4 * ctx.lineWidth],
-	// };
-
-	const dashPattern = computeDashPattern(ctx); // dashPatterns[style];
-	ctx.setLineDash(dashPattern);
+export function setLineDash(ctx: CanvasRenderingContext2D, dashPattern: number[]): void {
+	if (ctx.setLineDash) {
+		ctx.setLineDash(dashPattern);
+	} else if (ctx.mozDash !== undefined) {
+		ctx.mozDash = dashPattern;
+	} else if (ctx.webkitLineDash !== undefined) {
+		ctx.webkitLineDash = dashPattern;
+	}
 }
 
 export function drawHorizontalLine(ctx: CanvasRenderingContext2D, y: number, left: number, right: number): void {
@@ -124,15 +124,9 @@ export function drawSolidLine(ctx: CanvasRenderingContext2D, x1: number, y1: num
 export function drawDashedLine(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number): void {
 	ctx.save();
 	ctx.beginPath();
-	const dashPattern = computeDashPattern(ctx);
 
-	if (ctx.setLineDash) {
-		ctx.setLineDash(dashPattern);
-	} else if (void 0 !== ctx.mozDash) {
-		ctx.mozDash = dashPattern;
-	} else {
-		ctx.webkitLineDash = dashPattern;
-	}
+	const dashPattern = computeDashPattern(ctx);
+	setLineDash(ctx, dashPattern);
 
 	ctx.moveTo(x1, y1);
 	ctx.lineTo(x2, y2);
@@ -158,7 +152,7 @@ export function strokeInPixel(ctx: CanvasRenderingContext2D, drawFunction: () =>
 	ctx.restore();
 }
 
-export function extendAndClipLineSegment(point0: Point, point1: Point, width: number, height: number, extendLeft: boolean, extendRight: boolean): Point[] | null {
+export function extendAndClipLineSegment(point0: Point, point1: Point, width: number, height: number, extendLeft: boolean, extendRight: boolean): Segment | null {
 	if (equalPoints(point0, point1)) {
 		return null;
 	}
@@ -185,7 +179,7 @@ export function extendAndClipLineSegment(point0: Point, point1: Point, width: nu
 	}
 }
 
-export function drawCircleCap(point: Point, ctx: CanvasRenderingContext2D, width: number, pixelRatio: number): void {
+export function drawCircleEnd(point: Point, ctx: CanvasRenderingContext2D, width: number, pixelRatio: number): void {
 	ctx.save();
 	ctx.fillStyle = '#000000';
 	ctx.beginPath();
@@ -194,7 +188,7 @@ export function drawCircleCap(point: Point, ctx: CanvasRenderingContext2D, width
 	ctx.restore();
 }
 
-export function drawArrowCap(point0: Point, point1: Point, ctx: CanvasRenderingContext2D, width: number, pixelRatio: number): void {
+export function drawArrowEnd(point0: Point, point1: Point, ctx: CanvasRenderingContext2D, width: number, pixelRatio: number): void {
 	if (point1.subtract(point0).length() < 1) {return;}
 	const arrowPoints = getArrowPoints(point0, point1, width);
 	for (let e = 0; e < arrowPoints.length; ++e) {

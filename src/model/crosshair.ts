@@ -5,10 +5,10 @@ import { LineStyle, LineWidth } from '../renderers/draw-line';
 import { CrosshairMarksPaneView } from '../views/pane/crosshair-marks-pane-view';
 import { CrosshairPaneView } from '../views/pane/crosshair-pane-view';
 import { IPaneView } from '../views/pane/ipane-view';
-import { CrosshairPriceAxisView } from '../views/price-axis/crosshair-price-axis-view';
+import { CrosshairPriceAxisLabelView } from '../views/price-axis/crosshair-price-axis-label-view';
 import { IPriceAxisView } from '../views/price-axis/iprice-axis-view';
-import { PriceAxisView } from '../views/price-axis/price-axis-view';
-import { CrosshairTimeAxisView } from '../views/time-axis/crosshair-time-axis-view';
+import { PriceAxisLabelView } from '../views/price-axis/price-axis-label-view';
+import { CrosshairTimeAxisLabelView } from '../views/time-axis/crosshair-time-axis-label-view';
 import { ITimeAxisView } from '../views/time-axis/itime-axis-view';
 
 import { BarPrice } from './bar';
@@ -111,8 +111,8 @@ export class Crosshair extends DataSource {
 	private _index: TimePointIndex = 0 as TimePointIndex;
 	private _visible: boolean = true;
 	private readonly _model: ChartModel;
-	private _priceAxisViews: Map<PriceScale, CrosshairPriceAxisView> = new Map();
-	private readonly _timeAxisView: CrosshairTimeAxisView;
+	private _priceAxisViews: Map<PriceScale, CrosshairPriceAxisLabelView> = new Map();
+	private readonly _timeAxisView: CrosshairTimeAxisLabelView;
 	private readonly _markersPaneView: CrosshairMarksPaneView;
 	private _subscribed: boolean = false;
 	private readonly _currentPosPriceProvider: PriceAndCoordinateProvider;
@@ -167,7 +167,7 @@ export class Crosshair extends DataSource {
 			() => this.appliedX()
 		);
 
-		this._timeAxisView = new CrosshairTimeAxisView(this, model, currentPosTimeProvider);
+		this._timeAxisView = new CrosshairTimeAxisLabelView(this, model, currentPosTimeProvider);
 		this._paneView = new CrosshairPaneView(this);
 	}
 
@@ -266,7 +266,7 @@ export class Crosshair extends DataSource {
 
 	public updateAllViews(): void {
 		this._paneView.update();
-		this._priceAxisViews.forEach((value: PriceAxisView) => value.update());
+		this._priceAxisViews.forEach((value: PriceAxisLabelView) => value.update());
 		this._timeAxisView.update();
 		this._markersPaneView.update();
 	}
@@ -318,11 +318,11 @@ export class Crosshair extends DataSource {
 		this._index = lastBarIndex !== null ? lastBarIndex : NaN as TimePointIndex;
 	}
 
-	private _createPriceAxisViewOnDemand(map: Map<PriceScale, CrosshairPriceAxisView>, priceScale: PriceScale, valueProvider: PriceAndCoordinateProvider): IPriceAxisView {
+	private _createPriceAxisViewOnDemand(map: Map<PriceScale, CrosshairPriceAxisLabelView>, priceScale: PriceScale, valueProvider: PriceAndCoordinateProvider): IPriceAxisView {
 		let view = map.get(priceScale);
 
 		if (view === undefined) {
-			view = new CrosshairPriceAxisView(this, priceScale, valueProvider);
+			view = new CrosshairPriceAxisLabelView(this, priceScale, valueProvider);
 			map.set(priceScale, view);
 		}
 

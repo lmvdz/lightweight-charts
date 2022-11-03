@@ -10,7 +10,7 @@ export abstract class ScaledRenderer implements IPaneRenderer {
 		// currently ScaledRenderer could be only nodes renderer (not top-level renderers like CompositeRenderer or something)
 		// so this "constraint" is fulfilled for now
 		ctx.scale(pixelRatio, pixelRatio);
-		this._drawImpl(ctx);
+		this._drawImpl(ctx, renderParams);
 		ctx.restore();
 	}
 
@@ -21,11 +21,11 @@ export abstract class ScaledRenderer implements IPaneRenderer {
 		// currently ScaledRenderer could be only nodes renderer (not top-level renderers like CompositeRenderer or something)
 		// so this "constraint" is fulfilled for now
 		ctx.scale(pixelRatio, pixelRatio);
-		this._drawBackgroundImpl(ctx);
+		this._drawBackgroundImpl(ctx, renderParams);
 		ctx.restore();
 	}
 
-	protected abstract _drawImpl(ctx: CanvasRenderingContext2D): void;
+	protected abstract _drawImpl(ctx: CanvasRenderingContext2D, renderParams?: CanvasRenderParams): void;
 
-	protected _drawBackgroundImpl(ctx: CanvasRenderingContext2D): void {}
+	protected _drawBackgroundImpl(ctx: CanvasRenderingContext2D, renderParams?: CanvasRenderParams): void {}
 }

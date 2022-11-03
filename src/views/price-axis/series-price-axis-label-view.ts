@@ -2,11 +2,11 @@ import { generateContrastColors } from '../../helpers/color';
 
 import { LastValueDataResultWithData, Series } from '../../model/series';
 import { PriceAxisLastValueMode } from '../../model/series-options';
-import { PriceAxisViewRendererCommonData, PriceAxisViewRendererData } from '../../renderers/iprice-axis-view-renderer';
+import { PriceAxisViewRendererCommonData as PriceAxisLabelRendererCommonData, PriceAxisViewRendererData as PriceAxisLabelRendererData } from '../../renderers/price-axis-label-renderer';
 
-import { PriceAxisView } from './price-axis-view';
+import { PriceAxisLabelView } from './price-axis-label-view';
 
-export class SeriesPriceAxisView extends PriceAxisView {
+export class SeriesPriceAxisLabelView extends PriceAxisLabelView {
 	private readonly _source: Series;
 
 	public constructor(source: Series) {
@@ -15,9 +15,9 @@ export class SeriesPriceAxisView extends PriceAxisView {
 	}
 
 	protected _updateRendererData(
-		axisRendererData: PriceAxisViewRendererData,
-		paneRendererData: PriceAxisViewRendererData,
-		commonRendererData: PriceAxisViewRendererCommonData
+		axisRendererData: PriceAxisLabelRendererData,
+		paneRendererData: PriceAxisLabelRendererData,
+		commonRendererData: PriceAxisLabelRendererCommonData
 	): void {
 		axisRendererData.visible = false;
 		paneRendererData.visible = false;

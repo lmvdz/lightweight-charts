@@ -5,7 +5,7 @@ import { CanvasRenderParams } from '../model/canvas-render-params';
 
 import { ITimeAxisViewRenderer, TimeAxisViewRendererOptions } from './itime-axis-view-renderer';
 
-export interface TimeAxisViewRendererData {
+export interface TimeAxisLabelRendererData {
 	width: number;
 	text: string;
 	tickVisible: boolean;
@@ -17,14 +17,14 @@ export interface TimeAxisViewRendererData {
 
 const optimizationReplacementRe = /[1-9]/g;
 
-export class TimeAxisViewRenderer implements ITimeAxisViewRenderer {
-	private _data: TimeAxisViewRendererData | null;
+export class TimeAxisLabelRenderer implements ITimeAxisViewRenderer {
+	private _data: TimeAxisLabelRendererData | null;
 
 	public constructor() {
 		this._data = null;
 	}
 
-	public setData(data: TimeAxisViewRendererData): void {
+	public setData(data: TimeAxisLabelRendererData): void {
 		this._data = data;
 	}
 

@@ -2,8 +2,8 @@
 import { Coordinate } from './coordinate';
 
 export interface IPoint {
-	readonly x: Coordinate;
-	readonly y: Coordinate;
+	x: Coordinate;
+	y: Coordinate;
 }
 
 export class Point {
@@ -75,6 +75,16 @@ export class Box {
 	}
 }
 
+export class HalfPlane {
+	public edge: Line;
+	public isPositive: boolean;
+
+	public constructor(edge: Line, isPositive: boolean) {
+		this.edge = edge;
+		this.isPositive = isPositive;
+	}
+}
+
 export interface Rect {
 	x: number;
 	y: number;
@@ -106,6 +116,15 @@ export function lineThroughPoints(a: Point, b: Point): Line {
 export function lineSegment(a: Point, b: Point): Segment {
 	if (equalPoints(a, b)) { throw new Error('Points of a segment should be distinct'); }
 	return [a, b];
+}
+
+export function halfPlaneThroughPoint(edge: Line, point: Point): HalfPlane {
+	return new HalfPlane(edge, edge.a * point.x + edge.b * point.y + edge.c > 0);
+}
+
+export function pointInHalfPlane(point: Point, halfPlane: HalfPlane): boolean {
+	const edge = halfPlane.edge;
+	return edge.a * point.x + edge.b * point.y + edge.c > 0 === halfPlane.isPositive;
 }
 
 export function equalBoxes(a: Box, b: Box): boolean {

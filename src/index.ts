@@ -8,7 +8,7 @@ export { PriceLineSource, LastPriceAnimationMode, LasPriceAnimationMode } from '
 export { BoxHorizontalAlignment, BoxVerticalAlignment } from './model/line-tool-options';
 export { TickMarkType } from './model/time-scale';
 export { ColorType } from './model/layout-options';
-export { LineCap } from './renderers/draw-line';
+export { LineEnd } from './renderers/draw-line';
 export { TextAlignment } from './model/line-tool-options';
 
 export {

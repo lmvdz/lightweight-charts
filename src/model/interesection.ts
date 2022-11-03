@@ -1,5 +1,5 @@
 import { Coordinate } from './coordinate';
-import { Box, equalPoints, Line, lineSegment, Point, Segment } from './point';
+import { Box, equalPoints, HalfPlane, Line, lineSegment, lineThroughPoints, Point, pointInHalfPlane, Segment } from './point';
 
 function addPoint(array: Point[], point: Point): boolean {
 	for (let i = 0; i < array.length; i++) {
@@ -182,4 +182,57 @@ export function pointInPolygon(point: Point, polygon: Point[]): boolean {
 		}
 	}
 	return isInside;
+}
+
+export function pointInTriangle(point: Point, end0: Point, end1: Point, end2: Point): boolean {
+	const middle = end0.add(end1).scaled(0.5).add(end2).scaled(0.5);
+	return intersectLineSegments(end0, end1, middle, point) === null
+		&& intersectLineSegments(end1, end2, middle, point) === null
+		&& intersectLineSegments(end2, end0, middle, point) === null;
+}
+
+export function intersectLines(line0: Line, line1: Line): Point | null {
+	const c = line0.a * line1.b - line1.a * line0.b;
+	if (Math.abs(c) < 1e-6) { return null; }
+
+	const x = (line0.b * line1.c - line1.b * line0.c) / c;
+	const y = (line1.a * line0.c - line0.a * line1.c) / c;
+	return new Point(x, y);
+}
+
+export function intersectPolygonAndHalfPlane(points: Point[], halfPlane: HalfPlane): Point[] | null {
+	const intersectionPoints: Point[] = [];
+	for (let i = 0; i < points.length; ++i) {
+		const current = points[i];
+		const next = points[(i + 1) % points.length];
+		const line = lineThroughPoints(current, next);
+
+		if (pointInHalfPlane(current, halfPlane)) {
+			addPointToPointsSet(intersectionPoints, current);
+			if (!pointInHalfPlane(next, halfPlane)) {
+				const lineIntersection = intersectLines(line, halfPlane.edge);
+				if (lineIntersection !== null) {
+					addPointToPointsSet(intersectionPoints, lineIntersection);
+				}
+			}
+		} else if (pointInHalfPlane(next, halfPlane)) {
+			const lineIntersection = intersectLines(line, halfPlane.edge);
+			if (lineIntersection !== null) {
+				addPointToPointsSet(intersectionPoints, lineIntersection);
+			}
+		}
+	}
+	return intersectionPoints.length >= 3 ? intersectionPoints : null;
+}
+
+function addPointToPointsSet(points: Point[], point: Point): boolean {
+	if (points.length <= 0 || !(equalPoints(points[points.length - 1], point) && equalPoints(points[0], point))) {
+		points.push(point);
+		return false;
+	}
+	return true;
+}
+
+export function pointInCircle(point: Point, edge0: Point, distance: number): boolean {
+	return (point.x - edge0.x) * (point.x - edge0.x) + (point.y - edge0.y) * (point.y - edge0.y) <= distance * distance;
 }

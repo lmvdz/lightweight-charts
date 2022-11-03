@@ -1,17 +1,17 @@
 import { deepCopy } from '../../helpers/deep-copy';
 
 import { ChartModel } from '../../model/chart-model';
-import { LineTool } from '../../model/line-tool';
+import { LineTool, LineToolOptionsInternal } from '../../model/line-tool';
 import { BoxHorizontalAlignment, LineToolType } from '../../model/line-tool-options';
 import { Point } from '../../model/point';
 import { CompositeRenderer } from '../../renderers/composite-renderer';
-import { TextRenderer, TextRendererData } from '../../renderers/text-renderer';
-import { TrendLineRenderer, TrendLineRendererData } from '../../renderers/trend-line-renderer';
+import { SegmentRenderer } from '../../renderers/segment-renderer';
+import { TextRenderer } from '../../renderers/text-renderer';
 
-import { LineSourcePaneView } from './line-source-pane-view';
+import { LineToolPaneView } from './line-tool-pane-view';
 
-export class TrendLinePaneView extends LineSourcePaneView {
-	protected _trendRenderer: TrendLineRenderer = new TrendLineRenderer();
+export class TrendLinePaneView extends LineToolPaneView {
+	protected _lineRenderer: SegmentRenderer = new SegmentRenderer();
 	protected _labelRenderer: TextRenderer = new TextRenderer();
 
 	public constructor(source: LineTool<LineToolType>, model: ChartModel) {
@@ -33,21 +33,17 @@ export class TrendLinePaneView extends LineSourcePaneView {
 		const points = this._source.points();
 		if (points.length < 2) { return; }
 
-		const options = this._source.options();
-		const timestamp0 = points[0].timestamp;
-		const timestamp1 = points[1].timestamp;
-		const isOutsideView = Math.max(timestamp0, timestamp1) < strictRange.from.timestamp;
+		const options = this._source.options() as LineToolOptionsInternal<'TrendLine'>;
+		const isOutsideView = Math.max(points[0].timestamp, points[1].timestamp) < strictRange.from.timestamp;
 
 		if (!isOutsideView || options.line.extend.left || options.line.extend.right) {
 			super._updateImpl();
 
 			if (this._points.length < 2) { return; }
 			const compositeRenderer = new CompositeRenderer();
-			const trendOptions = deepCopy(options.line);
-			const trendData: TrendLineRendererData = { ...trendOptions, points: this._points };
-			this._trendRenderer.setData(trendData);
+			this._lineRenderer.setData({ line: options.line, points: this._points });
 
-			compositeRenderer.append(this._trendRenderer);
+			compositeRenderer.append(this._lineRenderer);
 			if (options.text.value) {
 				const point0 = this._points[0];
 				const point1 = this._points[1];
@@ -63,8 +59,7 @@ export class TrendLinePaneView extends LineSourcePaneView {
 				const labelOptions = deepCopy(options.text);
 				labelOptions.box = { ...labelOptions.box, angle };
 
-				const labelData: TextRendererData = { ...labelOptions, points: [pivot] };
-				this._labelRenderer.setData(labelData);
+				this._labelRenderer.setData({ text: labelOptions, points: [pivot] });
 				compositeRenderer.append(this._labelRenderer);
 			}
 

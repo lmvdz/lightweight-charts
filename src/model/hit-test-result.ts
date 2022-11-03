@@ -17,8 +17,9 @@ export class HitTestResult<T> {
 }
 
 export enum HitTestType {
-    REGULAR = 1,
-    MOVEPOINT = 2,
-    CHANGEPOINT = 3,
-    CUSTOM = 4
+    Regular = 1,
+    MovePoint = 2,
+	MovePointBackground = 3,
+    ChangePoint = 4,
+    Custom = 5
 }

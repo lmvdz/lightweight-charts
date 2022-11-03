@@ -1,7 +1,12 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-import { DeepPartial } from '../helpers/strict-type-checks';
+import { DeepPartial, OmitRecursively } from '../helpers/strict-type-checks';
 
-import { LineCap, LineStyle, LineWidth } from '../renderers/draw-line';
+import { LineEnd as LineEnd, LineStyle, LineWidth } from '../renderers/draw-line';
+
+export interface IPoint {
+	x: number;
+	y: number;
+}
 
 export const enum BoxVerticalAlignment {
 	Top = 'top',
@@ -23,7 +28,19 @@ export const enum TextAlignment {
 	Right = 'right',
 }
 
-export interface LineToolLineExtend {
+export const enum LineJoin {
+	Bevel = 'bevel',
+	Round = 'round',
+	Miter = 'miter',
+}
+
+export const enum LineCap {
+	Butt = 'butt',
+	Round = 'round',
+	Square = 'square',
+}
+
+export interface ExtendOptions {
 	/**
 	 * Extend line right.
 	 *
@@ -39,23 +56,23 @@ export interface LineToolLineExtend {
 	left: boolean;
 }
 
-export interface LineToolLineCap {
+export interface EndOptions {
 	/**
 	 * Line cap right.
 	 *
-	 * @defaultValue {@link LinkCap.Normal}
+	 * @defaultValue {@link LineEnd.Normal}
 	 */
-	left: LineCap;
+	left: LineEnd;
 
 	/**
 	 * Line cap left.
 	 *
-	 * @defaultValue {@link LinkCap.Normal}
+	 * @defaultValue {@link LineEnd.Normal}
 	 */
-	right: LineCap;
+	right: LineEnd;
 }
 
-export interface LineToolTextBoxAlignment {
+export interface BoxAlignmentOptions {
 	/**
 	 * Text vertical alignment.
 	 *
@@ -71,29 +88,17 @@ export interface LineToolTextBoxAlignment {
 	horizontal: BoxHorizontalAlignment;
 }
 
-export interface XY {
-	/**
-	 * Box offset x.
-	 */
-	x: number;
-
-	/**
-	 * Box offset y.
-	 */
-	y: number;
-}
-
-export interface LineToolTextBoxShadow {
+export interface ShadowOptions {
 	blur: number;
 	color: string;
-	offset: XY;
+	offset: IPoint;
 }
 
-export interface LineToolTextBox {
+export interface TextBoxOptions {
 	/**
 	 * Box alignment.
 	 */
-	alignment: LineToolTextBoxAlignment;
+	alignment: BoxAlignmentOptions;
 
 	/**
 	 * Box angle.
@@ -108,35 +113,35 @@ export interface LineToolTextBox {
 	/**
 	 * Box offset.
 	 */
-	offset: XY;
+	offset?: IPoint;
 
 	/**
 	 * Box padding.
 	 */
-	padding: XY;
+	padding?: IPoint;
 
 	/**
 	 * Box max height.
 	 */
-	maxHeight: number;
+	maxHeight?: number;
 
 	/**
 	 * Box shadow.
 	 */
-	shadow: LineToolTextBoxShadow;
-
-	/**
-	 * Box background.
-	 */
-	background: LineToolTextBackround;
+	shadow?: ShadowOptions;
 
 	/**
 	 * Box border.
 	 */
-	border: LineToolTextBorder;
+	border?: BorderOptions;
+
+	/**
+	 * Box background.
+	 */
+	background?: BackroundOptions;
 }
 
-export interface LineToolTextFont {
+export interface TextFontOptions {
 	/**
 	 * Font color.
 	 *
@@ -173,26 +178,19 @@ export interface LineToolTextFont {
 	family: string;
 }
 
-export interface LineToolTextBackround {
-
+export interface BackroundOptions {
 	/**
 	 * Background color.
 	 */
 	color: string;
 
 	/**
-	 * Background transparency.
-	 */
-	transparency: number;
-
-	/**
 	 * Background inflate.
 	 */
-	inflation: XY;
+	inflation: IPoint;
 }
 
-export interface LineToolTextBorder {
-
+export interface BorderOptions {
 	/**
 	 * Border color.
 	 */
@@ -212,9 +210,16 @@ export interface LineToolTextBorder {
 	 * If border should be highlighted.
 	 */
 	highlight: boolean;
+
+	/**
+	 * Border style.
+	 *
+	 * @defaultValue {@link LineStyle.Solid}
+	 */
+	style: LineStyle;
 }
 
-export interface LineToolText {
+export interface TextOptions {
 	/**
 	 * Text value.
 	 *
@@ -232,12 +237,12 @@ export interface LineToolText {
 	/**
 	 * Text font.
 	 */
-	font: LineToolTextFont;
+	font: TextFontOptions;
 
 	/**
 	 * Text box.
 	 */
-	box: LineToolTextBox;
+	box: TextBoxOptions;
 
 	/**
 	 * Text padding.
@@ -260,7 +265,36 @@ export interface LineToolText {
 	forceCalculateMaxLineWidth: boolean;
 }
 
-export interface LineToolLine {
+export interface RectangleOptions {
+	/**
+	 * Rectangle background.
+	 */
+	background: Omit<BackroundOptions, 'inflation'>;
+
+	/**
+	 * Rectangle border.
+	*/
+	border: Omit<BorderOptions, 'radius' | 'highlight'>;
+
+	/**
+	 * Rectangle extend sides.
+	 */
+	extend: ExtendOptions;
+}
+
+export interface TriangleOptions {
+	/**
+	 * Triangle background.
+	 */
+	background: Omit<BackroundOptions, 'inflation'>;
+
+	/**
+	 * Triangle border.
+	*/
+	border: Omit<BorderOptions, 'radius' | 'highlight'>;
+}
+
+export interface LineOptions {
 	/**
 	 * Line color.
 	 *
@@ -283,16 +317,43 @@ export interface LineToolLine {
 	style: LineStyle;
 
 	/**
-	 * Line ends cap.
+	 * Line join.
 	 *
+	 * @defaultValue {@link LineJoin.Miter}
 	 */
-	cap: LineToolLineCap;
+	join: LineJoin;
 
 	/**
-	 * Line ends cap.
+	 * Line join.
 	 *
+	 * @defaultValue {@link LineCap.Round}
 	 */
-	extend: LineToolLineExtend;
+	cap: LineCap;
+
+	/**
+	 * Line ends.
+	 */
+	end: EndOptions;
+
+	/**
+	 * Line extend.
+	 */
+	extend: ExtendOptions;
+}
+
+/**
+ * Represents fib retracement level.
+ */
+export interface FibRetracementLevel {
+	/**
+	 * Level coefficient.
+	 */
+	coeff: number;
+
+	/**
+	 * Level color.
+	 */
+	color: string;
 }
 
 export interface LineToolOptionsCommon {
@@ -306,27 +367,184 @@ export interface LineToolOptionsCommon {
 	/**
 	 * The owner source id.
 	 */
-	ownerSourceId: string;
+	ownerSourceId?: string;
 }
 
 /**
- * Represents style options for a bar series.
+ * Represents style options for a trend line.
  */
-export interface TrendLineOptions {
+export interface LineToolTrendLineOptions {
 	/**
 	 * Text config.
 	 */
-	text: LineToolText;
+	text: TextOptions;
 	/**
 	 * Line config.
 	 */
-	line: LineToolLine;
+	line: Omit<LineOptions, 'join' | 'cap'>;
+}
+
+/**
+ * Represents style options for a horizotnal line.
+ */
+export interface LineToolHorizontalLineOptions {
+	/**
+	 * Text config.
+	 */
+	text: TextOptions;
+	/**
+	 * Line config.
+	 */
+	line: Omit<LineOptions, 'cap' | 'join'>;
+}
+
+/**
+ * Represents style options for a vertical line.
+ */
+export interface LineToolVerticalLineOptions {
+	/**
+	 * Text config.
+	 */
+	text: TextOptions;
+	/**
+	 * Line config.
+	 */
+	line: Omit<LineOptions, 'cap' | 'extend' | 'join' | 'end'>;
+}
+
+/**
+ * Represents style options for a cross line.
+ */
+export interface LineToolCrossLineOptions {
+	/**
+	 * Line config.
+	 */
+	line: Omit<LineOptions, 'cap' | 'extend' | 'join' | 'end'>;
+}
+
+/**
+ * Represents style options for a parallel channel.
+ */
+export interface LineToolParallelChannelOptions {
+	/**
+	 * Channel line config.
+	 */
+	channelLine: Omit<LineOptions, 'cap' | 'extend' | 'join' | 'end'>;
+
+	/**
+	 * Middle line config.
+	 */
+	middleLine: Omit<LineOptions, 'cap' | 'extend' | 'join' | 'end'>;
+
+	/**
+	 * If the middle line should be visible.
+	 */
+	showMiddleLine: boolean;
+
+	/**
+	 * Channel extension
+	 */
+	extend: ExtendOptions;
+
+	/**
+	 * Channel background
+	 */
+	background?: Omit<BackroundOptions, 'inflation'>;
+}
+
+/**
+ * Represents style options for a rectangle.
+ */
+export interface LineToolRectangleOptions {
+	/**
+	 * Text config.
+	 */
+	text: TextOptions;
+	/**
+	 * Rectangle config.
+	 */
+	rectangle: RectangleOptions;
+}
+
+/**
+ * Represents style options for a triangle.
+ */
+export interface LineToolTriangleOptions {
+	/**
+	 * Triangle config.
+	 */
+	triangle: TriangleOptions;
+}
+
+/**
+ * Represents style options for a text.
+ */
+export interface LineToolTextOptions {
+	/**
+	 * Text config.
+	 */
+	text: OmitRecursively<TextOptions, 'alignment'>;
+}
+
+/**
+ * Represents style options for a brush.
+ */
+export interface LineToolBrushOptions {
+	/**
+	 * Line config.
+	 */
+	line: Omit<LineOptions, 'cap' | 'extend'>;
+
+	/**
+	 * Brush background.
+	 */
+	background?: Omit<BackroundOptions, 'inflation'>;
+}
+
+/**
+ * Represents style options for a highlighter.
+ */
+export interface LineToolHighlighterOptions {
+	/**
+	 * Line config.
+	 */
+	line: Pick<LineOptions, 'color'>;
+}
+
+/**
+ * Represents style options for a path.
+ */
+export interface LineToolPathOptions {
+	/**
+	 * Line config.
+	 */
+	line: Omit<LineOptions, 'cap' | 'extend' | 'join'>;
+}
+
+/**
+ * Represents style options for a fib retracement.
+ */
+export interface LineToolFibRetracementOptions {
+	/**
+	 * Line config.
+	 */
+	line: Omit<LineOptions, 'extend' | 'join' | 'color' | 'cap' | 'end'>;
+
+	/**
+	 * Lines extend.
+	 */
+	extend: ExtendOptions;
+
+	/**
+	 * Fib Levels.
+	 */
+	levels: FibRetracementLevel[];
 }
 
 /**
  * Represents the intersection of a series type `T`'s options and common line tool options.
  *
- * @see {@link SeriesOptionsCommon} for common options.
+ * @see {@link LineToolOptionsCommon} for common options.
  */
 export type LineToolOptions<T> = T & LineToolOptionsCommon;
 /**
@@ -334,27 +552,86 @@ export type LineToolOptions<T> = T & LineToolOptionsCommon;
  */
 export type LineToolPartialOptions<T> = DeepPartial<T & LineToolOptionsCommon>;
 
-export type TrendLineToolOptions = LineToolOptions<TrendLineOptions>;
-export type TrendLineToolPartialOptions = LineToolPartialOptions<TrendLineOptions>;
+export type PathToolOptions = LineToolOptions<LineToolPathOptions>;
+export type PathToolPartialOptions = LineToolPartialOptions<LineToolPathOptions>;
+
+export type BrushToolOptions = LineToolOptions<LineToolBrushOptions>;
+export type BrushToolPartialOptions = LineToolPartialOptions<LineToolBrushOptions>;
+
+export type HighlighterToolOptions = LineToolOptions<LineToolHighlighterOptions>;
+export type HighlighterToolPartialOptions = LineToolPartialOptions<LineToolHighlighterOptions>;
+
+export type TextToolOptions = LineToolOptions<LineToolTextOptions>;
+export type TextToolPartialOptions = LineToolPartialOptions<LineToolTextOptions>;
+
+export type TrendLineToolOptions = LineToolOptions<LineToolTrendLineOptions>;
+export type TrendLineToolPartialOptions = LineToolPartialOptions<LineToolTrendLineOptions>;
+
+export type CrossLineToolOptions = LineToolOptions<LineToolCrossLineOptions>;
+export type CrossLineToolPartialOptions = LineToolPartialOptions<LineToolCrossLineOptions>;
+
+export type VerticalLineToolOptions = LineToolOptions<LineToolVerticalLineOptions>;
+export type VerticalLineToolPartialOptions = LineToolPartialOptions<LineToolVerticalLineOptions>;
+
+export type HorizontalLineToolOptions = LineToolOptions<LineToolHorizontalLineOptions>;
+export type HorizontalLineToolPartialOptions = LineToolPartialOptions<LineToolHorizontalLineOptions>;
+
+export type RectangleToolOptions = LineToolOptions<LineToolRectangleOptions>;
+export type RectangleToolPartialOptions = LineToolPartialOptions<LineToolRectangleOptions>;
+
+export type TriangleToolOptions = LineToolOptions<LineToolTriangleOptions>;
+export type TriangleToolPartialOptions = LineToolPartialOptions<LineToolTriangleOptions>;
+
+export type ParallelChannelToolOptions = LineToolOptions<LineToolParallelChannelOptions>;
+export type ParallelChannelToolPartialOptions = LineToolPartialOptions<LineToolParallelChannelOptions>;
+
+export type FibRetracementToolOptions = LineToolOptions<LineToolFibRetracementOptions>;
+export type FibRetracementToolPartialOptions = LineToolPartialOptions<LineToolFibRetracementOptions>;
 
 /**
  * Represents the type of options for each line tool type.
  */
 export interface LineToolOptionsMap {
-	/**
-	 * The type of trend line tool options.
-	 */
-	Trend: TrendLineToolOptions;
+	FibRetracement: FibRetracementToolOptions;
+	ParallelChannel: ParallelChannelToolOptions;
+	HorizontalLine: HorizontalLineToolOptions;
+	VerticalLine: VerticalLineToolOptions;
+	Highlighter: HighlighterToolOptions;
+	CrossLine: CrossLineToolOptions;
+	TrendLine: TrendLineToolOptions;
+	Rectangle: RectangleToolOptions;
+	Triangle: TriangleToolOptions;
+	Brush: BrushToolOptions;
+	Path: PathToolOptions;
+	Text: TextToolOptions;
+
+	Ray: TrendLineToolOptions;
+	Arrow: TrendLineToolOptions;
+	ExtendedLine: TrendLineToolOptions;
+	HorizontalRay: HorizontalLineToolOptions;
 }
 
 /**
  * Represents the type of partial options for each line tool type.
  */
 export interface LineToolPartialOptionsMap {
-	/**
-	 * The type of bar series partial options.
-	 */
-	Trend: TrendLineToolPartialOptions;
+	FibRetracement: FibRetracementToolPartialOptions;
+	ParallelChannel: ParallelChannelToolPartialOptions;
+	HorizontalLine: HorizontalLineToolPartialOptions;
+	VerticalLine: VerticalLineToolPartialOptions;
+	Highlighter: HighlighterToolPartialOptions;
+	CrossLine: CrossLineToolPartialOptions;
+	TrendLine: TrendLineToolPartialOptions;
+	Rectangle: RectangleToolPartialOptions;
+	Triangle: TriangleToolPartialOptions;
+	Brush: BrushToolPartialOptions;
+	Path: PathToolPartialOptions;
+	Text: TextToolPartialOptions;
+
+	Ray: TrendLineToolPartialOptions;
+	Arrow: TrendLineToolPartialOptions;
+	ExtendedLine: TrendLineToolPartialOptions;
+	HorizontalRay: HorizontalLineToolPartialOptions;
 }
 
 /**

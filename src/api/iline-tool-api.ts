@@ -31,5 +31,5 @@ export interface ILineToolApi<TLineToolType extends LineToolType> {
 	 *
 	 * @returns Type of the lineTool.
 	 */
-	toolType(): TLineToolType;
+	toolType(): LineToolType;
 }

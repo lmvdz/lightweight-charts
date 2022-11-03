@@ -22,7 +22,7 @@ export interface CreateAnchorData {
 	pointsCursorType?: PaneCursorType[];
 }
 
-export abstract class LineSourcePaneView implements IPaneView, IInputEventListener {
+export abstract class LineToolPaneView implements IPaneView, IInputEventListener {
 	protected readonly _source: LineTool<LineToolType>;
 	protected readonly _model: ChartModel;
 	protected _points: AnchorPoint[] = [];
@@ -38,32 +38,33 @@ export abstract class LineSourcePaneView implements IPaneView, IInputEventListen
 		this._model = model;
 	}
 
+	// eslint-disable-next-line complexity
 	public onInputEvent(paneWidget: PaneWidget, eventType: InputEventType, event?: TouchMouseEvent): void {
-		if (!event || !this._renderer || !this._renderer.hitTest) { return; }
+		if (!event || (!this._renderer || !this._renderer.hitTest) && this._source.finished()) { return; }
 
 		const crossHair = this._model.crosshairSource();
 		const appliedPoint = new Point(crossHair.appliedX(), crossHair.appliedY());
 		const originPoint = new Point(crossHair.originCoordX(), crossHair.originCoordY());
 
-		const changed = eventType === InputEventType.PressedMouseMove
+		const changed = eventType === InputEventType.PressedMouseMove && !event.consumed
 			? this._onPressedMouseMove(paneWidget, originPoint, appliedPoint)
 			: eventType === InputEventType.MouseMove
-			? this._onMouseMove(paneWidget, originPoint)
+			? this._onMouseMove(paneWidget, originPoint, appliedPoint, event)
 			: eventType === InputEventType.MouseDown
-			? this._onMouseDown(paneWidget, originPoint)
+			? this._onMouseDown(paneWidget, originPoint, appliedPoint, event)
 			: eventType === InputEventType.MouseUp
 			? this._onMouseUp()
 			: false;
 
-		event.consumed ||= this._source.editing();
-		if (changed || this._source.hovered() || this._source.editing()) {
+		event.consumed ||= this._source.editing() || !this._source.finished();
+		if (changed || this._source.hovered() || this._source.editing() || ! this._source.finished()) {
 			this.updateLineAnchors();
 		}
 	}
 
 	public renderer(height: number, width: number, pane: Pane): IPaneRenderer | null {
-		if (this._invalidated) { this._updateImpl(); }
-		return this._renderer;
+		if (this._invalidated) { this._updateImpl(height, width); }
+		return this._source.visible() ? this._renderer : null;
 	}
 
 	public priceToCoordinate(price: BarPrice): Coordinate | null {
@@ -82,11 +83,11 @@ export abstract class LineSourcePaneView implements IPaneView, IInputEventListen
 	}
 
 	public editedPointIndex(): number | null {
-		return this._editedPointIndex;
+		return this._source.editing() ? this._editedPointIndex : null;
 	}
 
 	public areAnchorsVisible(): boolean {
-		return (this._source.hovered() || this._source.selected() || this._source.editing());
+		return this._source.hovered() || this._source.selected() || this._source.editing() || !this._source.finished();
 	}
 
 	public update(): void {
@@ -104,10 +105,11 @@ export abstract class LineSourcePaneView implements IPaneView, IInputEventListen
 				selected: this._source.selected(),
 				visible: this.areAnchorsVisible(),
 				currentPoint: this.currentPoint(),
-				editedPointIndex: this._editedPointIndex,
+				editedPointIndex: this.editedPointIndex(),
 			});
 		});
 		this._model.updateSource(this._source);
+		this._source.updateAllViews();
 	}
 
 	public createLineAnchor(data: CreateAnchorData, index: number): LineAnchorRenderer {
@@ -115,24 +117,28 @@ export abstract class LineSourcePaneView implements IPaneView, IInputEventListen
 		renderer.setData({
 			...data,
 			radius: 6,
-			strokeWidth: 2,
+			strokeWidth: 1,
 			color: '#1E53E5',
-			selectedStrokeWidth: 4,
+			hoveredStrokeWidth: 4,
 			selected: this._source.selected(),
 			visible: this.areAnchorsVisible(),
 			currentPoint: this.currentPoint(),
 			backgroundColors: this._lineAnchorColors(data.points),
 			editedPointIndex: this._source.editing() ? this.editedPointIndex() : null,
-			hitTestType: HitTestType.CHANGEPOINT,
+			hitTestType: HitTestType.ChangePoint,
 		});
 
 		return renderer;
 	}
 
 	protected _onMouseUp(): boolean {
-		if (this._source.editing()) {
+		if (!this._source.finished()) {
+			this._source.tryFinish();
+		} else if (this._source.editing()) {
 			this._model.magnet().disable();
 			this._updateSourcePoints();
+
+			this._lastMovePoint = null;
 			this._editedPointIndex = null;
 			this._source.setEditing(false);
 			return true;
@@ -141,53 +147,73 @@ export abstract class LineSourcePaneView implements IPaneView, IInputEventListen
 	}
 
 	protected _onPressedMouseMove(paneWidget: PaneWidget, originPoint: Point, appliedPoint: Point): boolean {
+		if (!this._source.finished()) {
+			if (this._source.lineDrawnWithPressedButton()) {
+				this._source.addPoint(this._source.screenPointToPoint(appliedPoint) as LineToolPoint);
+			}
+			return false;
+		}
+
+		if (!this._source.selected()) { return false; }
+
 		if (!this._source.editing()) {
 			const hitResult = this._hitTest(paneWidget, originPoint);
 			const hitData = hitResult?.data();
-			this._source.setEditing(!!hitResult);
+			this._source.setEditing(this._source.hovered() || !!hitResult);
 
 			this._lastMovePoint = appliedPoint;
-			this._editedPointIndex = hitData?.pointIndex ?? null;
-
+			this._editedPointIndex = hitData?.pointIndex ?? this._editedPointIndex;
 			if (hitData) { this._model.magnet().enable(); }
 		} else {
 			paneWidget.setCursor(this._editedPointIndex !== null ? PaneCursorType.Default : PaneCursorType.Grabbing);
 
 			if (this._editedPointIndex !== null) {
-				this._points[this._editedPointIndex].x = appliedPoint.x;
-				this._points[this._editedPointIndex].y = appliedPoint.y;
+				this._source.setPoint(this._editedPointIndex, this._source.screenPointToPoint(appliedPoint) as LineToolPoint);
 			} else if (this._lastMovePoint) {
 				const diff = appliedPoint.subtract(this._lastMovePoint);
-				this._lastMovePoint = appliedPoint;
-
 				this._points.forEach((point: Point) => {
 					point.x = (point.x + diff.x) as Coordinate;
 					point.y = (point.y + diff.y) as Coordinate;
 				});
-			}
 
-			this._updateSourcePoints(true);
+				this._lastMovePoint = appliedPoint;
+				this._updateSourcePoints();
+			}
 		}
 		return false;
 	}
 
-	protected _onMouseMove(paneWidget: PaneWidget, originPoint: Point): boolean {
-		const hitResult = this._hitTest(paneWidget, originPoint);
-		const changed = this._source.setHovered(hitResult !== null);
+	protected _onMouseMove(paneWidget: PaneWidget, originPoint: Point, appliedPoint: Point, event: TouchMouseEvent): boolean {
+		if (!this._source.finished()) {
+			if (this._source.hasMagnet()) { this._model.magnet().enable(); }
+			this._source.setLastPoint(this._source.screenPointToPoint(appliedPoint) as LineToolPoint);
+		} else {
+			const hitResult = this._hitTest(paneWidget, originPoint);
+			const changed = this._source.setHovered(hitResult !== null && !event.consumed);
 
-		if (this._source.hovered()) {
-			paneWidget.setCursor(hitResult?.data()?.cursorType || PaneCursorType.Pointer);
+			if (this._source.hovered() && !event.consumed) {
+				paneWidget.setCursor(hitResult?.data()?.cursorType || PaneCursorType.Pointer);
+				this._editedPointIndex = hitResult?.data()?.pointIndex ?? null;
+			}
+
+			return changed;
 		}
-		return changed;
+
+		return false;
 	}
 
-	protected _onMouseDown(paneWidget: PaneWidget, originPoint: Point): boolean {
-		const hitResult = this._hitTest(paneWidget, originPoint);
-		return this._source.setSelected(hitResult !== null);
+	protected _onMouseDown(paneWidget: PaneWidget, originPoint: Point, appliedPoint: Point, event: TouchMouseEvent): boolean {
+		if (!this._source.finished()) {
+			this._source.addPoint(this._source.screenPointToPoint(appliedPoint) as LineToolPoint);
+			return false;
+		} else {
+			const hitResult = this._hitTest(paneWidget, originPoint);
+			return this._source.setSelected(hitResult !== null && !event.consumed);
+		}
 	}
 
-	protected _updateSourcePoints(silent?: boolean): void {
-		this._source.setPoints(this._points.map((point: Point) => this._source.screenPointToPoint(point) as LineToolPoint), silent);
+	protected _updateSourcePoints(): void {
+		this._source.setPoints(this._points.map((point: Point) => this._source.screenPointToPoint(point) as LineToolPoint));
 	}
 
 	protected _hitTest(paneWidget: PaneWidget, point: Point): HitTestResult<LineToolHitTestData> | null {
@@ -201,11 +227,11 @@ export abstract class LineSourcePaneView implements IPaneView, IInputEventListen
 		return points.map((point: AnchorPoint) => this._model.backgroundColorAtYPercentFromTop(point.y / height));
 	}
 
-	protected _updateImpl(): void {
+	protected _updateImpl(height?: number, width?: number): void {
 		this._invalidated = false;
 
-		if (this._model.timeScale().isEmpty() || this._source.editing()) {return;}
-		if (!this._validatePriceScale()) {return;}
+		if (this._model.timeScale().isEmpty()) { return; }
+		if (!this._validatePriceScale()) { return; }
 
 		this._points = [] as AnchorPoint[];
 		const sourcePoints = this._source.points();

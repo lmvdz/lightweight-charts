@@ -347,8 +347,8 @@ export class PaneWidget implements IDestroyable {
 		}
 
 		if (!mobileTouch) {
-			this._propagateEvent(InputEventType.MouseDown, event);
 			this._setCrosshairPosition(event.localX, event.localY);
+			this._propagateEvent(InputEventType.MouseDown, event);
 		}
 	}
 
@@ -691,8 +691,13 @@ export class PaneWidget implements IDestroyable {
 		if (this._state === null) { return; }
 		this.setCursor(PaneCursorType.Crosshair);
 
-		for (const source of this._state.dataSources()) {
-			const paneViews = source.paneViews();
+		// if (this._model().lineToolCreator().hasActiveToolLine()) {
+		this._model().lineToolCreator().onInputEvent(this, type, event);
+		// }
+
+		const sources = this._state.orderedSources();
+		for (let index = sources.length - 1; index >= 0; index--) {
+			const paneViews = sources[index].paneViews();
 			paneViews.forEach((pane: IPaneView) => {
 				if (isInputEventListener(pane)) {
 					pane.onInputEvent(this, type, event);

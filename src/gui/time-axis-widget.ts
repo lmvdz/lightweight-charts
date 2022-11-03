@@ -258,8 +258,10 @@ export class TimeAxisWidget implements MouseEventHandlers, IDestroyable {
 
 			this._drawBackground(ctx, renderParams);
 			this._drawBorder(ctx, renderParams);
+
+			this._drawSources(this._chart.model().dataSources(), ctx, renderParams, true);
 			this._drawTickMarks(ctx, renderParams);
-			this._drawLabels(this._chart.model().dataSources(), ctx, renderParams);
+			this._drawSources(this._chart.model().dataSources(), ctx, renderParams);
 
 			if (this._leftStub !== null) {
 				this._leftStub.paint(type);
@@ -274,7 +276,7 @@ export class TimeAxisWidget implements MouseEventHandlers, IDestroyable {
 		const pixelRatio = this._topCanvasBinding.pixelRatio;
 
 		topCtx.clearRect(0, 0, Math.ceil(this._size.w * pixelRatio), Math.ceil(this._size.h * pixelRatio));
-		this._drawLabels([this._chart.model().crosshairSource()], topCtx, renderParams);
+		this._drawSources([this._chart.model().crosshairSource()], topCtx, renderParams);
 	}
 
 	private _drawBackground(ctx: CanvasRenderingContext2D, renderParams: CanvasRenderParams): void {
@@ -379,12 +381,19 @@ export class TimeAxisWidget implements MouseEventHandlers, IDestroyable {
 		return coordinate;
 	}
 
-	private _drawLabels(sources: readonly IDataSource[], ctx: CanvasRenderingContext2D, renderParams: CanvasRenderParams): void {
+	private _drawSources(sources: readonly IDataSource[], ctx: CanvasRenderingContext2D, renderParams: CanvasRenderParams, background?: boolean): void {
 		const rendererOptions = this._getRendererOptions();
 		for (const source of sources) {
 			for (const view of source.timeAxisViews()) {
+				const renderer = view.renderer();
 				ctx.save();
-				view.renderer().draw(ctx, rendererOptions, renderParams);
+
+				if (background && renderer.drawBackground) {
+					renderer.drawBackground(ctx, rendererOptions, renderParams);
+				} else if (renderer.draw) {
+					renderer.draw(ctx, rendererOptions, renderParams);
+				}
+
 				ctx.restore();
 			}
 		}

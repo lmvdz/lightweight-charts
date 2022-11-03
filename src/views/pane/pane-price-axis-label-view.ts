@@ -1,60 +1,44 @@
 import { CanvasRenderParams } from '../../model/canvas-render-params';
 import { ChartModel } from '../../model/chart-model';
 import { IPriceDataSource } from '../../model/iprice-data-source';
-import { TextWidthCache } from '../../model/text-width-cache';
 import { IPaneRenderer } from '../../renderers/ipane-renderer';
 import { IPriceAxisViewRenderer, PriceAxisViewRendererOptions } from '../../renderers/iprice-axis-view-renderer';
 
-import { IPriceAxisView } from '../price-axis/iprice-axis-view';
+import { PriceAxisLabelView } from '../price-axis/price-axis-label-view';
 import { IPaneView } from './ipane-view';
 
-class PanePriceAxisViewRenderer implements IPaneRenderer {
+class PanePriceAxisLabelRenderer implements IPaneRenderer {
 	private _priceAxisViewRenderer: IPriceAxisViewRenderer | null = null;
 	private _rendererOptions: PriceAxisViewRendererOptions | null = null;
-	private _align: 'left' | 'right' = 'right';
-	private _width: number = 0;
-	private readonly _textWidthCache: TextWidthCache;
-
-	public constructor(textWidthCache: TextWidthCache) {
-		this._textWidthCache = textWidthCache;
-	}
 
 	public setParams(
 		priceAxisViewRenderer: IPriceAxisViewRenderer,
-		rendererOptions: PriceAxisViewRendererOptions,
-		width: number,
-		align: 'left' | 'right'
+		rendererOptions: PriceAxisViewRendererOptions
 	): void {
 		this._priceAxisViewRenderer = priceAxisViewRenderer;
 		this._rendererOptions = rendererOptions;
-		this._width = width;
-		this._align = align;
 	}
 
 	public draw(ctx: CanvasRenderingContext2D, renderParams: CanvasRenderParams): void {
-		if (this._rendererOptions === null || this._priceAxisViewRenderer === null) {
+		if (this._rendererOptions === null || this._priceAxisViewRenderer === null || !this._priceAxisViewRenderer.draw) {
 			return;
 		}
 
-		this._priceAxisViewRenderer.draw(ctx, this._rendererOptions, this._textWidthCache, this._width, this._align, renderParams.pixelRatio);
+		this._priceAxisViewRenderer.draw(ctx, this._rendererOptions, renderParams);
 	}
 }
 
-export class PanePriceAxisView implements IPaneView {
-	private _priceAxisView: IPriceAxisView;
-	private readonly _textWidthCache: TextWidthCache;
+export class PanePriceAxisLabelView implements IPaneView {
+	private _priceAxisLabelView: PriceAxisLabelView;
 	private readonly _dataSource: IPriceDataSource;
 	private readonly _chartModel: ChartModel;
-	private readonly _renderer: PanePriceAxisViewRenderer;
-	private _fontSize: number;
+	private readonly _renderer: PanePriceAxisLabelRenderer;
 
-	public constructor(priceAxisView: IPriceAxisView, dataSource: IPriceDataSource, chartModel: ChartModel) {
-		this._priceAxisView = priceAxisView;
-		this._textWidthCache = new TextWidthCache(50); // when should we clear cache?
+	public constructor(priceAxisView: PriceAxisLabelView, dataSource: IPriceDataSource, chartModel: ChartModel) {
+		this._priceAxisLabelView = priceAxisView;
 		this._dataSource = dataSource;
 		this._chartModel = chartModel;
-		this._fontSize = -1;
-		this._renderer = new PanePriceAxisViewRenderer(this._textWidthCache);
+		this._renderer = new PanePriceAxisLabelRenderer();
 	}
 
 	public renderer(height: number, width: number): IPaneRenderer | null {
@@ -75,12 +59,9 @@ export class PanePriceAxisView implements IPaneView {
 		}
 
 		const options = this._chartModel.priceAxisRendererOptions();
-		if (options.fontSize !== this._fontSize) {
-			this._fontSize = options.fontSize;
-			this._textWidthCache.reset();
-		}
+		options.align = position;
 
-		this._renderer.setParams(this._priceAxisView.paneRenderer(), options, width, position);
+		this._renderer.setParams(this._priceAxisLabelView.paneRenderer(), options);
 		return this._renderer;
 	}
 }

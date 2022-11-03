@@ -8,7 +8,7 @@ import { ISubscription } from '../helpers/isubscription';
 import { DeepPartial, merge } from '../helpers/strict-type-checks';
 
 import { PriceAxisViewRendererOptions } from '../renderers/iprice-axis-view-renderer';
-import { PriceAxisRendererOptionsProvider } from '../renderers/price-axis-renderer-options-provider';
+import { PriceAxisRendererOptionsProvider } from '../renderers/price-axis-label-renderer-options-provider';
 
 import { Coordinate } from './coordinate';
 import { Crosshair, CrosshairOptions } from './crosshair';
@@ -19,6 +19,7 @@ import { InvalidateMask, InvalidationLevel } from './invalidate-mask';
 import { IPriceDataSource } from './iprice-data-source';
 import { ColorType, LayoutOptions, LayoutOptionsInternal } from './layout-options';
 import { LineTool, LineToolPoint } from './line-tool';
+import { LineToolCreator } from './line-tool-creator';
 import { LineToolOptionsMap, LineToolType } from './line-tool-options';
 import { LineTools } from './line-tools';
 import { LocalizationOptions } from './localization-options';
@@ -296,9 +297,10 @@ export class ChartModel implements IDestroyable {
 	private readonly _timeScale: TimeScale;
 	private readonly _panes: Pane[] = [];
 	private readonly _panesToIndex: Map<Pane, number> = new Map<Pane, number>();
+	private readonly _lineToolCreator: LineToolCreator;
 	private readonly _crosshair: Crosshair;
-	private readonly _magnet: Magnet;
 	private readonly _watermark: Watermark;
+	private readonly _magnet: Magnet;
 
 	private _serieses: Series[] = [];
 
@@ -324,6 +326,7 @@ export class ChartModel implements IDestroyable {
 		this._crosshair = new Crosshair(this, options.crosshair);
 		this._watermark = new Watermark(this, options.watermark);
 		this._magnet = new Magnet(options.crosshair.magnetThreshold);
+		this._lineToolCreator = new LineToolCreator(this);
 
 		this.createPane();
 		this._panes[0].setStretchFactor(DEFAULT_STRETCH_FACTOR * 2);
@@ -451,6 +454,10 @@ export class ChartModel implements IDestroyable {
 
 	public watermarkSource(): Watermark {
 		return this._watermark;
+	}
+
+	public lineToolCreator(): LineToolCreator {
+		return this._lineToolCreator;
 	}
 
 	public crosshairSource(): Crosshair {
@@ -787,7 +794,7 @@ export class ChartModel implements IDestroyable {
 		return this._rendererOptionsProvider;
 	}
 
-	public priceAxisRendererOptions(): Readonly<PriceAxisViewRendererOptions> {
+	public priceAxisRendererOptions(): PriceAxisViewRendererOptions {
 		return this._rendererOptionsProvider.options();
 	}
 
@@ -829,8 +836,8 @@ export class ChartModel implements IDestroyable {
 
 	public createLineTool<T extends LineToolType>(lineToolType: T, options: LineToolOptionsMap[T], points: LineToolPoint[]): LineTool<T> {
 		const lineTool = new LineTools[lineToolType](this, options, points) as LineTool<T>;
+		// TODO: iosif add to ownerSourceId pane
 		this._panes[0].addDataSource(lineTool, this.defaultVisiblePriceScaleId());
-
 		return lineTool;
 	}
 

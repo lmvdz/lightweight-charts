@@ -5,11 +5,11 @@ import { Series } from '../../model/series';
 import {
 	PriceAxisViewRendererCommonData,
 	PriceAxisViewRendererData,
-} from '../../renderers/iprice-axis-view-renderer';
+} from '../../renderers/price-axis-label-renderer';
 
-import { PriceAxisView } from './price-axis-view';
+import { PriceAxisLabelView } from './price-axis-label-view';
 
-export class CustomPriceLinePriceAxisView extends PriceAxisView {
+export class CustomPriceLinePriceAxisLabelView extends PriceAxisLabelView {
 	private readonly _series: Series;
 	private readonly _priceLine: CustomPriceLine;
 

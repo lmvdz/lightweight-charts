@@ -1,23 +1,21 @@
-import { PriceScale } from '../../model/price-scale';
+import { IPriceAxisViewRenderer, PriceAxisViewRendererOptions } from '../../renderers/iprice-axis-view-renderer';
 import {
-	IPriceAxisViewRenderer,
-	IPriceAxisViewRendererConstructor,
-	PriceAxisViewRendererCommonData,
-	PriceAxisViewRendererData,
-	PriceAxisViewRendererOptions,
-} from '../../renderers/iprice-axis-view-renderer';
-import { PriceAxisViewRenderer } from '../../renderers/price-axis-view-renderer';
+	PriceAxisViewRenderer,
+	PriceAxisViewRendererCommonData as PriceAxisLabelRendererCommonData,
+	PriceAxisViewRendererData as PriceAxisLabelRendererData,
+} from '../../renderers/price-axis-label-renderer';
 
 import { IPriceAxisView } from './iprice-axis-view';
 
-export abstract class PriceAxisView implements IPriceAxisView {
-	private readonly _commonRendererData: PriceAxisViewRendererCommonData = {
+type IPriceAxisLabelRendererConstructor = new(data: PriceAxisLabelRendererData, commonData: PriceAxisLabelRendererCommonData) => PriceAxisViewRenderer;
+export abstract class PriceAxisLabelView implements IPriceAxisView {
+	private readonly _commonRendererData: PriceAxisLabelRendererCommonData = {
 		coordinate: 0,
 		color: '#FFF',
 		background: '#000',
 	};
 
-	private readonly _axisRendererData: PriceAxisViewRendererData = {
+	private readonly _axisRendererData: PriceAxisLabelRendererData = {
 		text: '',
 		visible: false,
 		tickVisible: false,
@@ -25,7 +23,7 @@ export abstract class PriceAxisView implements IPriceAxisView {
 		borderColor: '',
 	};
 
-	private readonly _paneRendererData: PriceAxisViewRendererData = {
+	private readonly _paneRendererData: PriceAxisLabelRendererData = {
 		text: '',
 		visible: false,
 		tickVisible: false,
@@ -33,11 +31,11 @@ export abstract class PriceAxisView implements IPriceAxisView {
 		borderColor: '',
 	};
 
-	private readonly _axisRenderer: IPriceAxisViewRenderer;
-	private readonly _paneRenderer: IPriceAxisViewRenderer;
+	private readonly _axisRenderer: PriceAxisViewRenderer;
+	private readonly _paneRenderer: PriceAxisViewRenderer;
 	private _invalidated: boolean = true;
 
-	public constructor(ctor?: IPriceAxisViewRendererConstructor) {
+	public constructor(ctor?: IPriceAxisLabelRendererConstructor) {
 		this._axisRenderer = new (ctor || PriceAxisViewRenderer)(this._axisRendererData, this._commonRendererData);
 		this._paneRenderer = new (ctor || PriceAxisViewRenderer)(this._paneRendererData, this._commonRendererData);
 	}
@@ -66,7 +64,7 @@ export abstract class PriceAxisView implements IPriceAxisView {
 		return this._commonRendererData.fixedCoordinate || 0;
 	}
 
-	public setFixedCoordinate(value: number): void {
+	public setFixedCoordinate(value?: number): void {
 		this._commonRendererData.fixedCoordinate = value;
 	}
 
@@ -75,19 +73,8 @@ export abstract class PriceAxisView implements IPriceAxisView {
 		return this._axisRendererData.visible || this._paneRendererData.visible;
 	}
 
-	public isAxisLabelVisible(): boolean {
+	public renderer(): IPriceAxisViewRenderer {
 		this._updateRendererDataIfNeeded();
-		return this._axisRendererData.visible;
-	}
-
-	public renderer(priceScale: PriceScale): IPriceAxisViewRenderer {
-		this._updateRendererDataIfNeeded();
-
-		// force update tickVisible state from price scale options
-		// because we don't have and we can't have price axis in other methods
-		// (like paneRenderer or any other who call _updateRendererDataIfNeeded)
-		this._axisRendererData.tickVisible = this._axisRendererData.tickVisible && priceScale.options().drawTicks;
-		this._paneRendererData.tickVisible = this._paneRendererData.tickVisible && priceScale.options().drawTicks;
 
 		this._axisRenderer.setData(this._axisRendererData, this._commonRendererData);
 		this._paneRenderer.setData(this._paneRendererData, this._commonRendererData);
@@ -104,14 +91,14 @@ export abstract class PriceAxisView implements IPriceAxisView {
 	}
 
 	protected abstract _updateRendererData(
-		axisRendererData: PriceAxisViewRendererData,
-		paneRendererData: PriceAxisViewRendererData,
-		commonData: PriceAxisViewRendererCommonData
+		axisRendererData: PriceAxisLabelRendererData,
+		paneRendererData: PriceAxisLabelRendererData,
+		commonData: PriceAxisLabelRendererCommonData
 	): void;
 
 	private _updateRendererDataIfNeeded(): void {
 		if (this._invalidated) {
-			this._axisRendererData.tickVisible = true;
+			this._axisRendererData.tickVisible = false;
 			this._paneRendererData.tickVisible = false;
 			this._updateRendererData(this._axisRendererData, this._paneRendererData, this._commonRendererData);
 		}

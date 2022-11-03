@@ -15,13 +15,13 @@ import { SeriesHistogramPaneView } from '../views/pane/histogram-pane-view';
 import { IPaneView } from '../views/pane/ipane-view';
 import { IUpdatablePaneView } from '../views/pane/iupdatable-pane-view';
 import { SeriesLinePaneView } from '../views/pane/line-pane-view';
-import { PanePriceAxisView } from '../views/pane/pane-price-axis-view';
+import { PanePriceAxisLabelView } from '../views/pane/pane-price-axis-label-view';
 import { SeriesHorizontalBaseLinePaneView } from '../views/pane/series-horizontal-base-line-pane-view';
 import { SeriesLastPriceAnimationPaneView } from '../views/pane/series-last-price-animation-pane-view';
 import { SeriesMarkersPaneView } from '../views/pane/series-markers-pane-view';
 import { SeriesPriceLinePaneView } from '../views/pane/series-price-line-pane-view';
 import { IPriceAxisView } from '../views/price-axis/iprice-axis-view';
-import { SeriesPriceAxisView } from '../views/price-axis/series-price-axis-view';
+import { SeriesPriceAxisLabelView } from '../views/price-axis/series-price-axis-label-view';
 
 import { AutoscaleInfoImpl } from './autoscale-info-impl';
 import { BarPrice, BarPrices } from './bar';
@@ -102,7 +102,7 @@ export class Series<T extends SeriesType = SeriesType> extends PriceDataSource i
 	private readonly _seriesType: T;
 	private _data: SeriesPlotList<T> = createSeriesPlotList();
 	private readonly _priceAxisViews: IPriceAxisView[];
-	private readonly _panePriceAxisView: PanePriceAxisView;
+	private readonly _panePriceAxisLabelView: PanePriceAxisLabelView;
 	private _formatter!: IPriceFormatter;
 	private readonly _priceLineView: SeriesPriceLinePaneView = new SeriesPriceLinePaneView(this);
 	private readonly _customPriceLines: CustomPriceLine[] = [];
@@ -121,10 +121,10 @@ export class Series<T extends SeriesType = SeriesType> extends PriceDataSource i
 		this._options = options;
 		this._seriesType = seriesType;
 
-		const priceAxisView = new SeriesPriceAxisView(this);
+		const priceAxisView = new SeriesPriceAxisLabelView(this);
 		this._priceAxisViews = [priceAxisView];
 
-		this._panePriceAxisView = new PanePriceAxisView(priceAxisView, this, model);
+		this._panePriceAxisLabelView = new PanePriceAxisLabelView(priceAxisView, this, model);
 
 		if (seriesType === 'Area' || seriesType === 'Line' || seriesType === 'Baseline') {
 			this._lastPriceAnimationPaneView = new SeriesLastPriceAnimationPaneView(this as Series<'Area'> | Series<'Line'> | Series<'Baseline'>);
@@ -378,7 +378,7 @@ export class Series<T extends SeriesType = SeriesType> extends PriceDataSource i
 			res.push(...customPriceLine.paneViews());
 		}
 
-		res.push(this._paneView, this._priceLineView, this._panePriceAxisView, this._markersPaneView);
+		res.push(this._paneView, this._priceLineView, this._panePriceAxisLabelView, this._markersPaneView);
 
 		return res;
 	}
