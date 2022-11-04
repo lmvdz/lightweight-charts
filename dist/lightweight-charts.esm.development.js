@@ -1,6 +1,6 @@
 /*!
  * @license
- * TradingView Lightweight Charts v3.8.0-dev+202211041724
+ * TradingView Lightweight Charts v3.8.0-dev+202211041825
  * Copyright (c) 2020 TradingView, Inc.
  * Licensed under Apache License 2.0 https://www.apache.org/licenses/LICENSE-2.0
  */
@@ -926,7 +926,7 @@ var Delegate = /** @class */ (function () {
     function Delegate() {
         this._private__listeners = [];
     }
-    Delegate.prototype._internal_subscribe = function (callback, linkedObject, singleshot) {
+    Delegate.prototype.subscribe = function (callback, linkedObject, singleshot) {
         var listener = {
             _internal_callback: callback,
             _internal_linkedObject: linkedObject,
@@ -934,24 +934,24 @@ var Delegate = /** @class */ (function () {
         };
         this._private__listeners.push(listener);
     };
-    Delegate.prototype._internal_unsubscribe = function (callback) {
+    Delegate.prototype.unsubscribe = function (callback) {
         var index = this._private__listeners.findIndex(function (listener) { return callback === listener._internal_callback; });
         if (index > -1) {
             this._private__listeners.splice(index, 1);
         }
     };
-    Delegate.prototype._internal_unsubscribeAll = function (linkedObject) {
+    Delegate.prototype.unsubscribeAll = function (linkedObject) {
         this._private__listeners = this._private__listeners.filter(function (listener) { return listener._internal_linkedObject !== linkedObject; });
     };
-    Delegate.prototype._internal_fire = function (param1, param2) {
+    Delegate.prototype.fire = function (param1, param2) {
         var listenersSnapshot = __spreadArray([], this._private__listeners, true);
         this._private__listeners = this._private__listeners.filter(function (listener) { return !listener._internal_singleshot; });
         listenersSnapshot.forEach(function (listener) { return listener._internal_callback(param1, param2); });
     };
-    Delegate.prototype._internal_hasListeners = function () {
+    Delegate.prototype.hasListeners = function () {
         return this._private__listeners.length > 0;
     };
-    Delegate.prototype._internal_destroy = function () {
+    Delegate.prototype.destroy = function () {
         this._private__listeners = [];
     };
     return Delegate;
@@ -1074,13 +1074,13 @@ var TextWidthCache = /** @class */ (function () {
         // A trick to keep array PACKED_ELEMENTS
         this._private__keys = Array.from(new Array(size));
     }
-    TextWidthCache.prototype._internal_reset = function () {
+    TextWidthCache.prototype.reset = function () {
         this._private__cache.clear();
         this._private__keys.fill(undefined);
         // We don't care where exactly the _keysIndex points,
         // so there's no point in resetting it
     };
-    TextWidthCache.prototype._internal_measureText = function (ctx, text, optimizationReplacementRe) {
+    TextWidthCache.prototype.measureText = function (ctx, text, optimizationReplacementRe) {
         var re = optimizationReplacementRe || defaultReplacementRe;
         var cacheString = String(text).replace(re, '0');
         var width = this._private__cache.get(cacheString);
@@ -1124,48 +1124,48 @@ var TextWidthCache = /** @class */ (function () {
 var PriceAxisRendererOptionsProvider = /** @class */ (function () {
     function PriceAxisRendererOptionsProvider(chartModel) {
         this._private__rendererOptions = {
-            _internal_borderSize: 1 /* BorderSize */,
-            _internal_tickLength: 4 /* TickLength */,
-            _internal_widthCache: new TextWidthCache(),
-            _internal_fontSize: NaN,
-            _internal_font: '',
-            _internal_fontFamily: '',
-            _internal_color: '',
-            _internal_paddingBottom: 0,
-            _internal_paddingInner: 0,
-            _internal_paddingOuter: 0,
-            _internal_paddingTop: 0,
-            _internal_baselineOffset: 0,
-            _internal_align: 'left',
+            borderSize: 1 /* BorderSize */,
+            tickLength: 4 /* TickLength */,
+            widthCache: new TextWidthCache(),
+            fontSize: NaN,
+            font: '',
+            fontFamily: '',
+            color: '',
+            paddingBottom: 0,
+            paddingInner: 0,
+            paddingOuter: 0,
+            paddingTop: 0,
+            baselineOffset: 0,
+            align: 'left',
         };
         this._private__chartModel = chartModel;
     }
-    PriceAxisRendererOptionsProvider.prototype._internal_options = function () {
+    PriceAxisRendererOptionsProvider.prototype.options = function () {
         var rendererOptions = this._private__rendererOptions;
         var currentFontSize = this._private__fontSize();
         var currentFontFamily = this._private__fontFamily();
-        if (rendererOptions._internal_fontSize !== currentFontSize || rendererOptions._internal_fontFamily !== currentFontFamily) {
-            rendererOptions._internal_fontSize = currentFontSize;
-            rendererOptions._internal_fontFamily = currentFontFamily;
-            rendererOptions._internal_font = makeFont(currentFontSize, currentFontFamily);
-            rendererOptions._internal_paddingTop = Math.floor(currentFontSize / 3.5);
-            rendererOptions._internal_paddingBottom = rendererOptions._internal_paddingTop;
-            rendererOptions._internal_paddingInner = Math.max(Math.ceil(currentFontSize / 2 - rendererOptions._internal_tickLength / 2), 0);
-            rendererOptions._internal_paddingOuter = Math.ceil(currentFontSize / 2 + rendererOptions._internal_tickLength / 2);
-            rendererOptions._internal_baselineOffset = Math.round(currentFontSize / 10);
-            rendererOptions._internal_widthCache._internal_reset();
+        if (rendererOptions.fontSize !== currentFontSize || rendererOptions.fontFamily !== currentFontFamily) {
+            rendererOptions.fontSize = currentFontSize;
+            rendererOptions.fontFamily = currentFontFamily;
+            rendererOptions.font = makeFont(currentFontSize, currentFontFamily);
+            rendererOptions.paddingTop = Math.floor(currentFontSize / 3.5);
+            rendererOptions.paddingBottom = rendererOptions.paddingTop;
+            rendererOptions.paddingInner = Math.max(Math.ceil(currentFontSize / 2 - rendererOptions.tickLength / 2), 0);
+            rendererOptions.paddingOuter = Math.ceil(currentFontSize / 2 + rendererOptions.tickLength / 2);
+            rendererOptions.baselineOffset = Math.round(currentFontSize / 10);
+            rendererOptions.widthCache.reset();
         }
-        rendererOptions._internal_color = this._private__textColor();
+        rendererOptions.color = this._private__textColor();
         return this._private__rendererOptions;
     };
     PriceAxisRendererOptionsProvider.prototype._private__textColor = function () {
-        return this._private__chartModel._internal_options().layout.textColor;
+        return this._private__chartModel.options().layout.textColor;
     };
     PriceAxisRendererOptionsProvider.prototype._private__fontSize = function () {
-        return this._private__chartModel._internal_options().layout.fontSize;
+        return this._private__chartModel.options().layout.fontSize;
     };
     PriceAxisRendererOptionsProvider.prototype._private__fontFamily = function () {
-        return this._private__chartModel._internal_options().layout.fontFamily;
+        return this._private__chartModel.options().layout.fontFamily;
     };
     return PriceAxisRendererOptionsProvider;
 }());
@@ -1194,31 +1194,31 @@ var CompositeRenderer = /** @class */ (function () {
     CompositeRenderer.prototype._internal_isEmpty = function () {
         return this._private__renderers.length === 0;
     };
-    CompositeRenderer.prototype._internal_draw = function (ctx, renderParams) {
+    CompositeRenderer.prototype.draw = function (ctx, renderParams) {
         for (var i = 0; i < this._private__renderers.length; i++) {
             ctx.save();
             ctx.globalAlpha = this._private__globalAlpha;
-            this._private__renderers[i]._internal_draw(ctx, renderParams);
+            this._private__renderers[i].draw(ctx, renderParams);
             ctx.restore();
         }
     };
-    CompositeRenderer.prototype._internal_drawBackground = function (ctx, renderParams) {
+    CompositeRenderer.prototype.drawBackground = function (ctx, renderParams) {
         ctx.save();
         ctx.globalAlpha = this._private__globalAlpha;
         for (var i = 0; i < this._private__renderers.length; i++) {
             var renderer = this._private__renderers[i];
-            if (renderer._internal_drawBackground) {
-                renderer._internal_drawBackground(ctx, renderParams);
+            if (renderer.drawBackground) {
+                renderer.drawBackground(ctx, renderParams);
             }
         }
         ctx.restore();
     };
-    CompositeRenderer.prototype._internal_hitTest = function (point, renderParams) {
+    CompositeRenderer.prototype.hitTest = function (point, renderParams) {
         var result = null;
         for (var i = this._private__renderers.length - 1; i >= 0; i--) {
             var renderer = this._private__renderers[i];
-            if (renderer._internal_hitTest) {
-                result = renderer._internal_hitTest(point, renderParams) || null;
+            if (renderer.hitTest) {
+                result = renderer.hitTest(point, renderParams) || null;
             }
             if (result) {
                 break;
@@ -1232,8 +1232,8 @@ var CompositeRenderer = /** @class */ (function () {
 var ScaledRenderer = /** @class */ (function () {
     function ScaledRenderer() {
     }
-    ScaledRenderer.prototype._internal_draw = function (ctx, renderParams) {
-        var pixelRatio = renderParams._internal_pixelRatio;
+    ScaledRenderer.prototype.draw = function (ctx, renderParams) {
+        var pixelRatio = renderParams.pixelRatio;
         ctx.save();
         // actually we must be sure that this scaling applied only once at the same time
         // currently ScaledRenderer could be only nodes renderer (not top-level renderers like CompositeRenderer or something)
@@ -1242,8 +1242,8 @@ var ScaledRenderer = /** @class */ (function () {
         this._internal__drawImpl(ctx, renderParams);
         ctx.restore();
     };
-    ScaledRenderer.prototype._internal_drawBackground = function (ctx, renderParams) {
-        var pixelRatio = renderParams._internal_pixelRatio;
+    ScaledRenderer.prototype.drawBackground = function (ctx, renderParams) {
+        var pixelRatio = renderParams.pixelRatio;
         ctx.save();
         // actually we must be sure that this scaling applied only once at the same time
         // currently ScaledRenderer could be only nodes renderer (not top-level renderers like CompositeRenderer or something)
@@ -1276,8 +1276,8 @@ var PaneRendererMarks = /** @class */ (function (_super) {
             ctx.beginPath();
             for (var i = visibleRange.to - 1; i >= visibleRange.from; --i) {
                 var point = data._internal_items[i];
-                ctx.moveTo(point._internal_x, point._internal_y);
-                ctx.arc(point._internal_x, point._internal_y, radius, 0, Math.PI * 2);
+                ctx.moveTo(point.x, point.y);
+                ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
             }
             ctx.fill();
         };
@@ -1292,10 +1292,10 @@ var PaneRendererMarks = /** @class */ (function (_super) {
 function createEmptyMarkerData() {
     return {
         _internal_items: [{
-                _internal_x: 0,
-                _internal_y: 0,
-                _internal_time: 0,
-                _internal_price: 0,
+                x: 0,
+                y: 0,
+                time: 0,
+                price: 0,
             }],
         _internal_lineColor: '',
         _internal_backColor: '',
@@ -1314,8 +1314,8 @@ var CrosshairMarksPaneView = /** @class */ (function () {
         this._private__crosshair = crosshair;
         this._private__compositeRenderer._internal_setRenderers(this._private__markersRenderers);
     }
-    CrosshairMarksPaneView.prototype._internal_update = function (updateType) {
-        var serieses = this._private__chartModel._internal_serieses();
+    CrosshairMarksPaneView.prototype.update = function (updateType) {
+        var serieses = this._private__chartModel.serieses();
         if (serieses.length !== this._private__markersRenderers.length) {
             this._private__markersData = serieses.map(createEmptyMarkerData);
             this._private__markersRenderers = this._private__markersData.map(function (data) {
@@ -1327,7 +1327,7 @@ var CrosshairMarksPaneView = /** @class */ (function () {
         }
         this._private__validated.clear();
     };
-    CrosshairMarksPaneView.prototype._internal_renderer = function (height, width, pane) {
+    CrosshairMarksPaneView.prototype.renderer = function (height, width, pane) {
         var renderers = this._private__validated.get(pane);
         if (!renderers) {
             renderers = this._private__updateImpl(pane, height);
@@ -1343,28 +1343,28 @@ var CrosshairMarksPaneView = /** @class */ (function () {
     };
     CrosshairMarksPaneView.prototype._private__updateImpl = function (pane, height) {
         var _this = this;
-        var serieses = this._private__chartModel._internal_serieses()
+        var serieses = this._private__chartModel.serieses()
             .map(function (datasource, index) { return [datasource, index]; })
-            .filter(function (entry) { return pane._internal_dataSources().includes(entry[0]); });
-        var timePointIndex = this._private__crosshair._internal_appliedIndex();
-        var timeScale = this._private__chartModel._internal_timeScale();
+            .filter(function (entry) { return pane.dataSources().includes(entry[0]); });
+        var timePointIndex = this._private__crosshair.appliedIndex();
+        var timeScale = this._private__chartModel.timeScale();
         return serieses.map(function (_a) {
             var _b;
             var s = _a[0], index = _a[1];
             var data = _this._private__markersData[index];
-            var seriesData = s._internal_markerDataAtIndex(timePointIndex);
-            if (seriesData === null || !s._internal_visible()) {
+            var seriesData = s.markerDataAtIndex(timePointIndex);
+            if (seriesData === null || !s.visible()) {
                 data._internal_visibleRange = null;
             }
             else {
-                var firstValue = ensureNotNull(s._internal_firstValue());
-                data._internal_lineColor = seriesData._internal_backgroundColor;
-                data._internal_radius = seriesData._internal_radius;
-                data._internal_items[0]._internal_price = seriesData._internal_price;
-                data._internal_items[0]._internal_y = s._internal_priceScale()._internal_priceToCoordinate(seriesData._internal_price, firstValue._internal_value);
-                data._internal_backColor = (_b = seriesData._internal_borderColor) !== null && _b !== void 0 ? _b : _this._private__chartModel._internal_backgroundColorAtYPercentFromTop(data._internal_items[0]._internal_y / height);
-                data._internal_items[0]._internal_time = timePointIndex;
-                data._internal_items[0]._internal_x = timeScale._internal_indexToCoordinate(timePointIndex);
+                var firstValue = ensureNotNull(s.firstValue());
+                data._internal_lineColor = seriesData.backgroundColor;
+                data._internal_radius = seriesData.radius;
+                data._internal_items[0].price = seriesData.price;
+                data._internal_items[0].y = s.priceScale().priceToCoordinate(seriesData.price, firstValue.value);
+                data._internal_backColor = (_b = seriesData.borderColor) !== null && _b !== void 0 ? _b : _this._private__chartModel.backgroundColorAtYPercentFromTop(data._internal_items[0].y / height);
+                data._internal_items[0].time = timePointIndex;
+                data._internal_items[0].x = timeScale.indexToCoordinate(timePointIndex);
                 data._internal_visibleRange = rangeForSinglePoint;
             }
             return _this._private__markersRenderers[index];
@@ -1377,11 +1377,11 @@ var CrosshairRenderer = /** @class */ (function () {
     function CrosshairRenderer(data) {
         this._private__data = data;
     }
-    CrosshairRenderer.prototype._internal_draw = function (ctx, renderParams) {
+    CrosshairRenderer.prototype.draw = function (ctx, renderParams) {
         if (this._private__data === null) {
             return;
         }
-        var pixelRatio = renderParams._internal_pixelRatio;
+        var pixelRatio = renderParams.pixelRatio;
         var vertLinesVisible = this._private__data._internal_vertLine._internal_visible;
         var horzLinesVisible = this._private__data._internal_horzLine._internal_visible;
         if (!vertLinesVisible && !horzLinesVisible) {
@@ -1439,7 +1439,7 @@ var CrosshairPaneView = /** @class */ (function () {
     CrosshairPaneView.prototype._internal_update = function () {
         this._private__validated.clear();
     };
-    CrosshairPaneView.prototype._internal_renderer = function (height, width, pane) {
+    CrosshairPaneView.prototype.renderer = function (height, width, pane) {
         this._private__updateImpl(pane);
         // TODO rendererData needs to be cached per pane.
         /* if (!this._validated.get(pane)) {
@@ -1451,22 +1451,22 @@ var CrosshairPaneView = /** @class */ (function () {
         return this._private__renderer;
     };
     CrosshairPaneView.prototype._private__updateImpl = function (renderingPane) {
-        var visible = this._private__source._internal_visible();
-        var pane = ensureNotNull(this._private__source._internal_pane());
-        var crosshairOptions = pane._internal_model()._internal_options().crosshair;
+        var visible = this._private__source.visible();
+        var pane = ensureNotNull(this._private__source.pane());
+        var crosshairOptions = pane.model().options().crosshair;
         var data = this._private__rendererData;
-        data._internal_horzLine._internal_visible = visible && this._private__source._internal_horzLineVisible(renderingPane);
-        data._internal_vertLine._internal_visible = visible && this._private__source._internal_vertLineVisible();
+        data._internal_horzLine._internal_visible = visible && this._private__source.horzLineVisible(renderingPane);
+        data._internal_vertLine._internal_visible = visible && this._private__source.vertLineVisible();
         data._internal_horzLine._internal_lineWidth = crosshairOptions.horzLine.width;
         data._internal_horzLine._internal_lineStyle = crosshairOptions.horzLine.style;
         data._internal_horzLine._internal_color = crosshairOptions.horzLine.color;
         data._internal_vertLine._internal_lineWidth = crosshairOptions.vertLine.width;
         data._internal_vertLine._internal_lineStyle = crosshairOptions.vertLine.style;
         data._internal_vertLine._internal_color = crosshairOptions.vertLine.color;
-        data._internal_w = renderingPane._internal_width();
-        data._internal_h = renderingPane._internal_height();
-        data._internal_x = this._private__source._internal_appliedX();
-        data._internal_y = this._private__source._internal_appliedY();
+        data._internal_w = renderingPane.width();
+        data._internal_h = renderingPane.height();
+        data._internal_x = this._private__source.appliedX();
+        data._internal_y = this._private__source.appliedY();
     };
     return CrosshairPaneView;
 }());
@@ -1541,21 +1541,21 @@ var PriceAxisViewRenderer = /** @class */ (function () {
         this._private__data = data;
         this._private__commonData = commonData;
     };
-    PriceAxisViewRenderer.prototype._internal_draw = function (ctx, rendererOptions, renderParams) {
+    PriceAxisViewRenderer.prototype.draw = function (ctx, rendererOptions, renderParams) {
         if (!this._private__data._internal_visible) {
             return;
         }
-        ctx.font = rendererOptions._internal_font;
-        var tickSize = (this._private__data._internal_tickVisible || !this._private__data._internal_moveTextToInvisibleTick) ? rendererOptions._internal_tickLength : 0;
-        var horzBorder = rendererOptions._internal_borderSize;
-        var paddingTop = rendererOptions._internal_paddingTop;
-        var paddingBottom = rendererOptions._internal_paddingBottom;
-        var paddingInner = rendererOptions._internal_paddingInner;
-        var paddingOuter = rendererOptions._internal_paddingOuter;
+        ctx.font = rendererOptions.font;
+        var tickSize = (this._private__data._internal_tickVisible || !this._private__data._internal_moveTextToInvisibleTick) ? rendererOptions.tickLength : 0;
+        var horzBorder = rendererOptions.borderSize;
+        var paddingTop = rendererOptions.paddingTop;
+        var paddingBottom = rendererOptions.paddingBottom;
+        var paddingInner = rendererOptions.paddingInner;
+        var paddingOuter = rendererOptions.paddingOuter;
         var text = this._private__data._internal_text;
-        var textWidth = Math.ceil(rendererOptions._internal_widthCache._internal_measureText(ctx, text));
-        var baselineOffset = rendererOptions._internal_baselineOffset;
-        var totalHeight = rendererOptions._internal_fontSize + paddingTop + paddingBottom;
+        var textWidth = Math.ceil(rendererOptions.widthCache.measureText(ctx, text));
+        var baselineOffset = rendererOptions.baselineOffset;
+        var totalHeight = rendererOptions.fontSize + paddingTop + paddingBottom;
         var halfHeigth = Math.ceil(totalHeight * 0.5);
         var totalWidth = horzBorder + textWidth + paddingInner + paddingOuter + tickSize;
         var yMid = this._private__commonData._internal_coordinate;
@@ -1565,9 +1565,9 @@ var PriceAxisViewRenderer = /** @class */ (function () {
         yMid = Math.round(yMid);
         var yTop = yMid - halfHeigth;
         var yBottom = yTop + totalHeight;
-        var alignRight = rendererOptions._internal_align === 'right';
-        var pixelRatio = renderParams._internal_pixelRatio;
-        var width = renderParams._internal_cssWidth;
+        var alignRight = rendererOptions.align === 'right';
+        var pixelRatio = renderParams.pixelRatio;
+        var width = renderParams.cssWidth;
         var xInside = alignRight ? width : 0;
         var rightScaled = Math.ceil(width * pixelRatio);
         var xOutside = xInside;
@@ -1631,7 +1631,7 @@ var PriceAxisViewRenderer = /** @class */ (function () {
         if (!this._private__data._internal_visible) {
             return 0;
         }
-        return rendererOptions._internal_fontSize + rendererOptions._internal_paddingTop + rendererOptions._internal_paddingBottom;
+        return rendererOptions.fontSize + rendererOptions.paddingTop + rendererOptions.paddingBottom;
     };
     return PriceAxisViewRenderer;
 }());
@@ -1669,7 +1669,7 @@ var PriceAxisLabelView = /** @class */ (function () {
         this._private__updateRendererDataIfNeeded();
         return this._private__commonRendererData._internal_coordinate;
     };
-    PriceAxisLabelView.prototype._internal_update = function () {
+    PriceAxisLabelView.prototype.update = function () {
         this._private__invalidated = true;
     };
     PriceAxisLabelView.prototype._internal_height = function (rendererOptions, useSecondLine) {
@@ -1686,7 +1686,7 @@ var PriceAxisLabelView = /** @class */ (function () {
         this._private__updateRendererDataIfNeeded();
         return this._private__axisRendererData._internal_visible || this._private__paneRendererData._internal_visible;
     };
-    PriceAxisLabelView.prototype._internal_renderer = function () {
+    PriceAxisLabelView.prototype.renderer = function () {
         this._private__updateRendererDataIfNeeded();
         this._private__axisRenderer._internal_setData(this._private__axisRendererData, this._private__commonRendererData);
         this._private__paneRenderer._internal_setData(this._private__paneRendererData, this._private__commonRendererData);
@@ -1719,12 +1719,12 @@ var CrosshairPriceAxisLabelView = /** @class */ (function (_super) {
     }
     CrosshairPriceAxisLabelView.prototype._internal__updateRendererData = function (axisRendererData, paneRendererData, commonRendererData) {
         axisRendererData._internal_visible = false;
-        var options = this._private__source._internal_options().horzLine;
+        var options = this._private__source.options().horzLine;
         if (!options.labelVisible) {
             return;
         }
-        var firstValue = this._private__priceScale._internal_firstValue();
-        if (!this._private__source._internal_visible() || this._private__priceScale._internal_isEmpty() || (firstValue === null)) {
+        var firstValue = this._private__priceScale.firstValue();
+        if (!this._private__source.visible() || this._private__priceScale.isEmpty() || (firstValue === null)) {
             return;
         }
         var colors = generateContrastColors(options.labelBackgroundColor);
@@ -1732,7 +1732,7 @@ var CrosshairPriceAxisLabelView = /** @class */ (function (_super) {
         commonRendererData._internal_color = colors._internal_foreground;
         var value = this._private__valueProvider(this._private__priceScale);
         commonRendererData._internal_coordinate = value._internal_coordinate;
-        axisRendererData._internal_text = this._private__priceScale._internal_formatPrice(value._internal_price, firstValue);
+        axisRendererData._internal_text = this._private__priceScale.formatPrice(value._internal_price, firstValue);
         axisRendererData._internal_visible = true;
     };
     return CrosshairPriceAxisLabelView;
@@ -1746,19 +1746,19 @@ var TimeAxisLabelRenderer = /** @class */ (function () {
     TimeAxisLabelRenderer.prototype._internal_setData = function (data) {
         this._private__data = data;
     };
-    TimeAxisLabelRenderer.prototype._internal_draw = function (ctx, rendererOptions, renderParams) {
+    TimeAxisLabelRenderer.prototype.draw = function (ctx, rendererOptions, renderParams) {
         var _this = this;
         if (this._private__data === null || this._private__data._internal_visible === false || this._private__data._internal_text.length === 0) {
             return;
         }
-        ctx.font = rendererOptions._internal_font;
-        var pixelRatio = renderParams._internal_pixelRatio;
-        var textWidth = Math.round(rendererOptions._internal_widthCache._internal_measureText(ctx, this._private__data._internal_text, optimizationReplacementRe));
+        ctx.font = rendererOptions.font;
+        var pixelRatio = renderParams.pixelRatio;
+        var textWidth = Math.round(rendererOptions.widthCache.measureText(ctx, this._private__data._internal_text, optimizationReplacementRe));
         if (textWidth <= 0) {
             return;
         }
         ctx.save();
-        var horzMargin = rendererOptions._internal_paddingHorizontal;
+        var horzMargin = rendererOptions.paddingHorizontal;
         var labelWidth = textWidth + 2 * horzMargin;
         var labelWidthHalf = labelWidth / 2;
         var timeScaleWidth = this._private__data._internal_width;
@@ -1775,10 +1775,10 @@ var TimeAxisLabelRenderer = /** @class */ (function () {
         var x2 = x1 + labelWidth;
         var y1 = 0;
         var y2 = (y1 +
-            rendererOptions._internal_borderSize +
-            rendererOptions._internal_paddingTop +
-            rendererOptions._internal_fontSize +
-            rendererOptions._internal_paddingBottom);
+            rendererOptions.borderSize +
+            rendererOptions.paddingTop +
+            rendererOptions.fontSize +
+            rendererOptions.paddingBottom);
         ctx.fillStyle = this._private__data._internal_background;
         var x1scaled = Math.round(x1 * pixelRatio);
         var y1scaled = Math.round(y1 * pixelRatio);
@@ -1788,16 +1788,16 @@ var TimeAxisLabelRenderer = /** @class */ (function () {
         if (this._private__data._internal_tickVisible) {
             var tickX = Math.round(this._private__data._internal_coordinate * pixelRatio);
             var tickTop = y1scaled;
-            var tickBottom = Math.round((tickTop + rendererOptions._internal_borderSize + rendererOptions._internal_tickLength) * pixelRatio);
+            var tickBottom = Math.round((tickTop + rendererOptions.borderSize + rendererOptions.tickLength) * pixelRatio);
             ctx.fillStyle = this._private__data._internal_color;
             var tickWidth = Math.max(1, Math.floor(pixelRatio));
             var tickOffset = Math.floor(pixelRatio * 0.5);
             ctx.fillRect(tickX - tickOffset, tickTop, tickWidth, tickBottom - tickTop);
         }
-        var yText = y2 - rendererOptions._internal_baselineOffset - rendererOptions._internal_paddingBottom;
+        var yText = y2 - rendererOptions.baselineOffset - rendererOptions.paddingBottom;
         ctx.textAlign = 'left';
         ctx.fillStyle = this._private__data._internal_color;
-        drawScaled(ctx, renderParams._internal_pixelRatio, function () {
+        drawScaled(ctx, renderParams.pixelRatio, function () {
             ctx.fillText(ensureNotNull(_this._private__data)._internal_text, x1 + horzMargin, yText);
         });
         ctx.restore();
@@ -1821,10 +1821,10 @@ var TimeAxisLabelView = /** @class */ (function () {
         this._internal__model = model;
         this._internal__renderer._internal_setData(this._internal__rendererData);
     }
-    TimeAxisLabelView.prototype._internal_update = function () {
+    TimeAxisLabelView.prototype.update = function () {
         this._internal__invalidated = true;
     };
-    TimeAxisLabelView.prototype._internal_renderer = function () {
+    TimeAxisLabelView.prototype.renderer = function () {
         if (this._internal__invalidated) {
             this._internal__updateImpl();
         }
@@ -1833,7 +1833,7 @@ var TimeAxisLabelView = /** @class */ (function () {
     };
     TimeAxisLabelView.prototype._internal__updateImpl = function () {
         this._internal__rendererData._internal_visible = false;
-        if (this._internal__model._internal_timeScale()._internal_isEmpty()) {
+        if (this._internal__model.timeScale().isEmpty()) {
             return;
         }
         var background = this._internal__getBackgroundColor();
@@ -1847,9 +1847,9 @@ var TimeAxisLabelView = /** @class */ (function () {
         var colors = generateContrastColors(background);
         this._internal__rendererData._internal_background = colors._internal_background;
         this._internal__rendererData._internal_color = colors._internal_foreground;
-        this._internal__rendererData._internal_coordinate = this._internal__model._internal_timeScale()._internal_timeToCoordinate({ _internal_timestamp: timestamp });
-        this._internal__rendererData._internal_text = this._internal__model._internal_timeScale()._internal_formatDateTime({ _internal_timestamp: timestamp });
-        this._internal__rendererData._internal_width = this._internal__model._internal_timeScale()._internal_width();
+        this._internal__rendererData._internal_coordinate = this._internal__model.timeScale().timeToCoordinate({ timestamp: timestamp });
+        this._internal__rendererData._internal_text = this._internal__model.timeScale().formatDateTime({ timestamp: timestamp });
+        this._internal__rendererData._internal_width = this._internal__model.timeScale().width();
         this._internal__rendererData._internal_visible = true;
         this._internal__invalidated = false;
     };
@@ -1865,7 +1865,7 @@ var CrosshairTimeAxisLabelView = /** @class */ (function (_super) {
         return _this;
     }
     CrosshairTimeAxisLabelView.prototype._internal__getTime = function () {
-        var currentTime = this._internal__model._internal_timeScale()._internal_floatIndexToTime(this._internal__crosshair._internal_appliedIndex());
+        var currentTime = this._internal__model.timeScale().floatIndexToTime(this._internal__crosshair.appliedIndex());
         return currentTime;
     };
     CrosshairTimeAxisLabelView.prototype._internal__getBackgroundColor = function () {
@@ -1873,7 +1873,7 @@ var CrosshairTimeAxisLabelView = /** @class */ (function (_super) {
     };
     CrosshairTimeAxisLabelView.prototype._internal__updateImpl = function () {
         this._internal__rendererData._internal_visible = false;
-        var options = this._internal__crosshair._internal_options().vertLine;
+        var options = this._internal__crosshair.options().vertLine;
         if (!options.labelVisible) {
             return;
         }
@@ -1894,32 +1894,32 @@ function randomHashN(count) {
 
 var DataSource = /** @class */ (function () {
     function DataSource() {
-        this._internal__priceScale = null;
+        this._priceScale = null;
         this._private__id = randomHashN(6);
         this._private__zorder = 0;
     }
-    DataSource.prototype._internal_id = function () {
+    DataSource.prototype.id = function () {
         return this._private__id;
     };
-    DataSource.prototype._internal_setId = function (id) {
+    DataSource.prototype.setId = function (id) {
         this._private__id = id;
     };
-    DataSource.prototype._internal_zorder = function () {
+    DataSource.prototype.zorder = function () {
         return this._private__zorder;
     };
-    DataSource.prototype._internal_setZorder = function (zorder) {
+    DataSource.prototype.setZorder = function (zorder) {
         this._private__zorder = zorder;
     };
-    DataSource.prototype._internal_priceScale = function () {
-        return this._internal__priceScale;
+    DataSource.prototype.priceScale = function () {
+        return this._priceScale;
     };
-    DataSource.prototype._internal_setPriceScale = function (priceScale) {
-        this._internal__priceScale = priceScale;
+    DataSource.prototype.setPriceScale = function (priceScale) {
+        this._priceScale = priceScale;
     };
-    DataSource.prototype._internal_timeAxisViews = function () {
+    DataSource.prototype.timeAxisViews = function () {
         return [];
     };
-    DataSource.prototype._internal_visible = function () {
+    DataSource.prototype.visible = function () {
         return true;
     };
     return DataSource;
@@ -1960,14 +1960,14 @@ var Crosshair = /** @class */ (function (_super) {
             return function (priceScale) {
                 var coordinate = rawCoordinateProvider();
                 var rawPrice = rawPriceProvider();
-                if (priceScale === ensureNotNull(_this._private__pane)._internal_defaultPriceScale()) {
+                if (priceScale === ensureNotNull(_this._private__pane).defaultPriceScale()) {
                     // price must be defined
                     return { _internal_price: rawPrice, _internal_coordinate: coordinate };
                 }
                 else {
                     // always convert from coordinate
-                    var firstValue = ensureNotNull(priceScale._internal_firstValue());
-                    var price = priceScale._internal_coordinateToPrice(coordinate, firstValue);
+                    var firstValue = ensureNotNull(priceScale.firstValue());
+                    var price = priceScale.coordinateToPrice(coordinate, firstValue);
                     return { _internal_price: price, _internal_coordinate: coordinate };
                 }
             };
@@ -1975,73 +1975,73 @@ var Crosshair = /** @class */ (function (_super) {
         var valueTimeProvider = function (rawIndexProvider, rawCoordinateProvider) {
             return function () {
                 return {
-                    _internal_time: _this._private__model._internal_timeScale()._internal_indexToTime(rawIndexProvider()),
+                    _internal_time: _this._private__model.timeScale().indexToTime(rawIndexProvider()),
                     _internal_coordinate: rawCoordinateProvider(),
                 };
             };
         };
         // for current position always return both price and coordinate
         _this._private__currentPosPriceProvider = valuePriceProvider(function () { return _this._private__price; }, function () { return _this._private__y; });
-        var currentPosTimeProvider = valueTimeProvider(function () { return _this._private__index; }, function () { return _this._internal_appliedX(); });
+        var currentPosTimeProvider = valueTimeProvider(function () { return _this._private__index; }, function () { return _this.appliedX(); });
         _this._private__timeAxisView = new CrosshairTimeAxisLabelView(_this, model, currentPosTimeProvider);
         _this._private__paneView = new CrosshairPaneView(_this);
         return _this;
     }
-    Crosshair.prototype._internal_options = function () {
+    Crosshair.prototype.options = function () {
         return this._private__options;
     };
-    Crosshair.prototype._internal_saveOriginCoord = function (x, y) {
+    Crosshair.prototype.saveOriginCoord = function (x, y) {
         this._private__originX = x;
         this._private__originY = y;
     };
-    Crosshair.prototype._internal_clearOriginCoord = function () {
+    Crosshair.prototype.clearOriginCoord = function () {
         this._private__originX = NaN;
         this._private__originY = NaN;
     };
-    Crosshair.prototype._internal_originCoordX = function () {
+    Crosshair.prototype.originCoordX = function () {
         return this._private__originX;
     };
-    Crosshair.prototype._internal_originCoordY = function () {
+    Crosshair.prototype.originCoordY = function () {
         return this._private__originY;
     };
-    Crosshair.prototype._internal_setPosition = function (index, price, pane) {
+    Crosshair.prototype.setPosition = function (index, price, pane) {
         if (!this._private__subscribed) {
             this._private__subscribed = true;
         }
         this._private__visible = true;
         this._private__tryToUpdateViews(index, price, pane);
     };
-    Crosshair.prototype._internal_appliedIndex = function () {
+    Crosshair.prototype.appliedIndex = function () {
         return this._private__index;
     };
-    Crosshair.prototype._internal_appliedX = function () {
+    Crosshair.prototype.appliedX = function () {
         return this._private__x;
     };
-    Crosshair.prototype._internal_appliedY = function () {
+    Crosshair.prototype.appliedY = function () {
         return this._private__y;
     };
-    Crosshair.prototype._internal_visible = function () {
+    Crosshair.prototype.visible = function () {
         return this._private__visible;
     };
-    Crosshair.prototype._internal_clearPosition = function () {
+    Crosshair.prototype.clearPosition = function () {
         this._private__visible = false;
         this._private__setIndexToLastSeriesBarIndex();
         this._private__price = NaN;
         this._private__x = NaN;
         this._private__y = NaN;
         this._private__pane = null;
-        this._internal_clearOriginCoord();
+        this.clearOriginCoord();
     };
-    Crosshair.prototype._internal_paneViews = function () {
+    Crosshair.prototype.paneViews = function () {
         return this._private__pane !== null ? [this._private__paneView, this._private__markersPaneView] : [];
     };
-    Crosshair.prototype._internal_horzLineVisible = function (pane) {
+    Crosshair.prototype.horzLineVisible = function (pane) {
         return pane === this._private__pane && this._private__options.horzLine.visible;
     };
-    Crosshair.prototype._internal_vertLineVisible = function () {
+    Crosshair.prototype.vertLineVisible = function () {
         return this._private__options.vertLine.visible;
     };
-    Crosshair.prototype._internal_priceAxisViews = function (pane, priceScale) {
+    Crosshair.prototype.priceAxisViews = function (pane, priceScale) {
         if (!this._private__visible || this._private__pane !== pane) {
             this._private__priceAxisViews.clear();
         }
@@ -2051,27 +2051,27 @@ var Crosshair = /** @class */ (function (_super) {
         }
         return views;
     };
-    Crosshair.prototype._internal_timeAxisViews = function () {
+    Crosshair.prototype.timeAxisViews = function () {
         return this._private__visible ? [this._private__timeAxisView] : [];
     };
-    Crosshair.prototype._internal_pane = function () {
+    Crosshair.prototype.pane = function () {
         return this._private__pane;
     };
-    Crosshair.prototype._internal_updateAllViews = function () {
+    Crosshair.prototype.updateAllViews = function () {
         this._private__paneView._internal_update();
-        this._private__priceAxisViews.forEach(function (value) { return value._internal_update(); });
-        this._private__timeAxisView._internal_update();
-        this._private__markersPaneView._internal_update();
+        this._private__priceAxisViews.forEach(function (value) { return value.update(); });
+        this._private__timeAxisView.update();
+        this._private__markersPaneView.update();
     };
     Crosshair.prototype._private__priceScaleByPane = function (pane) {
-        if (pane && !pane._internal_defaultPriceScale()._internal_isEmpty()) {
-            return pane._internal_defaultPriceScale();
+        if (pane && !pane.defaultPriceScale().isEmpty()) {
+            return pane.defaultPriceScale();
         }
         return null;
     };
     Crosshair.prototype._private__tryToUpdateViews = function (index, price, pane) {
         if (this._private__tryToUpdateData(index, price, pane)) {
-            this._internal_updateAllViews();
+            this.updateAllViews();
         }
     };
     Crosshair.prototype._private__tryToUpdateData = function (newIndex, newPrice, newPane) {
@@ -2082,12 +2082,12 @@ var Crosshair = /** @class */ (function (_super) {
         var oldPane = this._private__pane;
         var priceScale = this._private__priceScaleByPane(newPane);
         this._private__index = newIndex;
-        this._private__x = isNaN(newIndex) ? NaN : this._private__model._internal_timeScale()._internal_indexToCoordinate(newIndex);
+        this._private__x = isNaN(newIndex) ? NaN : this._private__model.timeScale().indexToCoordinate(newIndex);
         this._private__pane = newPane;
-        var firstValue = priceScale !== null ? priceScale._internal_firstValue() : null;
+        var firstValue = priceScale !== null ? priceScale.firstValue() : null;
         if (priceScale !== null && firstValue !== null) {
             this._private__price = newPrice;
-            this._private__y = priceScale._internal_priceToCoordinate(newPrice, firstValue);
+            this._private__y = priceScale.priceToCoordinate(newPrice, firstValue);
         }
         else {
             this._private__price = NaN;
@@ -2097,8 +2097,8 @@ var Crosshair = /** @class */ (function (_super) {
             oldPrice !== this._private__price || oldPane !== this._private__pane);
     };
     Crosshair.prototype._private__setIndexToLastSeriesBarIndex = function () {
-        var lastIndexes = this._private__model._internal_serieses()
-            .map(function (s) { return s._internal_bars()._internal_lastIndex(); })
+        var lastIndexes = this._private__model.serieses()
+            .map(function (s) { return s.bars().lastIndex(); })
             .filter(notNull);
         var lastBarIndex = (lastIndexes.length === 0) ? null : Math.max.apply(Math, lastIndexes);
         this._private__index = lastBarIndex !== null ? lastBarIndex : NaN;
@@ -2122,9 +2122,9 @@ function mergePaneInvalidation(beforeValue, newValue) {
     if (beforeValue === undefined) {
         return newValue;
     }
-    var level = Math.max(beforeValue._internal_level, newValue._internal_level);
-    var autoScale = beforeValue._internal_autoScale || newValue._internal_autoScale;
-    return { _internal_level: level, _internal_autoScale: autoScale };
+    var level = Math.max(beforeValue.level, newValue.level);
+    var autoScale = beforeValue.autoScale || newValue.autoScale;
+    return { level: level, autoScale: autoScale };
 }
 var InvalidateMask = /** @class */ (function () {
     function InvalidateMask(globalLevel) {
@@ -2132,48 +2132,48 @@ var InvalidateMask = /** @class */ (function () {
         this._private__timeScaleInvalidations = [];
         this._private__globalLevel = globalLevel;
     }
-    InvalidateMask.prototype._internal_invalidatePane = function (paneIndex, invalidation) {
+    InvalidateMask.prototype.invalidatePane = function (paneIndex, invalidation) {
         var prevValue = this._private__invalidatedPanes.get(paneIndex);
         var newValue = mergePaneInvalidation(prevValue, invalidation);
         this._private__invalidatedPanes.set(paneIndex, newValue);
     };
-    InvalidateMask.prototype._internal_fullInvalidation = function () {
+    InvalidateMask.prototype.fullInvalidation = function () {
         return this._private__globalLevel;
     };
-    InvalidateMask.prototype._internal_invalidateForPane = function (paneIndex) {
+    InvalidateMask.prototype.invalidateForPane = function (paneIndex) {
         var paneInvalidation = this._private__invalidatedPanes.get(paneIndex);
         if (paneInvalidation === undefined) {
             return {
-                _internal_level: this._private__globalLevel,
+                level: this._private__globalLevel,
             };
         }
         return {
-            _internal_level: Math.max(this._private__globalLevel, paneInvalidation._internal_level),
-            _internal_autoScale: paneInvalidation._internal_autoScale,
+            level: Math.max(this._private__globalLevel, paneInvalidation.level),
+            autoScale: paneInvalidation.autoScale,
         };
     };
-    InvalidateMask.prototype._internal_setFitContent = function () {
+    InvalidateMask.prototype.setFitContent = function () {
         // modifies both bar spacing and right offset
-        this._private__timeScaleInvalidations = [{ _internal_type: 0 /* FitContent */ }];
+        this._private__timeScaleInvalidations = [{ type: 0 /* FitContent */ }];
     };
-    InvalidateMask.prototype._internal_applyRange = function (range) {
+    InvalidateMask.prototype.applyRange = function (range) {
         // modifies both bar spacing and right offset
-        this._private__timeScaleInvalidations = [{ _internal_type: 1 /* ApplyRange */, _internal_value: range }];
+        this._private__timeScaleInvalidations = [{ type: 1 /* ApplyRange */, value: range }];
     };
-    InvalidateMask.prototype._internal_resetTimeScale = function () {
+    InvalidateMask.prototype.resetTimeScale = function () {
         // modifies both bar spacing and right offset
-        this._private__timeScaleInvalidations = [{ _internal_type: 4 /* Reset */ }];
+        this._private__timeScaleInvalidations = [{ type: 4 /* Reset */ }];
     };
-    InvalidateMask.prototype._internal_setBarSpacing = function (barSpacing) {
-        this._private__timeScaleInvalidations.push({ _internal_type: 2 /* ApplyBarSpacing */, _internal_value: barSpacing });
+    InvalidateMask.prototype.setBarSpacing = function (barSpacing) {
+        this._private__timeScaleInvalidations.push({ type: 2 /* ApplyBarSpacing */, value: barSpacing });
     };
-    InvalidateMask.prototype._internal_setRightOffset = function (offset) {
-        this._private__timeScaleInvalidations.push({ _internal_type: 3 /* ApplyRightOffset */, _internal_value: offset });
+    InvalidateMask.prototype.setRightOffset = function (offset) {
+        this._private__timeScaleInvalidations.push({ type: 3 /* ApplyRightOffset */, value: offset });
     };
-    InvalidateMask.prototype._internal_timeScaleInvalidations = function () {
+    InvalidateMask.prototype.timeScaleInvalidations = function () {
         return this._private__timeScaleInvalidations;
     };
-    InvalidateMask.prototype._internal_merge = function (other) {
+    InvalidateMask.prototype.merge = function (other) {
         var _this = this;
         for (var _i = 0, _a = other._private__timeScaleInvalidations; _i < _a.length; _i++) {
             var tsInvalidation = _a[_i];
@@ -2181,25 +2181,25 @@ var InvalidateMask = /** @class */ (function () {
         }
         this._private__globalLevel = Math.max(this._private__globalLevel, other._private__globalLevel);
         other._private__invalidatedPanes.forEach(function (invalidation, index) {
-            _this._internal_invalidatePane(index, invalidation);
+            _this.invalidatePane(index, invalidation);
         });
     };
     InvalidateMask.prototype._private__applyTimeScaleInvalidation = function (invalidation) {
-        switch (invalidation._internal_type) {
+        switch (invalidation.type) {
             case 0 /* FitContent */:
-                this._internal_setFitContent();
+                this.setFitContent();
                 break;
             case 1 /* ApplyRange */:
-                this._internal_applyRange(invalidation._internal_value);
+                this.applyRange(invalidation.value);
                 break;
             case 2 /* ApplyBarSpacing */:
-                this._internal_setBarSpacing(invalidation._internal_value);
+                this.setBarSpacing(invalidation.value);
                 break;
             case 3 /* ApplyRightOffset */:
-                this._internal_setRightOffset(invalidation._internal_value);
+                this.setRightOffset(invalidation.value);
                 break;
             case 4 /* Reset */:
-                this._internal_resetTimeScale();
+                this.resetTimeScale();
                 break;
         }
     };
@@ -2344,13 +2344,13 @@ var PriceAxisBackgroundRenderer = /** @class */ (function () {
     PriceAxisBackgroundRenderer.prototype._internal_setData = function (data) {
         this._private__data = data;
     };
-    PriceAxisBackgroundRenderer.prototype._internal_drawBackground = function (ctx, rendererOptions, renderParams) {
+    PriceAxisBackgroundRenderer.prototype.drawBackground = function (ctx, rendererOptions, renderParams) {
         if (this._private__data === null || this._private__data._internal_visible === false) {
             return;
         }
         var _a = this._private__data, y = _a._internal_coordinate, height = _a._internal_height, color = _a._internal_color;
         var width = ctx.canvas.clientWidth;
-        drawScaled(ctx, renderParams._internal_pixelRatio, function () {
+        drawScaled(ctx, renderParams.pixelRatio, function () {
             ctx.fillStyle = color;
             ctx.fillRect(0, y, width, height);
         });
@@ -2369,13 +2369,13 @@ var LineToolPriceAxisBackgroundView = /** @class */ (function () {
             _internal_height: 0,
         };
         this._internal__source = lineTool;
-        this._internal__model = lineTool._internal_model();
+        this._internal__model = lineTool.model();
         this._internal__renderer._internal_setData(this._internal__rendererData);
     }
-    LineToolPriceAxisBackgroundView.prototype._internal_update = function () {
+    LineToolPriceAxisBackgroundView.prototype.update = function () {
         this._internal__invalidated = true;
     };
-    LineToolPriceAxisBackgroundView.prototype._internal_renderer = function () {
+    LineToolPriceAxisBackgroundView.prototype.renderer = function () {
         if (this._internal__invalidated) {
             this._internal__updateImpl();
         }
@@ -2384,15 +2384,15 @@ var LineToolPriceAxisBackgroundView = /** @class */ (function () {
     };
     LineToolPriceAxisBackgroundView.prototype._internal__updateImpl = function () {
         this._internal__rendererData._internal_visible = false;
-        var priceScale = this._internal__source._internal_priceScale();
-        if (!priceScale || priceScale._internal_isEmpty()) {
+        var priceScale = this._internal__source.priceScale();
+        if (!priceScale || priceScale.isEmpty()) {
             return;
         }
-        if (!this._internal__source._internal_selected()) {
+        if (!this._internal__source.selected()) {
             return;
         }
-        var x = this._internal__source._internal_priceAxisPoints().map(function (point) {
-            return priceScale._internal_priceToCoordinate(point.price, point.price);
+        var x = this._internal__source.priceAxisPoints().map(function (point) {
+            return priceScale.priceToCoordinate(point.price, point.price);
         });
         var max = Math.max.apply(Math, x);
         var min = Math.min.apply(Math, x);
@@ -2420,22 +2420,22 @@ var LineToolPriceAxisLabelView = /** @class */ (function (_super) {
     LineToolPriceAxisLabelView.prototype._internal__updateRendererData = function (axisRenderData, paneRenderData, commonRendererData) {
         var _a;
         axisRenderData._internal_visible = false;
-        var chartModel = this._internal__source._internal_model();
-        if (!chartModel._internal_timeScale() || chartModel._internal_timeScale()._internal_isEmpty()) {
+        var chartModel = this._internal__source.model();
+        if (!chartModel.timeScale() || chartModel.timeScale().isEmpty()) {
             return;
         }
         var background = this._internal__getBackgroundColor();
         if (background === null) {
             return;
         }
-        var priceScale = this._internal__source._internal_priceScale();
-        if (priceScale === null || priceScale._internal_isEmpty()) {
+        var priceScale = this._internal__source.priceScale();
+        if (priceScale === null || priceScale.isEmpty()) {
             return;
         }
-        if (chartModel._internal_timeScale()._internal_visibleStrictRange() === null) {
+        if (chartModel.timeScale().visibleStrictRange() === null) {
             return;
         }
-        var points = this._internal__source._internal_priceAxisPoints();
+        var points = this._internal__source.priceAxisPoints();
         if (points.length <= this._internal__pointIndex) {
             return;
         }
@@ -2443,19 +2443,19 @@ var LineToolPriceAxisLabelView = /** @class */ (function (_super) {
         if (!isFinite(point.price)) {
             return;
         }
-        var ownerSource = this._internal__source._internal_ownerSource();
-        var firstValue = null !== ownerSource ? ownerSource._internal_firstValue() : null;
+        var ownerSource = this._internal__source.ownerSource();
+        var firstValue = null !== ownerSource ? ownerSource.firstValue() : null;
         if (null === firstValue) {
             return;
         }
         commonRendererData._internal_background = background;
         commonRendererData._internal_color = generateContrastColors(commonRendererData._internal_background)._internal_foreground;
-        commonRendererData._internal_coordinate = priceScale._internal_priceToCoordinate(point.price, firstValue._internal_value);
-        axisRenderData._internal_text = ((_a = this._internal__source._internal_priceScale()) === null || _a === void 0 ? void 0 : _a._internal_formatPrice(point.price, firstValue._internal_value)) || '';
+        commonRendererData._internal_coordinate = priceScale.priceToCoordinate(point.price, firstValue.value);
+        axisRenderData._internal_text = ((_a = this._internal__source.priceScale()) === null || _a === void 0 ? void 0 : _a.formatPrice(point.price, firstValue.value)) || '';
         axisRenderData._internal_visible = true;
     };
     LineToolPriceAxisLabelView.prototype._internal__getBackgroundColor = function () {
-        return this._internal__source._internal_priceAxisLabelColor();
+        return this._internal__source.priceAxisLabelColor();
     };
     return LineToolPriceAxisLabelView;
 }(PriceAxisLabelView));
@@ -2467,13 +2467,13 @@ var TimeAxisBackgroundRenderer = /** @class */ (function () {
     TimeAxisBackgroundRenderer.prototype._internal_setData = function (data) {
         this._private__data = data;
     };
-    TimeAxisBackgroundRenderer.prototype._internal_drawBackground = function (ctx, rendererOptions, renderParams) {
+    TimeAxisBackgroundRenderer.prototype.drawBackground = function (ctx, rendererOptions, renderParams) {
         if (this._private__data === null || this._private__data._internal_visible === false) {
             return;
         }
         var _a = this._private__data, x = _a._internal_coordinate, width = _a._internal_width, color = _a._internal_color;
         var height = ctx.canvas.clientHeight;
-        drawScaled(ctx, renderParams._internal_pixelRatio, function () {
+        drawScaled(ctx, renderParams.pixelRatio, function () {
             ctx.fillStyle = color;
             ctx.fillRect(x, 0, width, height);
         });
@@ -2492,13 +2492,13 @@ var LineToolTimeAxisBackgroundView = /** @class */ (function () {
             _internal_width: 0,
         };
         this._internal__source = lineTool;
-        this._internal__model = lineTool._internal_model();
+        this._internal__model = lineTool.model();
         this._internal__renderer._internal_setData(this._internal__rendererData);
     }
-    LineToolTimeAxisBackgroundView.prototype._internal_update = function () {
+    LineToolTimeAxisBackgroundView.prototype.update = function () {
         this._internal__invalidated = true;
     };
-    LineToolTimeAxisBackgroundView.prototype._internal_renderer = function () {
+    LineToolTimeAxisBackgroundView.prototype.renderer = function () {
         if (this._internal__invalidated) {
             this._internal__updateImpl();
         }
@@ -2508,14 +2508,14 @@ var LineToolTimeAxisBackgroundView = /** @class */ (function () {
     LineToolTimeAxisBackgroundView.prototype._internal__updateImpl = function () {
         var _this = this;
         this._internal__rendererData._internal_visible = false;
-        if (this._internal__model._internal_timeScale()._internal_isEmpty()) {
+        if (this._internal__model.timeScale().isEmpty()) {
             return;
         }
-        if (!this._internal__source._internal_selected()) {
+        if (!this._internal__source.selected()) {
             return;
         }
-        var y = this._internal__source._internal_timeAxisPoints().map(function (point) {
-            return _this._internal__model._internal_timeScale()._internal_timeToCoordinate({ _internal_timestamp: point.timestamp });
+        var y = this._internal__source.timeAxisPoints().map(function (point) {
+            return _this._internal__model.timeScale().timeToCoordinate({ timestamp: point.timestamp });
         });
         var max = Math.max.apply(Math, y);
         var min = Math.min.apply(Math, y);
@@ -2530,16 +2530,16 @@ var LineToolTimeAxisBackgroundView = /** @class */ (function () {
 var LineToolTimeAxisLabelView = /** @class */ (function (_super) {
     __extends(LineToolTimeAxisLabelView, _super);
     function LineToolTimeAxisLabelView(lineTool, pointIndex) {
-        var _this = _super.call(this, lineTool._internal_model()) || this;
+        var _this = _super.call(this, lineTool.model()) || this;
         _this._internal__source = lineTool;
         _this._internal__pointIndex = pointIndex;
         return _this;
     }
     LineToolTimeAxisLabelView.prototype._internal__getBackgroundColor = function () {
-        return this._internal__source._internal_timeAxisLabelColor();
+        return this._internal__source.timeAxisLabelColor();
     };
     LineToolTimeAxisLabelView.prototype._internal__getTime = function () {
-        var points = this._internal__source._internal_timeAxisPoints();
+        var points = this._internal__source.timeAxisPoints();
         return points.length <= this._internal__pointIndex ? null : points[this._internal__pointIndex].timestamp;
     };
     return LineToolTimeAxisLabelView;
@@ -2550,195 +2550,195 @@ var LineTool = /** @class */ (function (_super) {
     function LineTool(model, options, points) {
         if (points === void 0) { points = []; }
         var _this = _super.call(this) || this;
-        _this._internal__pointChanged = new Delegate();
-        _this._internal__pointAdded = new Delegate();
-        _this._internal__priceAxisViews = [];
-        _this._internal__timeAxisViews = [];
-        _this._internal__paneViews = [];
-        _this._internal__hovered = false;
-        _this._internal__selected = false;
-        _this._internal__finished = false;
-        _this._internal__editing = false;
-        _this._internal__ownerSource = null;
-        _this._internal__lastPoint = null;
-        _this._internal__points = [];
-        _this._internal__model = model;
-        _this._internal__points = points;
-        _this._internal__options = options;
-        for (var i = 0; i < _this._internal_pointsCount(); i++) {
-            _this._internal__priceAxisViews.push(new LineToolPriceAxisLabelView(_this, i));
-            _this._internal__timeAxisViews.push(new LineToolTimeAxisLabelView(_this, i));
+        _this._pointChanged = new Delegate();
+        _this._pointAdded = new Delegate();
+        _this._priceAxisViews = [];
+        _this._timeAxisViews = [];
+        _this._paneViews = [];
+        _this._hovered = false;
+        _this._selected = false;
+        _this._finished = false;
+        _this._editing = false;
+        _this._ownerSource = null;
+        _this._lastPoint = null;
+        _this._points = [];
+        _this._model = model;
+        _this._points = points;
+        _this._options = options;
+        for (var i = 0; i < _this.pointsCount(); i++) {
+            _this._priceAxisViews.push(new LineToolPriceAxisLabelView(_this, i));
+            _this._timeAxisViews.push(new LineToolTimeAxisLabelView(_this, i));
         }
-        if (_this._internal_pointsCount() > 1) {
-            _this._internal__priceAxisViews.push(new LineToolPriceAxisBackgroundView(_this));
-            _this._internal__timeAxisViews.push(new LineToolTimeAxisBackgroundView(_this));
+        if (_this.pointsCount() > 1) {
+            _this._priceAxisViews.push(new LineToolPriceAxisBackgroundView(_this));
+            _this._timeAxisViews.push(new LineToolTimeAxisBackgroundView(_this));
         }
         // TODO: iosif change to use the ownerSourceId
         // this._ownerSource = model.serieses().find((series: IPriceDataSource) => series.id() === this._options.ownerSourceId) || null;
-        _this._internal__ownerSource = model._internal_serieses()[0];
-        _this._internal__finished = _this._internal__points.length >= (_this._internal_pointsCount() === -1 ? 2 : _this._internal_pointsCount());
+        _this._ownerSource = model.serieses()[0];
+        _this._finished = _this._points.length >= (_this.pointsCount() === -1 ? 2 : _this.pointsCount());
         return _this;
     }
-    LineTool.prototype._internal_finished = function () {
-        return this._internal__finished;
+    LineTool.prototype.finished = function () {
+        return this._finished;
     };
-    LineTool.prototype._internal_tryFinish = function () {
-        if (this._internal__points.length >= Math.max(1, this._internal_pointsCount())) {
-            this._internal__finished = true;
-            this._internal__selected = true;
-            this._internal__lastPoint = null;
-            this._internal_model()._internal_updateSource(this);
+    LineTool.prototype.tryFinish = function () {
+        if (this._points.length >= Math.max(1, this.pointsCount())) {
+            this._finished = true;
+            this._selected = true;
+            this._lastPoint = null;
+            this.model().updateSource(this);
         }
     };
-    LineTool.prototype._internal_points = function () {
-        var points = __spreadArray(__spreadArray([], this._internal__points, true), (this._internal__lastPoint ? [this._internal__lastPoint] : []), true);
-        return this._internal_pointsCount() === -1 ? points : points.slice(0, this._internal_pointsCount());
+    LineTool.prototype.points = function () {
+        var points = __spreadArray(__spreadArray([], this._points, true), (this._lastPoint ? [this._lastPoint] : []), true);
+        return this.pointsCount() === -1 ? points : points.slice(0, this.pointsCount());
     };
-    LineTool.prototype._internal_addPoint = function (point) {
-        this._internal__points.push(point);
+    LineTool.prototype.addPoint = function (point) {
+        this._points.push(point);
     };
-    LineTool.prototype._internal_getPoint = function (index) {
-        return this._internal_points()[index] || null;
+    LineTool.prototype.getPoint = function (index) {
+        return this.points()[index] || null;
     };
-    LineTool.prototype._internal_setPoint = function (index, point) {
-        this._internal__points[index].price = point.price;
-        this._internal__points[index].timestamp = point.timestamp;
+    LineTool.prototype.setPoint = function (index, point) {
+        this._points[index].price = point.price;
+        this._points[index].timestamp = point.timestamp;
     };
-    LineTool.prototype._internal_setPoints = function (points) {
-        this._internal__points = points;
+    LineTool.prototype.setPoints = function (points) {
+        this._points = points;
     };
-    LineTool.prototype._internal_setLastPoint = function (point) {
-        this._internal__lastPoint = point;
+    LineTool.prototype.setLastPoint = function (point) {
+        this._lastPoint = point;
     };
-    LineTool.prototype._internal_pointToScreenPoint = function (linePoint) {
+    LineTool.prototype.pointToScreenPoint = function (linePoint) {
         var _a, _b;
-        var baseValue = ((_b = (_a = this._internal_ownerSource()) === null || _a === void 0 ? void 0 : _a._internal_firstValue()) === null || _b === void 0 ? void 0 : _b._internal_value) || 0;
-        var priceScale = this._internal_priceScale();
-        var timeScale = this._internal_timeScale();
-        if (!priceScale || priceScale._internal_isEmpty() || timeScale._internal_isEmpty()) {
+        var baseValue = ((_b = (_a = this.ownerSource()) === null || _a === void 0 ? void 0 : _a.firstValue()) === null || _b === void 0 ? void 0 : _b.value) || 0;
+        var priceScale = this.priceScale();
+        var timeScale = this.timeScale();
+        if (!priceScale || priceScale.isEmpty() || timeScale.isEmpty()) {
             return null;
         }
-        var x = timeScale._internal_timeToCoordinate({ _internal_timestamp: linePoint.timestamp });
-        var y = priceScale._internal_priceToCoordinate(linePoint.price, baseValue);
+        var x = timeScale.timeToCoordinate({ timestamp: linePoint.timestamp });
+        var y = priceScale.priceToCoordinate(linePoint.price, baseValue);
         return new Point(x, y);
     };
-    LineTool.prototype._internal_screenPointToPoint = function (point) {
+    LineTool.prototype.screenPointToPoint = function (point) {
         var _a, _b;
-        var baseValue = ((_b = (_a = this._internal_ownerSource()) === null || _a === void 0 ? void 0 : _a._internal_firstValue()) === null || _b === void 0 ? void 0 : _b._internal_value) || 0;
-        var priceScale = this._internal_priceScale();
-        var timeScale = this._internal_timeScale();
+        var baseValue = ((_b = (_a = this.ownerSource()) === null || _a === void 0 ? void 0 : _a.firstValue()) === null || _b === void 0 ? void 0 : _b.value) || 0;
+        var priceScale = this.priceScale();
+        var timeScale = this.timeScale();
         if (!priceScale) {
             return null;
         }
-        var price = priceScale._internal_coordinateToPrice(point.y, baseValue);
-        var timestamp = timeScale._internal_coordinateToTime(point.x)._internal_timestamp;
+        var price = priceScale.coordinateToPrice(point.y, baseValue);
+        var timestamp = timeScale.coordinateToTime(point.x).timestamp;
         return { price: price, timestamp: timestamp };
     };
-    LineTool.prototype._internal_state = function () {
-        return { _internal_id: this._internal_id(), _internal_type: this._internal__toolType, _internal_options: this._internal__options };
+    LineTool.prototype.state = function () {
+        return { id: this.id(), type: this._toolType, options: this._options };
     };
-    LineTool.prototype._internal_priceScale = function () {
+    LineTool.prototype.priceScale = function () {
         // TODO: iosif update to use the onwer source price scale
-        return this._internal__model._internal_panes()[0]._internal_rightPriceScale();
+        return this._model.panes()[0].rightPriceScale();
         // return this._ownerSource ? this._ownerSource.priceScale() : null;
     };
-    LineTool.prototype._internal_timeScale = function () {
-        return this._internal__model._internal_timeScale();
+    LineTool.prototype.timeScale = function () {
+        return this._model.timeScale();
     };
-    LineTool.prototype._internal_ownerSource = function () {
-        return this._internal__ownerSource;
+    LineTool.prototype.ownerSource = function () {
+        return this._ownerSource;
     };
-    LineTool.prototype._internal_options = function () {
-        return this._internal__options;
+    LineTool.prototype.options = function () {
+        return this._options;
     };
-    LineTool.prototype._internal_visible = function () {
-        return this._internal__options.visible;
+    LineTool.prototype.visible = function () {
+        return this._options.visible;
     };
-    LineTool.prototype._internal_applyOptions = function (options) {
-        merge(this._internal__options, options);
-        this._internal_model()._internal_updateSource(this);
-        this._internal__paneViews.forEach(function (paneView) {
-            paneView._internal_update('options');
+    LineTool.prototype.applyOptions = function (options) {
+        merge(this._options, options);
+        this.model().updateSource(this);
+        this._paneViews.forEach(function (paneView) {
+            paneView.update('options');
         });
     };
-    LineTool.prototype._internal_paneViews = function (pane) {
-        return this._internal__paneViews;
+    LineTool.prototype.paneViews = function (pane) {
+        return this._paneViews;
     };
-    LineTool.prototype._internal_updateAllViews = function () {
-        if (!this._internal_options().visible) {
+    LineTool.prototype.updateAllViews = function () {
+        if (!this.options().visible) {
             return;
         }
-        this._internal__updateAllPaneViews();
-        for (var i = 0; i < this._internal__priceAxisViews.length; i++) {
-            this._internal__priceAxisViews[i]._internal_update();
+        this._updateAllPaneViews();
+        for (var i = 0; i < this._priceAxisViews.length; i++) {
+            this._priceAxisViews[i].update();
         }
-        for (var i = 0; i < this._internal__timeAxisViews.length; i++) {
-            this._internal__timeAxisViews[i]._internal_update();
+        for (var i = 0; i < this._timeAxisViews.length; i++) {
+            this._timeAxisViews[i].update();
         }
     };
-    LineTool.prototype._internal_hovered = function () {
-        return this._internal__hovered;
+    LineTool.prototype.hovered = function () {
+        return this._hovered;
     };
-    LineTool.prototype._internal_setHovered = function (hovered) {
-        var changed = hovered !== this._internal__hovered;
-        this._internal__hovered = hovered;
+    LineTool.prototype.setHovered = function (hovered) {
+        var changed = hovered !== this._hovered;
+        this._hovered = hovered;
         return changed;
     };
-    LineTool.prototype._internal_selected = function () {
-        return this._internal__selected;
+    LineTool.prototype.selected = function () {
+        return this._selected;
     };
-    LineTool.prototype._internal_setSelected = function (selected) {
-        var changed = selected !== this._internal__selected;
-        this._internal__selected = selected;
+    LineTool.prototype.setSelected = function (selected) {
+        var changed = selected !== this._selected;
+        this._selected = selected;
         if (changed) {
-            this._internal_updateAllViews();
+            this.updateAllViews();
         }
         return changed;
     };
-    LineTool.prototype._internal_editing = function () {
-        return this._internal__editing;
+    LineTool.prototype.editing = function () {
+        return this._editing;
     };
-    LineTool.prototype._internal_setEditing = function (editing) {
-        var changed = editing !== this._internal__editing;
-        this._internal__editing = editing;
+    LineTool.prototype.setEditing = function (editing) {
+        var changed = editing !== this._editing;
+        this._editing = editing;
         return changed;
     };
-    LineTool.prototype._internal_model = function () {
-        return this._internal__model;
+    LineTool.prototype.model = function () {
+        return this._model;
     };
-    LineTool.prototype._internal_toolType = function () {
-        return this._internal__toolType;
+    LineTool.prototype.toolType = function () {
+        return this._toolType;
     };
-    LineTool.prototype._internal_destroy = function () { };
-    LineTool.prototype._internal_timeAxisPoints = function () {
-        return this._internal_points();
+    LineTool.prototype.destroy = function () { };
+    LineTool.prototype.timeAxisPoints = function () {
+        return this.points();
     };
-    LineTool.prototype._internal_priceAxisPoints = function () {
-        return this._internal_points();
+    LineTool.prototype.priceAxisPoints = function () {
+        return this.points();
     };
-    LineTool.prototype._internal_timeAxisLabelColor = function () {
-        return this._internal_selected() ? '#2962FF' : null;
+    LineTool.prototype.timeAxisLabelColor = function () {
+        return this.selected() ? '#2962FF' : null;
     };
-    LineTool.prototype._internal_priceAxisLabelColor = function () {
-        return this._internal_selected() ? '#2962FF' : null;
+    LineTool.prototype.priceAxisLabelColor = function () {
+        return this.selected() ? '#2962FF' : null;
     };
-    LineTool.prototype._internal_timeAxisViews = function () {
-        return this._internal__timeAxisViews;
+    LineTool.prototype.timeAxisViews = function () {
+        return this._timeAxisViews;
     };
-    LineTool.prototype._internal_priceAxisViews = function () {
-        return this._internal__priceAxisViews;
+    LineTool.prototype.priceAxisViews = function () {
+        return this._priceAxisViews;
     };
-    LineTool.prototype._internal_lineDrawnWithPressedButton = function () {
+    LineTool.prototype.lineDrawnWithPressedButton = function () {
         return false;
     };
-    LineTool.prototype._internal_hasMagnet = function () {
+    LineTool.prototype.hasMagnet = function () {
         return true;
     };
-    LineTool.prototype._internal__setPaneViews = function (paneViews) {
-        this._internal__paneViews = paneViews;
+    LineTool.prototype._setPaneViews = function (paneViews) {
+        this._paneViews = paneViews;
     };
-    LineTool.prototype._internal__updateAllPaneViews = function () {
-        this._internal__paneViews.forEach(function (paneView) { return paneView._internal_update(); });
+    LineTool.prototype._updateAllPaneViews = function () {
+        this._paneViews.forEach(function (paneView) { return paneView.update(); });
     };
     return LineTool;
 }(DataSource));
@@ -2778,21 +2778,21 @@ var HitTestResult = /** @class */ (function () {
         this._private__type = type;
         this._private__data = data || null;
     }
-    HitTestResult.prototype._internal_type = function () {
+    HitTestResult.prototype.type = function () {
         return this._private__type;
     };
-    HitTestResult.prototype._internal_data = function () {
+    HitTestResult.prototype.data = function () {
         return this._private__data;
     };
     return HitTestResult;
 }());
 var HitTestType;
 (function (HitTestType) {
-    HitTestType[HitTestType["_internal_Regular"] = 1] = "_internal_Regular";
-    HitTestType[HitTestType["_internal_MovePoint"] = 2] = "_internal_MovePoint";
-    HitTestType[HitTestType["_internal_MovePointBackground"] = 3] = "_internal_MovePointBackground";
-    HitTestType[HitTestType["_internal_ChangePoint"] = 4] = "_internal_ChangePoint";
-    HitTestType[HitTestType["_internal_Custom"] = 5] = "_internal_Custom";
+    HitTestType[HitTestType["Regular"] = 1] = "Regular";
+    HitTestType[HitTestType["MovePoint"] = 2] = "MovePoint";
+    HitTestType[HitTestType["MovePointBackground"] = 3] = "MovePointBackground";
+    HitTestType[HitTestType["ChangePoint"] = 4] = "ChangePoint";
+    HitTestType[HitTestType["Custom"] = 5] = "Custom";
 })(HitTestType || (HitTestType = {}));
 
 function optimalBarWidth(barSpacing, pixelRatio) {
@@ -2825,7 +2825,7 @@ var interactionTolerance = {
 var SegmentRenderer = /** @class */ (function () {
     function SegmentRenderer() {
         this._internal__data = null;
-        this._internal__hitTest = new HitTestResult(HitTestType._internal_MovePoint);
+        this._internal__hitTest = new HitTestResult(HitTestType.MovePoint);
     }
     SegmentRenderer.prototype._internal_setData = function (data) {
         this._internal__data = data;
@@ -2833,11 +2833,11 @@ var SegmentRenderer = /** @class */ (function () {
     SegmentRenderer.prototype._internal_setHitTest = function (hitTest) {
         this._internal__hitTest = hitTest;
     };
-    SegmentRenderer.prototype._internal_draw = function (ctx, renderParams) {
+    SegmentRenderer.prototype.draw = function (ctx, renderParams) {
         if (!this._internal__data || this._internal__data._internal_points.length < 2) {
             return;
         }
-        var pixelRatio = renderParams._internal_pixelRatio;
+        var pixelRatio = renderParams.pixelRatio;
         var lineWidth = this._internal__data._internal_line.width || 1;
         var lineColor = this._internal__data._internal_line.color || 'white';
         var lineStyle = this._internal__data._internal_line.style || 0 /* Solid */;
@@ -2861,7 +2861,7 @@ var SegmentRenderer = /** @class */ (function () {
             }
         }
     };
-    SegmentRenderer.prototype._internal_hitTest = function (point, renderParams) {
+    SegmentRenderer.prototype.hitTest = function (point, renderParams) {
         if (this._internal__data === null || this._internal__data._internal_points.length < 2) {
             return null;
         }
@@ -2875,7 +2875,7 @@ var SegmentRenderer = /** @class */ (function () {
     SegmentRenderer.prototype._private__extendAndClipLineSegment = function (end0, end1, renderParams) {
         var _a, _b;
         var data = ensureNotNull(this._internal__data);
-        return extendAndClipLineSegment(end0, end1, renderParams._internal_cssWidth, renderParams._internal_cssHeight, !!((_a = data._internal_line.extend) === null || _a === void 0 ? void 0 : _a.left), !!((_b = data._internal_line.extend) === null || _b === void 0 ? void 0 : _b.right));
+        return extendAndClipLineSegment(end0, end1, renderParams.cssWidth, renderParams.cssHeight, !!((_a = data._internal_line.extend) === null || _a === void 0 ? void 0 : _a.left), !!((_b = data._internal_line.extend) === null || _b === void 0 ? void 0 : _b.right));
     };
     SegmentRenderer.prototype._private__drawEnds = function (ctx, points, width, pixelRatio) {
         var _a, _b;
@@ -3017,7 +3017,7 @@ var TextRenderer = /** @class */ (function () {
         this._internal__fontInfo = null;
         this._internal__boxSize = null;
         this._internal__data = null;
-        this._internal__hitTest = hitTest || new HitTestResult(HitTestType._internal_MovePoint);
+        this._internal__hitTest = hitTest || new HitTestResult(HitTestType.MovePoint);
         if (data !== undefined) {
             this._internal_setData(data);
         }
@@ -3081,7 +3081,7 @@ var TextRenderer = /** @class */ (function () {
             this._internal__boxSize = null;
         }
     };
-    TextRenderer.prototype._internal_hitTest = function (point) {
+    TextRenderer.prototype.hitTest = function (point) {
         if (this._internal__data === null || this._internal__data._internal_points === undefined || this._internal__data._internal_points.length === 0) {
             return null;
         }
@@ -3126,7 +3126,7 @@ var TextRenderer = /** @class */ (function () {
     };
     TextRenderer.prototype._internal_setPoints = function (points, hitTest) {
         ensureNotNull(this._internal__data)._internal_points = points;
-        this._internal__hitTest = hitTest || new HitTestResult(HitTestType._internal_MovePoint);
+        this._internal__hitTest = hitTest || new HitTestResult(HitTestType.MovePoint);
     };
     TextRenderer.prototype._internal_fontStyle = function () {
         return this._internal__data === null ? '' : this._private__getFontInfo()._internal_fontStyle;
@@ -3135,16 +3135,16 @@ var TextRenderer = /** @class */ (function () {
         return textWrap(test, font || this._internal_fontStyle(), wrapWidth);
     };
     // eslint-disable-next-line complexity
-    TextRenderer.prototype._internal_draw = function (ctx, renderParams) {
+    TextRenderer.prototype.draw = function (ctx, renderParams) {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2, _3, _4, _5, _6;
         if (this._internal__data === null || this._internal__data._internal_points === undefined || this._internal__data._internal_points.length === 0) {
             return;
         }
-        if (this._internal_isOutOfScreen(renderParams._internal_cssWidth, renderParams._internal_cssHeight)) {
+        if (this._internal_isOutOfScreen(renderParams.cssWidth, renderParams.cssHeight)) {
             return;
         }
         var textData = this._internal__data._internal_text;
-        var pixelRatio = renderParams._internal_pixelRatio;
+        var pixelRatio = renderParams.pixelRatio;
         var internalData = this._private__getInternalData();
         var pivot = this._private__getRotationPoint().scaled(pixelRatio);
         ctx.save();
@@ -3560,12 +3560,12 @@ var GridRenderer = /** @class */ (function () {
     GridRenderer.prototype._internal_setData = function (data) {
         this._private__data = data;
     };
-    GridRenderer.prototype._internal_draw = function (ctx, renderParams) {
+    GridRenderer.prototype.draw = function (ctx, renderParams) {
         var _this = this;
         if (this._private__data === null) {
             return;
         }
-        var pixelRatio = renderParams._internal_pixelRatio;
+        var pixelRatio = renderParams.pixelRatio;
         var lineWidth = Math.max(1, Math.floor(pixelRatio));
         ctx.lineWidth = lineWidth;
         var height = Math.ceil(this._private__data._internal_h * pixelRatio);
@@ -3590,7 +3590,7 @@ var GridRenderer = /** @class */ (function () {
                 ctx.beginPath();
                 for (var _b = 0, _c = data._internal_priceMarks; _b < _c.length; _b++) {
                     var priceMark = _c[_b];
-                    var y = Math.round(priceMark._internal_coord * pixelRatio);
+                    var y = Math.round(priceMark.coord * pixelRatio);
                     ctx.moveTo(-lineWidth, y);
                     ctx.lineTo(width + lineWidth, y);
                 }
@@ -3607,12 +3607,12 @@ var GridPaneView = /** @class */ (function () {
         this._private__invalidated = true;
         this._private__pane = pane;
     }
-    GridPaneView.prototype._internal_update = function () {
+    GridPaneView.prototype.update = function () {
         this._private__invalidated = true;
     };
-    GridPaneView.prototype._internal_renderer = function (height, width) {
+    GridPaneView.prototype.renderer = function (height, width) {
         if (this._private__invalidated) {
-            var gridOptions = this._private__pane._internal_model()._internal_options().grid;
+            var gridOptions = this._private__pane.model().options().grid;
             var data = {
                 _internal_h: height,
                 _internal_w: width,
@@ -3622,8 +3622,8 @@ var GridPaneView = /** @class */ (function () {
                 _internal_vertLinesColor: gridOptions.vertLines.color,
                 _internal_horzLineStyle: gridOptions.horzLines.style,
                 _internal_vertLineStyle: gridOptions.vertLines.style,
-                _internal_priceMarks: this._private__pane._internal_defaultPriceScale()._internal_marks(),
-                _internal_timeMarks: this._private__pane._internal_model()._internal_timeScale()._internal_marks() || [],
+                _internal_priceMarks: this._private__pane.defaultPriceScale().marks(),
+                _internal_timeMarks: this._private__pane.model().timeScale().marks() || [],
             };
             this._private__renderer._internal_setData(data);
             this._private__invalidated = false;
@@ -3637,7 +3637,7 @@ var Grid = /** @class */ (function () {
     function Grid(pane) {
         this._private__paneView = new GridPaneView(pane);
     }
-    Grid.prototype._internal_paneView = function () {
+    Grid.prototype.paneView = function () {
         return this._private__paneView;
     };
     return Grid;
@@ -3744,34 +3744,34 @@ var PriceRangeImpl = /** @class */ (function () {
         this._private__minValue = minValue;
         this._private__maxValue = maxValue;
     }
-    PriceRangeImpl.prototype._internal_equals = function (pr) {
+    PriceRangeImpl.prototype.equals = function (pr) {
         if (pr === null) {
             return false;
         }
         return this._private__minValue === pr._private__minValue && this._private__maxValue === pr._private__maxValue;
     };
-    PriceRangeImpl.prototype._internal_clone = function () {
+    PriceRangeImpl.prototype.clone = function () {
         return new PriceRangeImpl(this._private__minValue, this._private__maxValue);
     };
-    PriceRangeImpl.prototype._internal_minValue = function () {
+    PriceRangeImpl.prototype.minValue = function () {
         return this._private__minValue;
     };
-    PriceRangeImpl.prototype._internal_maxValue = function () {
+    PriceRangeImpl.prototype.maxValue = function () {
         return this._private__maxValue;
     };
-    PriceRangeImpl.prototype._internal_length = function () {
+    PriceRangeImpl.prototype.length = function () {
         return this._private__maxValue - this._private__minValue;
     };
-    PriceRangeImpl.prototype._internal_isEmpty = function () {
+    PriceRangeImpl.prototype.isEmpty = function () {
         return this._private__maxValue === this._private__minValue || Number.isNaN(this._private__maxValue) || Number.isNaN(this._private__minValue);
     };
-    PriceRangeImpl.prototype._internal_merge = function (anotherRange) {
+    PriceRangeImpl.prototype.merge = function (anotherRange) {
         if (anotherRange === null) {
             return this;
         }
-        return new PriceRangeImpl(Math.min(this._internal_minValue(), anotherRange._internal_minValue()), Math.max(this._internal_maxValue(), anotherRange._internal_maxValue()));
+        return new PriceRangeImpl(Math.min(this.minValue(), anotherRange.minValue()), Math.max(this.maxValue(), anotherRange.maxValue()));
     };
-    PriceRangeImpl.prototype._internal_scaleAroundCenter = function (coeff) {
+    PriceRangeImpl.prototype.scaleAroundCenter = function (coeff) {
         if (!isNumber(coeff)) {
             return;
         }
@@ -3787,20 +3787,20 @@ var PriceRangeImpl = /** @class */ (function () {
         this._private__maxValue = center + maxDelta;
         this._private__minValue = center + minDelta;
     };
-    PriceRangeImpl.prototype._internal_shift = function (delta) {
+    PriceRangeImpl.prototype.shift = function (delta) {
         if (!isNumber(delta)) {
             return;
         }
         this._private__maxValue += delta;
         this._private__minValue += delta;
     };
-    PriceRangeImpl.prototype._internal_toRaw = function () {
+    PriceRangeImpl.prototype.toRaw = function () {
         return {
             minValue: this._private__minValue,
             maxValue: this._private__maxValue,
         };
     };
-    PriceRangeImpl._internal_fromRaw = function (raw) {
+    PriceRangeImpl.fromRaw = function (raw) {
         return (raw === null) ? null : new PriceRangeImpl(raw.minValue, raw.maxValue);
     };
     return PriceRangeImpl;
@@ -3854,8 +3854,8 @@ function ceiledOdd(x) {
 }
 
 var defLogFormula = {
-    _internal_logicalOffset: 4,
-    _internal_coordOffset: 0.0001,
+    logicalOffset: 4,
+    coordOffset: 0.0001,
 };
 function fromPercent(value, baseValue) {
     if (baseValue < 0) {
@@ -3868,8 +3868,8 @@ function toPercent(value, baseValue) {
     return (baseValue < 0 ? -result : result);
 }
 function toPercentRange(priceRange, baseValue) {
-    var minPercent = toPercent(priceRange._internal_minValue(), baseValue);
-    var maxPercent = toPercent(priceRange._internal_maxValue(), baseValue);
+    var minPercent = toPercent(priceRange.minValue(), baseValue);
+    var maxPercent = toPercent(priceRange.maxValue(), baseValue);
     return new PriceRangeImpl(minPercent, maxPercent);
 }
 function fromIndexedTo100(value, baseValue) {
@@ -3884,8 +3884,8 @@ function toIndexedTo100(value, baseValue) {
     return (baseValue < 0 ? -result : result);
 }
 function toIndexedTo100Range(priceRange, baseValue) {
-    var minPercent = toIndexedTo100(priceRange._internal_minValue(), baseValue);
-    var maxPercent = toIndexedTo100(priceRange._internal_maxValue(), baseValue);
+    var minPercent = toIndexedTo100(priceRange.minValue(), baseValue);
+    var maxPercent = toIndexedTo100(priceRange.maxValue(), baseValue);
     return new PriceRangeImpl(minPercent, maxPercent);
 }
 function toLog(price, logFormula) {
@@ -3893,7 +3893,7 @@ function toLog(price, logFormula) {
     if (m < 1e-15) {
         return 0;
     }
-    var res = log10(m + logFormula._internal_coordOffset) + logFormula._internal_logicalOffset;
+    var res = log10(m + logFormula.coordOffset) + logFormula.logicalOffset;
     return ((price < 0) ? -res : res);
 }
 function fromLog(logical, logFormula) {
@@ -3901,51 +3901,51 @@ function fromLog(logical, logFormula) {
     if (m < 1e-15) {
         return 0;
     }
-    var res = Math.pow(10, m - logFormula._internal_logicalOffset) - logFormula._internal_coordOffset;
+    var res = Math.pow(10, m - logFormula.logicalOffset) - logFormula.coordOffset;
     return (logical < 0) ? -res : res;
 }
 function convertPriceRangeToLog(priceRange, logFormula) {
     if (priceRange === null) {
         return null;
     }
-    var min = toLog(priceRange._internal_minValue(), logFormula);
-    var max = toLog(priceRange._internal_maxValue(), logFormula);
+    var min = toLog(priceRange.minValue(), logFormula);
+    var max = toLog(priceRange.maxValue(), logFormula);
     return new PriceRangeImpl(min, max);
 }
 function canConvertPriceRangeFromLog(priceRange, logFormula) {
     if (priceRange === null) {
         return false;
     }
-    var min = fromLog(priceRange._internal_minValue(), logFormula);
-    var max = fromLog(priceRange._internal_maxValue(), logFormula);
+    var min = fromLog(priceRange.minValue(), logFormula);
+    var max = fromLog(priceRange.maxValue(), logFormula);
     return isFinite(min) && isFinite(max);
 }
 function convertPriceRangeFromLog(priceRange, logFormula) {
     if (priceRange === null) {
         return null;
     }
-    var min = fromLog(priceRange._internal_minValue(), logFormula);
-    var max = fromLog(priceRange._internal_maxValue(), logFormula);
+    var min = fromLog(priceRange.minValue(), logFormula);
+    var max = fromLog(priceRange.maxValue(), logFormula);
     return new PriceRangeImpl(min, max);
 }
 function logFormulaForPriceRange(range) {
     if (range === null) {
         return defLogFormula;
     }
-    var diff = Math.abs(range._internal_maxValue() - range._internal_minValue());
+    var diff = Math.abs(range.maxValue() - range.minValue());
     if (diff >= 1 || diff < 1e-15) {
         return defLogFormula;
     }
     var digits = Math.ceil(Math.abs(Math.log10(diff)));
-    var logicalOffset = defLogFormula._internal_logicalOffset + digits;
+    var logicalOffset = defLogFormula.logicalOffset + digits;
     var coordOffset = 1 / Math.pow(10, logicalOffset);
     return {
-        _internal_logicalOffset: logicalOffset,
-        _internal_coordOffset: coordOffset,
+        logicalOffset: logicalOffset,
+        coordOffset: coordOffset,
     };
 }
 function logFormulasAreSame(f1, f2) {
-    return f1._internal_logicalOffset === f2._internal_logicalOffset && f1._internal_coordOffset === f2._internal_coordOffset;
+    return f1.logicalOffset === f2.logicalOffset && f1.coordOffset === f2.coordOffset;
 }
 
 var PriceTickSpanCalculator = /** @class */ (function () {
@@ -4024,7 +4024,7 @@ var PriceTickMarkBuilder = /** @class */ (function () {
         if (high < low) {
             throw new Error('high < low');
         }
-        var scaleHeight = this._private__priceScale._internal_height();
+        var scaleHeight = this._private__priceScale.height();
         var markHeight = this._private__tickMarkHeight();
         var maxTickSpan = (high - low) * markHeight / scaleHeight;
         var spanCalculator1 = new PriceTickSpanCalculator(this._private__base, [2, 2.5, 2]);
@@ -4036,15 +4036,15 @@ var PriceTickMarkBuilder = /** @class */ (function () {
     };
     PriceTickMarkBuilder.prototype._internal_rebuildTickMarks = function () {
         var priceScale = this._private__priceScale;
-        var firstValue = priceScale._internal_firstValue();
+        var firstValue = priceScale.firstValue();
         if (firstValue === null) {
             this._private__marks = [];
             return;
         }
-        var scaleHeight = priceScale._internal_height();
+        var scaleHeight = priceScale.height();
         var bottom = this._private__coordinateToLogicalFunc(scaleHeight - 1, firstValue);
         var top = this._private__coordinateToLogicalFunc(0, firstValue);
-        var extraTopBottomMargin = this._private__priceScale._internal_options().entireTextOnly ? this._private__fontHeight() / 2 : 0;
+        var extraTopBottomMargin = this._private__priceScale.options().entireTextOnly ? this._private__fontHeight() / 2 : 0;
         var minCoord = extraTopBottomMargin;
         var maxCoord = scaleHeight - 1 - extraTopBottomMargin;
         var high = Math.max(bottom, top);
@@ -4071,18 +4071,18 @@ var PriceTickMarkBuilder = /** @class */ (function () {
                 continue;
             }
             if (targetIndex < this._private__marks.length) {
-                this._private__marks[targetIndex]._internal_coord = coord;
-                this._private__marks[targetIndex]._internal_label = priceScale._internal_formatLogical(logical);
+                this._private__marks[targetIndex].coord = coord;
+                this._private__marks[targetIndex].label = priceScale.formatLogical(logical);
             }
             else {
                 this._private__marks.push({
-                    _internal_coord: coord,
-                    _internal_label: priceScale._internal_formatLogical(logical),
+                    coord: coord,
+                    label: priceScale.formatLogical(logical),
                 });
             }
             targetIndex++;
             prevCoord = coord;
-            if (priceScale._internal_isLog()) {
+            if (priceScale.isLog()) {
                 // recalc span
                 span = this._internal_tickSpan(logical * sign, low);
             }
@@ -4093,7 +4093,7 @@ var PriceTickMarkBuilder = /** @class */ (function () {
         return this._private__marks;
     };
     PriceTickMarkBuilder.prototype._private__fontHeight = function () {
-        return this._private__priceScale._internal_fontSize();
+        return this._private__priceScale.fontSize();
     };
     PriceTickMarkBuilder.prototype._private__tickMarkHeight = function () {
         return Math.ceil(this._private__fontHeight() * TICK_DENSITY);
@@ -4103,7 +4103,7 @@ var PriceTickMarkBuilder = /** @class */ (function () {
 
 function sortSources(sources) {
     return sources.slice().sort(function (s1, s2) {
-        return (ensureNotNull(s1._internal_zorder()) - ensureNotNull(s2._internal_zorder()));
+        return (ensureNotNull(s1.zorder()) - ensureNotNull(s2.zorder()));
     });
 }
 
@@ -4159,17 +4159,17 @@ var PriceScale = /** @class */ (function () {
         this._private__localizationOptions = localizationOptions;
         this._private__markBuilder = new PriceTickMarkBuilder(this, 100, this._private__coordinateToLogical.bind(this), this._private__logicalToCoordinate.bind(this));
     }
-    PriceScale.prototype._internal_id = function () {
+    PriceScale.prototype.id = function () {
         return this._private__id;
     };
-    PriceScale.prototype._internal_options = function () {
+    PriceScale.prototype.options = function () {
         return this._private__options;
     };
-    PriceScale.prototype._internal_applyOptions = function (options) {
+    PriceScale.prototype.applyOptions = function (options) {
         merge(this._private__options, options);
-        this._internal_updateFormatter();
+        this.updateFormatter();
         if (options.mode !== undefined) {
-            this._internal_setMode({ _internal_mode: options.mode });
+            this.setMode({ mode: options.mode });
         }
         if (options.scaleMargins !== undefined) {
             var top_1 = ensureDefined(options.scaleMargins.top);
@@ -4187,48 +4187,48 @@ var PriceScale = /** @class */ (function () {
             this._private__marksCache = null;
         }
     };
-    PriceScale.prototype._internal_isAutoScale = function () {
+    PriceScale.prototype.isAutoScale = function () {
         return this._private__options.autoScale;
     };
-    PriceScale.prototype._internal_isLog = function () {
+    PriceScale.prototype.isLog = function () {
         return this._private__options.mode === 1 /* Logarithmic */;
     };
-    PriceScale.prototype._internal_isPercentage = function () {
+    PriceScale.prototype.isPercentage = function () {
         return this._private__options.mode === 2 /* Percentage */;
     };
-    PriceScale.prototype._internal_isIndexedTo100 = function () {
+    PriceScale.prototype.isIndexedTo100 = function () {
         return this._private__options.mode === 3 /* IndexedTo100 */;
     };
-    PriceScale.prototype._internal_mode = function () {
+    PriceScale.prototype.mode = function () {
         return {
-            _internal_autoScale: this._private__options.autoScale,
-            _internal_isInverted: this._private__options.invertScale,
-            _internal_mode: this._private__options.mode,
+            autoScale: this._private__options.autoScale,
+            isInverted: this._private__options.invertScale,
+            mode: this._private__options.mode,
         };
     };
     // eslint-disable-next-line complexity
-    PriceScale.prototype._internal_setMode = function (newMode) {
-        var oldMode = this._internal_mode();
+    PriceScale.prototype.setMode = function (newMode) {
+        var oldMode = this.mode();
         var priceRange = null;
-        if (newMode._internal_autoScale !== undefined) {
-            this._private__options.autoScale = newMode._internal_autoScale;
+        if (newMode.autoScale !== undefined) {
+            this._private__options.autoScale = newMode.autoScale;
         }
-        if (newMode._internal_mode !== undefined) {
-            this._private__options.mode = newMode._internal_mode;
-            if (newMode._internal_mode === 2 /* Percentage */ ||
-                newMode._internal_mode === 3 /* IndexedTo100 */) {
+        if (newMode.mode !== undefined) {
+            this._private__options.mode = newMode.mode;
+            if (newMode.mode === 2 /* Percentage */ ||
+                newMode.mode === 3 /* IndexedTo100 */) {
                 this._private__options.autoScale = true;
             }
             // TODO: Remove after making rebuildTickMarks lazy
             this._private__invalidatedForRange._internal_isValid = false;
         }
         // define which scale converted from
-        if (oldMode._internal_mode === 1 /* Logarithmic */ &&
-            newMode._internal_mode !== oldMode._internal_mode) {
+        if (oldMode.mode === 1 /* Logarithmic */ &&
+            newMode.mode !== oldMode.mode) {
             if (canConvertPriceRangeFromLog(this._private__priceRange, this._private__logFormula)) {
                 priceRange = convertPriceRangeFromLog(this._private__priceRange, this._private__logFormula);
                 if (priceRange !== null) {
-                    this._internal_setPriceRange(priceRange);
+                    this.setPriceRange(priceRange);
                 }
             }
             else {
@@ -4236,39 +4236,39 @@ var PriceScale = /** @class */ (function () {
             }
         }
         // define which scale converted to
-        if (newMode._internal_mode === 1 /* Logarithmic */ &&
-            newMode._internal_mode !== oldMode._internal_mode) {
+        if (newMode.mode === 1 /* Logarithmic */ &&
+            newMode.mode !== oldMode.mode) {
             priceRange = convertPriceRangeToLog(this._private__priceRange, this._private__logFormula);
             if (priceRange !== null) {
-                this._internal_setPriceRange(priceRange);
+                this.setPriceRange(priceRange);
             }
         }
-        var modeChanged = oldMode._internal_mode !== this._private__options.mode;
+        var modeChanged = oldMode.mode !== this._private__options.mode;
         if (modeChanged &&
-            (oldMode._internal_mode === 2 /* Percentage */ || this._internal_isPercentage())) {
-            this._internal_updateFormatter();
+            (oldMode.mode === 2 /* Percentage */ || this.isPercentage())) {
+            this.updateFormatter();
         }
         if (modeChanged &&
-            (oldMode._internal_mode === 3 /* IndexedTo100 */ || this._internal_isIndexedTo100())) {
-            this._internal_updateFormatter();
+            (oldMode.mode === 3 /* IndexedTo100 */ || this.isIndexedTo100())) {
+            this.updateFormatter();
         }
-        if (newMode._internal_isInverted !== undefined &&
-            oldMode._internal_isInverted !== newMode._internal_isInverted) {
-            this._private__options.invertScale = newMode._internal_isInverted;
+        if (newMode.isInverted !== undefined &&
+            oldMode.isInverted !== newMode.isInverted) {
+            this._private__options.invertScale = newMode.isInverted;
             this._private__onIsInvertedChanged();
         }
-        this._private__modeChanged._internal_fire(oldMode, this._internal_mode());
+        this._private__modeChanged.fire(oldMode, this.mode());
     };
-    PriceScale.prototype._internal_modeChanged = function () {
+    PriceScale.prototype.modeChanged = function () {
         return this._private__modeChanged;
     };
-    PriceScale.prototype._internal_fontSize = function () {
+    PriceScale.prototype.fontSize = function () {
         return this._private__layoutOptions.fontSize;
     };
-    PriceScale.prototype._internal_height = function () {
+    PriceScale.prototype.height = function () {
         return this._private__height;
     };
-    PriceScale.prototype._internal_setHeight = function (value) {
+    PriceScale.prototype.setHeight = function (value) {
         if (this._private__height === value) {
             return;
         }
@@ -4276,117 +4276,117 @@ var PriceScale = /** @class */ (function () {
         this._private__invalidateInternalHeightCache();
         this._private__marksCache = null;
     };
-    PriceScale.prototype._internal_internalHeight = function () {
+    PriceScale.prototype.internalHeight = function () {
         if (this._private__internalHeightCache) {
             return this._private__internalHeightCache;
         }
-        var res = this._internal_height() - this._private__topMarginPx() - this._private__bottomMarginPx();
+        var res = this.height() - this._private__topMarginPx() - this._private__bottomMarginPx();
         this._private__internalHeightCache = res;
         return res;
     };
-    PriceScale.prototype._internal_priceRange = function () {
+    PriceScale.prototype.priceRange = function () {
         this._private__makeSureItIsValid();
         return this._private__priceRange;
     };
-    PriceScale.prototype._internal_logFormula = function () {
+    PriceScale.prototype.logFormula = function () {
         return this._private__logFormula;
     };
-    PriceScale.prototype._internal_setPriceRange = function (newPriceRange, isForceSetValue) {
+    PriceScale.prototype.setPriceRange = function (newPriceRange, isForceSetValue) {
         var oldPriceRange = this._private__priceRange;
         if (!isForceSetValue &&
             !(oldPriceRange === null && newPriceRange !== null) &&
-            (oldPriceRange === null || oldPriceRange._internal_equals(newPriceRange))) {
+            (oldPriceRange === null || oldPriceRange.equals(newPriceRange))) {
             return;
         }
         this._private__marksCache = null;
         this._private__priceRange = newPriceRange;
     };
-    PriceScale.prototype._internal_isEmpty = function () {
+    PriceScale.prototype.isEmpty = function () {
         this._private__makeSureItIsValid();
-        return (this._private__height === 0 || !this._private__priceRange || this._private__priceRange._internal_isEmpty());
+        return (this._private__height === 0 || !this._private__priceRange || this._private__priceRange.isEmpty());
     };
-    PriceScale.prototype._internal_invertedCoordinate = function (coordinate) {
-        return this._internal_isInverted() ? coordinate : this._internal_height() - 1 - coordinate;
+    PriceScale.prototype.invertedCoordinate = function (coordinate) {
+        return this.isInverted() ? coordinate : this.height() - 1 - coordinate;
     };
-    PriceScale.prototype._internal_priceToCoordinate = function (price, baseValue) {
-        if (this._internal_isPercentage()) {
+    PriceScale.prototype.priceToCoordinate = function (price, baseValue) {
+        if (this.isPercentage()) {
             price = toPercent(price, baseValue);
         }
-        else if (this._internal_isIndexedTo100()) {
+        else if (this.isIndexedTo100()) {
             price = toIndexedTo100(price, baseValue);
         }
         return this._private__logicalToCoordinate(price, baseValue);
     };
-    PriceScale.prototype._internal_pointsArrayToCoordinates = function (points, baseValue, visibleRange) {
+    PriceScale.prototype.pointsArrayToCoordinates = function (points, baseValue, visibleRange) {
         this._private__makeSureItIsValid();
         var bh = this._private__bottomMarginPx();
-        var range = ensureNotNull(this._internal_priceRange());
-        var min = range._internal_minValue();
-        var max = range._internal_maxValue();
-        var ih = this._internal_internalHeight() - 1;
-        var isInverted = this._internal_isInverted();
+        var range = ensureNotNull(this.priceRange());
+        var min = range.minValue();
+        var max = range.maxValue();
+        var ih = this.internalHeight() - 1;
+        var isInverted = this.isInverted();
         var hmm = ih / (max - min);
         var fromIndex = visibleRange === undefined ? 0 : visibleRange.from;
         var toIndex = visibleRange === undefined ? points.length : visibleRange.to;
         var transformFn = this._private__getCoordinateTransformer();
         for (var i = fromIndex; i < toIndex; i++) {
             var point = points[i];
-            var price = point._internal_price;
+            var price = point.price;
             if (isNaN(price)) {
                 continue;
             }
             var logical = price;
             if (transformFn !== null) {
-                logical = transformFn(point._internal_price, baseValue);
+                logical = transformFn(point.price, baseValue);
             }
             var invCoordinate = bh + hmm * (logical - min);
             var coordinate = isInverted
                 ? invCoordinate
                 : this._private__height - 1 - invCoordinate;
-            point._internal_y = coordinate;
+            point.y = coordinate;
         }
     };
-    PriceScale.prototype._internal_cloudPointsArrayToCoordinates = function (points, baseValue, visibleRange) {
+    PriceScale.prototype.cloudPointsArrayToCoordinates = function (points, baseValue, visibleRange) {
         this._private__makeSureItIsValid();
         var bh = this._private__bottomMarginPx();
-        var range = ensureNotNull(this._internal_priceRange());
-        var min = range._internal_minValue();
-        var max = range._internal_maxValue();
-        var ih = (this._internal_internalHeight() - 1);
-        var isInverted = this._internal_isInverted();
+        var range = ensureNotNull(this.priceRange());
+        var min = range.minValue();
+        var max = range.maxValue();
+        var ih = (this.internalHeight() - 1);
+        var isInverted = this.isInverted();
         var hmm = ih / (max - min);
         var fromIndex = (visibleRange === undefined) ? 0 : visibleRange.from;
         var toIndex = (visibleRange === undefined) ? points.length : visibleRange.to;
         var transformFn = this._private__getCoordinateTransformer();
         for (var i = fromIndex; i < toIndex; i++) {
             var point = points[i];
-            var higherPrice = point._internal_higherPrice;
-            var lowerPrice = point._internal_lowerPrice;
+            var higherPrice = point.higherPrice;
+            var lowerPrice = point.lowerPrice;
             if (isNaN(higherPrice) || isNaN(lowerPrice)) {
                 continue;
             }
             var higherLogical = higherPrice;
             var lowerLogical = lowerPrice;
             if (transformFn !== null) {
-                higherLogical = transformFn(point._internal_higherPrice, baseValue);
-                lowerLogical = transformFn(point._internal_lowerPrice, baseValue);
+                higherLogical = transformFn(point.higherPrice, baseValue);
+                lowerLogical = transformFn(point.lowerPrice, baseValue);
             }
             var invCoordinate = bh + hmm * (higherLogical - min);
             var coordinate = isInverted ? invCoordinate : this._private__height - 1 - invCoordinate;
-            point._internal_higherY = coordinate;
+            point.higherY = coordinate;
             invCoordinate = bh + hmm * (lowerLogical - min);
             coordinate = isInverted ? invCoordinate : this._private__height - 1 - invCoordinate;
-            point._internal_lowerY = coordinate;
+            point.lowerY = coordinate;
         }
     };
-    PriceScale.prototype._internal_barPricesToCoordinates = function (pricesList, baseValue, visibleRange) {
+    PriceScale.prototype.barPricesToCoordinates = function (pricesList, baseValue, visibleRange) {
         this._private__makeSureItIsValid();
         var bh = this._private__bottomMarginPx();
-        var range = ensureNotNull(this._internal_priceRange());
-        var min = range._internal_minValue();
-        var max = range._internal_maxValue();
-        var ih = this._internal_internalHeight() - 1;
-        var isInverted = this._internal_isInverted();
+        var range = ensureNotNull(this.priceRange());
+        var min = range.minValue();
+        var max = range.maxValue();
+        var ih = this.internalHeight() - 1;
+        var isInverted = this.isInverted();
         var hmm = ih / (max - min);
         var fromIndex = visibleRange === undefined ? 0 : visibleRange.from;
         var toIndex = visibleRange === undefined ? pricesList.length : visibleRange.to;
@@ -4407,50 +4407,50 @@ var PriceScale = /** @class */ (function () {
             var coordinate = isInverted
                 ? invCoordinate
                 : this._private__height - 1 - invCoordinate;
-            bar._internal_openY = coordinate;
+            bar.openY = coordinate;
             invCoordinate = bh + hmm * (highLogical - min);
             coordinate = isInverted
                 ? invCoordinate
                 : this._private__height - 1 - invCoordinate;
-            bar._internal_highY = coordinate;
+            bar.highY = coordinate;
             invCoordinate = bh + hmm * (lowLogical - min);
             coordinate = isInverted
                 ? invCoordinate
                 : this._private__height - 1 - invCoordinate;
-            bar._internal_lowY = coordinate;
+            bar.lowY = coordinate;
             invCoordinate = bh + hmm * (closeLogical - min);
             coordinate = isInverted
                 ? invCoordinate
                 : this._private__height - 1 - invCoordinate;
-            bar._internal_closeY = coordinate;
+            bar.closeY = coordinate;
         }
     };
-    PriceScale.prototype._internal_coordinateToPrice = function (coordinate, baseValue) {
+    PriceScale.prototype.coordinateToPrice = function (coordinate, baseValue) {
         var logical = this._private__coordinateToLogical(coordinate, baseValue);
-        return this._internal_logicalToPrice(logical, baseValue);
+        return this.logicalToPrice(logical, baseValue);
     };
-    PriceScale.prototype._internal_logicalToPrice = function (logical, baseValue) {
+    PriceScale.prototype.logicalToPrice = function (logical, baseValue) {
         var value = logical;
-        if (this._internal_isPercentage()) {
+        if (this.isPercentage()) {
             value = fromPercent(value, baseValue);
         }
-        else if (this._internal_isIndexedTo100()) {
+        else if (this.isIndexedTo100()) {
             value = fromIndexedTo100(value, baseValue);
         }
         return value;
     };
-    PriceScale.prototype._internal_dataSources = function () {
+    PriceScale.prototype.dataSources = function () {
         return this._private__dataSources;
     };
-    PriceScale.prototype._internal_orderedSources = function () {
+    PriceScale.prototype.orderedSources = function () {
         if (this._private__cachedOrderedSources) {
             return this._private__cachedOrderedSources;
         }
         var sources = [];
         for (var i = 0; i < this._private__dataSources.length; i++) {
             var ds = this._private__dataSources[i];
-            if (ds._internal_zorder() === null) {
-                ds._internal_setZorder(i + 1);
+            if (ds.zorder() === null) {
+                ds.setZorder(i + 1);
             }
             sources.push(ds);
         }
@@ -4458,52 +4458,52 @@ var PriceScale = /** @class */ (function () {
         this._private__cachedOrderedSources = sources;
         return this._private__cachedOrderedSources;
     };
-    PriceScale.prototype._internal_addDataSource = function (source) {
+    PriceScale.prototype.addDataSource = function (source) {
         if (this._private__dataSources.indexOf(source) !== -1) {
             return;
         }
         this._private__dataSources.push(source);
-        this._internal_updateFormatter();
-        this._internal_invalidateSourcesCache();
+        this.updateFormatter();
+        this.invalidateSourcesCache();
     };
-    PriceScale.prototype._internal_removeDataSource = function (source) {
+    PriceScale.prototype.removeDataSource = function (source) {
         var index = this._private__dataSources.indexOf(source);
         if (index === -1) {
             throw new Error('source is not attached to scale');
         }
         this._private__dataSources.splice(index, 1);
         if (this._private__dataSources.length === 0) {
-            this._internal_setMode({
-                _internal_autoScale: true,
+            this.setMode({
+                autoScale: true,
             });
             // if no sources on price scale let's clear price range cache as well as enabling auto scale
-            this._internal_setPriceRange(null);
+            this.setPriceRange(null);
         }
-        this._internal_updateFormatter();
-        this._internal_invalidateSourcesCache();
+        this.updateFormatter();
+        this.invalidateSourcesCache();
     };
-    PriceScale.prototype._internal_firstValue = function () {
+    PriceScale.prototype.firstValue = function () {
         var _a;
         // TODO: cache the result
         var result = null;
         for (var _i = 0, _b = this._private__dataSources; _i < _b.length; _i++) {
             var source = _b[_i];
             var priceSource = source;
-            var firstValue = (_a = priceSource._internal_firstValue) === null || _a === void 0 ? void 0 : _a.bind(priceSource).call(this);
+            var firstValue = (_a = priceSource.firstValue) === null || _a === void 0 ? void 0 : _a.bind(priceSource).call(this);
             if (!firstValue) {
                 continue;
             }
-            if (result === null || firstValue._internal_timePoint < result._internal_timePoint) {
+            if (result === null || firstValue.timePoint < result.timePoint) {
                 result = firstValue;
             }
         }
-        return result === null ? null : result._internal_value;
+        return result === null ? null : result.value;
     };
-    PriceScale.prototype._internal_isInverted = function () {
+    PriceScale.prototype.isInverted = function () {
         return this._private__options.invertScale;
     };
-    PriceScale.prototype._internal_marks = function () {
-        var firstValueIsNull = this._internal_firstValue() === null;
+    PriceScale.prototype.marks = function () {
+        var firstValueIsNull = this.firstValue() === null;
         // do not recalculate marks if firstValueIsNull is true because in this case we'll always get empty result
         // this could happen in case when a series had some data and then you set empty data to it (in a simplified case)
         // we could display an empty price scale, but this is not good from UX
@@ -4517,35 +4517,35 @@ var PriceScale = /** @class */ (function () {
         this._private__markBuilder._internal_rebuildTickMarks();
         var marks = this._private__markBuilder._internal_marks();
         this._private__marksCache = { _internal_marks: marks, _internal_firstValueIsNull: firstValueIsNull };
-        this._private__onMarksChanged._internal_fire();
+        this._private__onMarksChanged.fire();
         return marks;
     };
-    PriceScale.prototype._internal_onMarksChanged = function () {
+    PriceScale.prototype.onMarksChanged = function () {
         return this._private__onMarksChanged;
     };
-    PriceScale.prototype._internal_startScale = function (x) {
-        if (this._internal_isPercentage() || this._internal_isIndexedTo100()) {
+    PriceScale.prototype.startScale = function (x) {
+        if (this.isPercentage() || this.isIndexedTo100()) {
             return;
         }
         if (this._private__scaleStartPoint !== null || this._private__priceRangeSnapshot !== null) {
             return;
         }
-        if (this._internal_isEmpty()) {
+        if (this.isEmpty()) {
             return;
         }
         // invert x
         this._private__scaleStartPoint = this._private__height - x;
-        this._private__priceRangeSnapshot = ensureNotNull(this._internal_priceRange())._internal_clone();
+        this._private__priceRangeSnapshot = ensureNotNull(this.priceRange()).clone();
     };
-    PriceScale.prototype._internal_scaleTo = function (x) {
-        if (this._internal_isPercentage() || this._internal_isIndexedTo100()) {
+    PriceScale.prototype.scaleTo = function (x) {
+        if (this.isPercentage() || this.isIndexedTo100()) {
             return;
         }
         if (this._private__scaleStartPoint === null) {
             return;
         }
-        this._internal_setMode({
-            _internal_autoScale: false,
+        this.setMode({
+            autoScale: false,
         });
         // invert x
         x = this._private__height - x;
@@ -4554,51 +4554,51 @@ var PriceScale = /** @class */ (function () {
         }
         var scaleCoeff = (this._private__scaleStartPoint + (this._private__height - 1) * 0.2) /
             (x + (this._private__height - 1) * 0.2);
-        var newPriceRange = ensureNotNull(this._private__priceRangeSnapshot)._internal_clone();
+        var newPriceRange = ensureNotNull(this._private__priceRangeSnapshot).clone();
         scaleCoeff = Math.max(scaleCoeff, 0.1);
-        newPriceRange._internal_scaleAroundCenter(scaleCoeff);
-        this._internal_setPriceRange(newPriceRange);
+        newPriceRange.scaleAroundCenter(scaleCoeff);
+        this.setPriceRange(newPriceRange);
     };
-    PriceScale.prototype._internal_endScale = function () {
-        if (this._internal_isPercentage() || this._internal_isIndexedTo100()) {
+    PriceScale.prototype.endScale = function () {
+        if (this.isPercentage() || this.isIndexedTo100()) {
             return;
         }
         this._private__scaleStartPoint = null;
         this._private__priceRangeSnapshot = null;
     };
-    PriceScale.prototype._internal_startScroll = function (x) {
-        if (this._internal_isAutoScale()) {
+    PriceScale.prototype.startScroll = function (x) {
+        if (this.isAutoScale()) {
             return;
         }
         if (this._private__scrollStartPoint !== null || this._private__priceRangeSnapshot !== null) {
             return;
         }
-        if (this._internal_isEmpty()) {
+        if (this.isEmpty()) {
             return;
         }
         this._private__scrollStartPoint = x;
-        this._private__priceRangeSnapshot = ensureNotNull(this._internal_priceRange())._internal_clone();
+        this._private__priceRangeSnapshot = ensureNotNull(this.priceRange()).clone();
     };
-    PriceScale.prototype._internal_scrollTo = function (x) {
-        if (this._internal_isAutoScale()) {
+    PriceScale.prototype.scrollTo = function (x) {
+        if (this.isAutoScale()) {
             return;
         }
         if (this._private__scrollStartPoint === null) {
             return;
         }
-        var priceUnitsPerPixel = ensureNotNull(this._internal_priceRange())._internal_length() / (this._internal_internalHeight() - 1);
+        var priceUnitsPerPixel = ensureNotNull(this.priceRange()).length() / (this.internalHeight() - 1);
         var pixelDelta = x - this._private__scrollStartPoint;
-        if (this._internal_isInverted()) {
+        if (this.isInverted()) {
             pixelDelta *= -1;
         }
         var priceDelta = pixelDelta * priceUnitsPerPixel;
-        var newPriceRange = ensureNotNull(this._private__priceRangeSnapshot)._internal_clone();
-        newPriceRange._internal_shift(priceDelta);
-        this._internal_setPriceRange(newPriceRange, true);
+        var newPriceRange = ensureNotNull(this._private__priceRangeSnapshot).clone();
+        newPriceRange.shift(priceDelta);
+        this.setPriceRange(newPriceRange, true);
         this._private__marksCache = null;
     };
-    PriceScale.prototype._internal_endScroll = function () {
-        if (this._internal_isAutoScale()) {
+    PriceScale.prototype.endScroll = function () {
+        if (this.isAutoScale()) {
             return;
         }
         if (this._private__scrollStartPoint === null) {
@@ -4607,76 +4607,76 @@ var PriceScale = /** @class */ (function () {
         this._private__scrollStartPoint = null;
         this._private__priceRangeSnapshot = null;
     };
-    PriceScale.prototype._internal_formatter = function () {
+    PriceScale.prototype.formatter = function () {
         if (!this._private__formatter) {
-            this._internal_updateFormatter();
+            this.updateFormatter();
         }
         return this._private__formatter;
     };
-    PriceScale.prototype._internal_formatPrice = function (price, firstValue) {
+    PriceScale.prototype.formatPrice = function (price, firstValue) {
         switch (this._private__options.mode) {
             case 2 /* Percentage */:
-                return this._internal_formatter().format(toPercent(price, firstValue));
+                return this.formatter().format(toPercent(price, firstValue));
             case 3 /* IndexedTo100 */:
-                return this._internal_formatter().format(toIndexedTo100(price, firstValue));
+                return this.formatter().format(toIndexedTo100(price, firstValue));
             default:
                 return this._private__formatPrice(price);
         }
     };
-    PriceScale.prototype._internal_formatLogical = function (logical) {
+    PriceScale.prototype.formatLogical = function (logical) {
         switch (this._private__options.mode) {
             case 2 /* Percentage */:
             case 3 /* IndexedTo100 */:
-                return this._internal_formatter().format(logical);
+                return this.formatter().format(logical);
             default:
                 return this._private__formatPrice(logical);
         }
     };
-    PriceScale.prototype._internal_formatPriceAbsolute = function (price) {
-        return this._private__formatPrice(price, ensureNotNull(this._private__formatterSource())._internal_formatter());
+    PriceScale.prototype.formatPriceAbsolute = function (price) {
+        return this._private__formatPrice(price, ensureNotNull(this._private__formatterSource()).formatter());
     };
-    PriceScale.prototype._internal_formatPricePercentage = function (price, baseValue) {
+    PriceScale.prototype.formatPricePercentage = function (price, baseValue) {
         price = toPercent(price, baseValue);
         return percentageFormatter.format(price);
     };
-    PriceScale.prototype._internal_sourcesForAutoScale = function () {
+    PriceScale.prototype.sourcesForAutoScale = function () {
         return this._private__dataSources;
     };
-    PriceScale.prototype._internal_recalculatePriceRange = function (visibleBars) {
+    PriceScale.prototype.recalculatePriceRange = function (visibleBars) {
         this._private__invalidatedForRange = {
             _internal_visibleBars: visibleBars,
             _internal_isValid: false,
         };
     };
-    PriceScale.prototype._internal_updateAllViews = function () {
-        this._private__dataSources.forEach(function (source) { return source._internal_updateAllViews(); });
+    PriceScale.prototype.updateAllViews = function () {
+        this._private__dataSources.forEach(function (source) { return source.updateAllViews(); });
     };
-    PriceScale.prototype._internal_updateFormatter = function () {
+    PriceScale.prototype.updateFormatter = function () {
         this._private__marksCache = null;
         var formatterSource = this._private__formatterSource();
         var base = 100;
         if (formatterSource !== null) {
-            base = Math.round(1 / formatterSource._internal_minMove());
+            base = Math.round(1 / formatterSource.minMove());
         }
         this._private__formatter = defaultPriceFormatter;
-        if (this._internal_isPercentage()) {
+        if (this.isPercentage()) {
             this._private__formatter = percentageFormatter;
             base = 100;
         }
-        else if (this._internal_isIndexedTo100()) {
+        else if (this.isIndexedTo100()) {
             this._private__formatter = new PriceFormatter(100, 1);
             base = 100;
         }
         else {
             if (formatterSource !== null) {
                 // user
-                this._private__formatter = formatterSource._internal_formatter();
+                this._private__formatter = formatterSource.formatter();
             }
         }
         this._private__markBuilder = new PriceTickMarkBuilder(this, base, this._private__coordinateToLogical.bind(this), this._private__logicalToCoordinate.bind(this));
         this._private__markBuilder._internal_rebuildTickMarks();
     };
-    PriceScale.prototype._internal_invalidateSourcesCache = function () {
+    PriceScale.prototype.invalidateSourcesCache = function () {
         this._private__cachedOrderedSources = null;
     };
     /**
@@ -4686,14 +4686,14 @@ var PriceScale = /** @class */ (function () {
         return (this._private__dataSources[0] || null);
     };
     PriceScale.prototype._private__topMarginPx = function () {
-        return this._internal_isInverted()
-            ? this._private__options.scaleMargins.bottom * this._internal_height() + this._private__marginBelow
-            : this._private__options.scaleMargins.top * this._internal_height() + this._private__marginAbove;
+        return this.isInverted()
+            ? this._private__options.scaleMargins.bottom * this.height() + this._private__marginBelow
+            : this._private__options.scaleMargins.top * this.height() + this._private__marginAbove;
     };
     PriceScale.prototype._private__bottomMarginPx = function () {
-        return this._internal_isInverted()
-            ? this._private__options.scaleMargins.top * this._internal_height() + this._private__marginAbove
-            : this._private__options.scaleMargins.bottom * this._internal_height() + this._private__marginBelow;
+        return this.isInverted()
+            ? this._private__options.scaleMargins.top * this.height() + this._private__marginAbove
+            : this._private__options.scaleMargins.bottom * this.height() + this._private__marginBelow;
     };
     PriceScale.prototype._private__makeSureItIsValid = function () {
         if (!this._private__invalidatedForRange._internal_isValid) {
@@ -4706,30 +4706,30 @@ var PriceScale = /** @class */ (function () {
     };
     PriceScale.prototype._private__logicalToCoordinate = function (logical, baseValue) {
         this._private__makeSureItIsValid();
-        if (this._internal_isEmpty()) {
+        if (this.isEmpty()) {
             return 0;
         }
         logical =
-            this._internal_isLog() && logical ? toLog(logical, this._private__logFormula) : logical;
-        var range = ensureNotNull(this._internal_priceRange());
+            this.isLog() && logical ? toLog(logical, this._private__logFormula) : logical;
+        var range = ensureNotNull(this.priceRange());
         var invCoordinate = this._private__bottomMarginPx() +
-            ((this._internal_internalHeight() - 1) * (logical - range._internal_minValue())) /
-                range._internal_length();
-        var coordinate = this._internal_invertedCoordinate(invCoordinate);
+            ((this.internalHeight() - 1) * (logical - range.minValue())) /
+                range.length();
+        var coordinate = this.invertedCoordinate(invCoordinate);
         return coordinate;
     };
     PriceScale.prototype._private__coordinateToLogical = function (coordinate, baseValue) {
         this._private__makeSureItIsValid();
-        if (this._internal_isEmpty()) {
+        if (this.isEmpty()) {
             return 0;
         }
-        var invCoordinate = this._internal_invertedCoordinate(coordinate);
-        var range = ensureNotNull(this._internal_priceRange());
-        var logical = range._internal_minValue() +
-            range._internal_length() *
+        var invCoordinate = this.invertedCoordinate(coordinate);
+        var range = ensureNotNull(this.priceRange());
+        var logical = range.minValue() +
+            range.length() *
                 ((invCoordinate - this._private__bottomMarginPx()) /
-                    (this._internal_internalHeight() - 1));
-        return this._internal_isLog() ? fromLog(logical, this._private__logFormula) : logical;
+                    (this.internalHeight() - 1));
+        return this.isLog() ? fromLog(logical, this._private__logFormula) : logical;
     };
     PriceScale.prototype._private__onIsInvertedChanged = function () {
         this._private__marksCache = null;
@@ -4742,41 +4742,41 @@ var PriceScale = /** @class */ (function () {
             return;
         }
         var priceRange = null;
-        var sources = this._internal_sourcesForAutoScale();
+        var sources = this.sourcesForAutoScale();
         var marginAbove = 0;
         var marginBelow = 0;
         for (var _i = 0, sources_1 = sources; _i < sources_1.length; _i++) {
             var source = sources_1[_i];
             var priceSource = source;
-            if (!priceSource._internal_visible() || !priceSource._internal_firstValue) {
+            if (!priceSource.visible() || !priceSource.firstValue) {
                 continue;
             }
-            var firstValue = priceSource._internal_firstValue();
+            var firstValue = priceSource.firstValue();
             if (firstValue === null) {
                 continue;
             }
-            var autoScaleInfo = priceSource._internal_autoscaleInfo(visibleBars._internal_left(), visibleBars._internal_right());
-            var sourceRange = autoScaleInfo && autoScaleInfo._internal_priceRange();
+            var autoScaleInfo = priceSource.autoscaleInfo(visibleBars.left(), visibleBars.right());
+            var sourceRange = autoScaleInfo && autoScaleInfo.priceRange();
             if (sourceRange !== null) {
                 switch (this._private__options.mode) {
                     case 1 /* Logarithmic */:
                         sourceRange = convertPriceRangeToLog(sourceRange, this._private__logFormula);
                         break;
                     case 2 /* Percentage */:
-                        sourceRange = toPercentRange(sourceRange, firstValue._internal_value);
+                        sourceRange = toPercentRange(sourceRange, firstValue.value);
                         break;
                     case 3 /* IndexedTo100 */:
-                        sourceRange = toIndexedTo100Range(sourceRange, firstValue._internal_value);
+                        sourceRange = toIndexedTo100Range(sourceRange, firstValue.value);
                         break;
                 }
                 if (priceRange === null) {
                     priceRange = sourceRange;
                 }
                 else {
-                    priceRange = priceRange._internal_merge(ensureNotNull(sourceRange));
+                    priceRange = priceRange.merge(ensureNotNull(sourceRange));
                 }
                 if (autoScaleInfo !== null) {
-                    var margins = autoScaleInfo._internal_margins();
+                    var margins = autoScaleInfo.margins();
                     if (margins !== null) {
                         marginAbove = Math.max(marginAbove, margins.above);
                         marginBelow = Math.max(marginAbove, margins.below);
@@ -4793,25 +4793,25 @@ var PriceScale = /** @class */ (function () {
         }
         if (priceRange !== null) {
             // keep current range is new is empty
-            if (priceRange._internal_minValue() === priceRange._internal_maxValue()) {
+            if (priceRange.minValue() === priceRange.maxValue()) {
                 var formatterSource = this._private__formatterSource();
                 var minMove = formatterSource === null ||
-                    this._internal_isPercentage() ||
-                    this._internal_isIndexedTo100()
+                    this.isPercentage() ||
+                    this.isIndexedTo100()
                     ? 1
-                    : formatterSource._internal_minMove();
+                    : formatterSource.minMove();
                 // if price range is degenerated to 1 point let's extend it by 10 min move values
                 // to avoid incorrect range and empty (blank) scale (in case of min tick much greater than 1)
                 var extendValue = 5 * minMove;
-                if (this._internal_isLog()) {
+                if (this.isLog()) {
                     priceRange = convertPriceRangeFromLog(priceRange, this._private__logFormula);
                 }
-                priceRange = new PriceRangeImpl(priceRange._internal_minValue() - extendValue, priceRange._internal_maxValue() + extendValue);
-                if (this._internal_isLog()) {
+                priceRange = new PriceRangeImpl(priceRange.minValue() - extendValue, priceRange.maxValue() + extendValue);
+                if (this.isLog()) {
                     priceRange = convertPriceRangeToLog(priceRange, this._private__logFormula);
                 }
             }
-            if (this._internal_isLog()) {
+            if (this.isLog()) {
                 var rawRange = convertPriceRangeFromLog(priceRange, this._private__logFormula);
                 var newLogFormula = logFormulaForPriceRange(rawRange);
                 if (!logFormulasAreSame(newLogFormula, this._private__logFormula)) {
@@ -4825,12 +4825,12 @@ var PriceScale = /** @class */ (function () {
                     }
                 }
             }
-            this._internal_setPriceRange(priceRange);
+            this.setPriceRange(priceRange);
         }
         else {
             // reset empty to default
             if (this._private__priceRange === null) {
-                this._internal_setPriceRange(new PriceRangeImpl(-0.5, 0.5));
+                this.setPriceRange(new PriceRangeImpl(-0.5, 0.5));
                 this._private__logFormula = logFormulaForPriceRange(null);
             }
         }
@@ -4838,13 +4838,13 @@ var PriceScale = /** @class */ (function () {
     };
     PriceScale.prototype._private__getCoordinateTransformer = function () {
         var _this = this;
-        if (this._internal_isPercentage()) {
+        if (this.isPercentage()) {
             return toPercent;
         }
-        else if (this._internal_isIndexedTo100()) {
+        else if (this.isIndexedTo100()) {
             return toIndexedTo100;
         }
-        else if (this._internal_isLog()) {
+        else if (this.isLog()) {
             return function (price) { return toLog(price, _this._private__logFormula); };
         }
         return null;
@@ -4852,7 +4852,7 @@ var PriceScale = /** @class */ (function () {
     PriceScale.prototype._private__formatPrice = function (price, fallbackFormatter) {
         if (this._private__localizationOptions.priceFormatter === undefined) {
             if (fallbackFormatter === undefined) {
-                fallbackFormatter = this._internal_formatter();
+                fallbackFormatter = this.formatter();
             }
             return fallbackFormatter.format(price);
         }
@@ -4864,15 +4864,15 @@ var PriceScale = /** @class */ (function () {
 var DEFAULT_STRETCH_FACTOR = 1000;
 var PaneCursorType;
 (function (PaneCursorType) {
-    PaneCursorType["_internal_Default"] = "default";
-    PaneCursorType["_internal_Crosshair"] = "crosshair";
-    PaneCursorType["_internal_Pointer"] = "pointer";
-    PaneCursorType["_internal_Grabbing"] = "grabbing";
-    PaneCursorType["_internal_ZoomIn"] = "zoom-in";
-    PaneCursorType["_internal_VerticalResize"] = "n-resize";
-    PaneCursorType["_internal_HorizontalResize"] = "e-resize";
-    PaneCursorType["_internal_DiagonalNeSwResize"] = "nesw-resize";
-    PaneCursorType["_internal_DiagonalNwSeResize"] = "nwse-resize";
+    PaneCursorType["Default"] = "default";
+    PaneCursorType["Crosshair"] = "crosshair";
+    PaneCursorType["Pointer"] = "pointer";
+    PaneCursorType["Grabbing"] = "grabbing";
+    PaneCursorType["ZoomIn"] = "zoom-in";
+    PaneCursorType["VerticalResize"] = "n-resize";
+    PaneCursorType["HorizontalResize"] = "e-resize";
+    PaneCursorType["DiagonalNeSwResize"] = "nesw-resize";
+    PaneCursorType["DiagonalNwSeResize"] = "nwse-resize";
 })(PaneCursorType || (PaneCursorType = {}));
 var Pane = /** @class */ (function () {
     function Pane(timeScale, model, initialPaneIndex) {
@@ -4887,7 +4887,7 @@ var Pane = /** @class */ (function () {
         this._private__timeScale = timeScale;
         this._private__model = model;
         this._private__grid = new Grid(this);
-        var options = model._internal_options();
+        var options = model.options();
         this._private__leftPriceScale = this._private__createPriceScale("left" /* Left */, options.leftPriceScale);
         if (initialPaneIndex === 0) {
             this._private__rightPriceScale = this._private__createPriceScale("right" /* Right */, options.rightPriceScale);
@@ -4895,37 +4895,37 @@ var Pane = /** @class */ (function () {
         else {
             this._private__rightPriceScale = this._private__createPriceScale("non-primary" /* NonPrimary */, options.nonPrimaryPriceScale);
         }
-        this._private__leftPriceScale._internal_modeChanged()._internal_subscribe(this._private__onPriceScaleModeChanged.bind(this, this._private__leftPriceScale), this);
-        this._private__rightPriceScale._internal_modeChanged()._internal_subscribe(this._private__onPriceScaleModeChanged.bind(this, this._private__rightPriceScale), this);
-        this._internal_applyScaleOptions(options);
+        this._private__leftPriceScale.modeChanged().subscribe(this._private__onPriceScaleModeChanged.bind(this, this._private__leftPriceScale), this);
+        this._private__rightPriceScale.modeChanged().subscribe(this._private__onPriceScaleModeChanged.bind(this, this._private__rightPriceScale), this);
+        this.applyScaleOptions(options);
     }
-    Pane.prototype._internal_applyScaleOptions = function (options) {
+    Pane.prototype.applyScaleOptions = function (options) {
         if (options.leftPriceScale) {
-            this._private__leftPriceScale._internal_applyOptions(options.leftPriceScale);
+            this._private__leftPriceScale.applyOptions(options.leftPriceScale);
         }
-        if (this._private__rightPriceScale._internal_id() === "right" /* Right */ && options.rightPriceScale) {
-            this._private__rightPriceScale._internal_applyOptions(options.rightPriceScale);
+        if (this._private__rightPriceScale.id() === "right" /* Right */ && options.rightPriceScale) {
+            this._private__rightPriceScale.applyOptions(options.rightPriceScale);
         }
-        if (this._private__rightPriceScale._internal_id() === "non-primary" /* NonPrimary */ && options.nonPrimaryPriceScale) {
-            this._private__rightPriceScale._internal_applyOptions(options.nonPrimaryPriceScale);
+        if (this._private__rightPriceScale.id() === "non-primary" /* NonPrimary */ && options.nonPrimaryPriceScale) {
+            this._private__rightPriceScale.applyOptions(options.nonPrimaryPriceScale);
         }
         if (options.localization) {
-            this._private__leftPriceScale._internal_updateFormatter();
-            this._private__rightPriceScale._internal_updateFormatter();
+            this._private__leftPriceScale.updateFormatter();
+            this._private__rightPriceScale.updateFormatter();
         }
         if (options.overlayPriceScales) {
             var sourceArrays = Array.from(this._private__overlaySourcesByScaleId.values());
             for (var _i = 0, sourceArrays_1 = sourceArrays; _i < sourceArrays_1.length; _i++) {
                 var arr = sourceArrays_1[_i];
-                var priceScale = ensureNotNull(arr[0]._internal_priceScale());
-                priceScale._internal_applyOptions(options.overlayPriceScales);
+                var priceScale = ensureNotNull(arr[0].priceScale());
+                priceScale.applyOptions(options.overlayPriceScales);
                 if (options.localization) {
-                    priceScale._internal_updateFormatter();
+                    priceScale.updateFormatter();
                 }
             }
         }
     };
-    Pane.prototype._internal_priceScaleById = function (id) {
+    Pane.prototype.priceScaleById = function (id) {
         switch (id) {
             case "left" /* Left */: {
                 return this._private__leftPriceScale;
@@ -4935,75 +4935,75 @@ var Pane = /** @class */ (function () {
             }
         }
         if (this._private__overlaySourcesByScaleId.has(id)) {
-            return ensureDefined(this._private__overlaySourcesByScaleId.get(id))[0]._internal_priceScale();
+            return ensureDefined(this._private__overlaySourcesByScaleId.get(id))[0].priceScale();
         }
         return null;
     };
-    Pane.prototype._internal_destroy = function () {
-        this._internal_model()._internal_priceScalesOptionsChanged()._internal_unsubscribeAll(this);
-        this._private__leftPriceScale._internal_modeChanged()._internal_unsubscribeAll(this);
-        this._private__rightPriceScale._internal_modeChanged()._internal_unsubscribeAll(this);
+    Pane.prototype.destroy = function () {
+        this.model().priceScalesOptionsChanged().unsubscribeAll(this);
+        this._private__leftPriceScale.modeChanged().unsubscribeAll(this);
+        this._private__rightPriceScale.modeChanged().unsubscribeAll(this);
         this._private__dataSources.forEach(function (source) {
-            if (source._internal_destroy) {
-                source._internal_destroy();
+            if (source.destroy) {
+                source.destroy();
             }
         });
-        this._private__destroyed._internal_fire();
+        this._private__destroyed.fire();
     };
-    Pane.prototype._internal_stretchFactor = function () {
+    Pane.prototype.stretchFactor = function () {
         return this._private__stretchFactor;
     };
-    Pane.prototype._internal_setStretchFactor = function (factor) {
+    Pane.prototype.setStretchFactor = function (factor) {
         this._private__stretchFactor = factor;
     };
-    Pane.prototype._internal_model = function () {
+    Pane.prototype.model = function () {
         return this._private__model;
     };
-    Pane.prototype._internal_width = function () {
+    Pane.prototype.width = function () {
         return this._private__width;
     };
-    Pane.prototype._internal_height = function () {
+    Pane.prototype.height = function () {
         return this._private__height;
     };
-    Pane.prototype._internal_setWidth = function (width) {
+    Pane.prototype.setWidth = function (width) {
         this._private__width = width;
-        this._internal_updateAllSources();
+        this.updateAllSources();
     };
-    Pane.prototype._internal_setHeight = function (height) {
+    Pane.prototype.setHeight = function (height) {
         var _this = this;
         this._private__height = height;
-        this._private__leftPriceScale._internal_setHeight(height);
-        this._private__rightPriceScale._internal_setHeight(height);
+        this._private__leftPriceScale.setHeight(height);
+        this._private__rightPriceScale.setHeight(height);
         // process overlays
         this._private__dataSources.forEach(function (ds) {
-            if (_this._internal_isOverlay(ds)) {
-                var priceScale = ds._internal_priceScale();
+            if (_this.isOverlay(ds)) {
+                var priceScale = ds.priceScale();
                 if (priceScale !== null) {
-                    priceScale._internal_setHeight(height);
+                    priceScale.setHeight(height);
                 }
             }
         });
-        this._internal_updateAllSources();
+        this.updateAllSources();
     };
-    Pane.prototype._internal_dataSources = function () {
+    Pane.prototype.dataSources = function () {
         return this._private__dataSources;
     };
-    Pane.prototype._internal_isOverlay = function (source) {
-        var priceScale = source._internal_priceScale();
+    Pane.prototype.isOverlay = function (source) {
+        var priceScale = source.priceScale();
         if (priceScale === null) {
             return true;
         }
         return this._private__leftPriceScale !== priceScale && this._private__rightPriceScale !== priceScale;
     };
-    Pane.prototype._internal_addDataSource = function (source, targetScaleId, zOrder) {
+    Pane.prototype.addDataSource = function (source, targetScaleId, zOrder) {
         var targetZOrder = (zOrder !== undefined) ? zOrder : this._private__getZOrderMinMax()._internal_maxZOrder + 1;
         this._private__insertDataSource(source, targetScaleId, targetZOrder);
     };
-    Pane.prototype._internal_removeDataSource = function (source) {
+    Pane.prototype.removeDataSource = function (source) {
         var index = this._private__dataSources.indexOf(source);
         assert(index !== -1, 'removeDataSource: invalid data source');
         this._private__dataSources.splice(index, 1);
-        var priceScaleId = ensureNotNull(source._internal_priceScale())._internal_id();
+        var priceScaleId = ensureNotNull(source.priceScale()).id();
         if (this._private__overlaySourcesByScaleId.has(priceScaleId)) {
             var overlaySources = ensureDefined(this._private__overlaySourcesByScaleId.get(priceScaleId));
             var overlayIndex = overlaySources.indexOf(source);
@@ -5014,19 +5014,19 @@ var Pane = /** @class */ (function () {
                 }
             }
         }
-        var priceScale = source._internal_priceScale();
+        var priceScale = source.priceScale();
         // if source has owner, it returns owner's price scale
         // and it does not have source in their list
-        if (priceScale && priceScale._internal_dataSources().indexOf(source) >= 0) {
-            priceScale._internal_removeDataSource(source);
+        if (priceScale && priceScale.dataSources().indexOf(source) >= 0) {
+            priceScale.removeDataSource(source);
         }
         if (priceScale !== null) {
-            priceScale._internal_invalidateSourcesCache();
-            this._internal_recalculatePriceScale(priceScale);
+            priceScale.invalidateSourcesCache();
+            this.recalculatePriceScale(priceScale);
         }
         this._private__cachedOrderedSources = null;
     };
-    Pane.prototype._internal_priceScalePosition = function (priceScale) {
+    Pane.prototype.priceScalePosition = function (priceScale) {
         if (priceScale === this._private__leftPriceScale) {
             return 'left';
         }
@@ -5035,119 +5035,119 @@ var Pane = /** @class */ (function () {
         }
         return 'overlay';
     };
-    Pane.prototype._internal_leftPriceScale = function () {
+    Pane.prototype.leftPriceScale = function () {
         return this._private__leftPriceScale;
     };
-    Pane.prototype._internal_rightPriceScale = function () {
+    Pane.prototype.rightPriceScale = function () {
         return this._private__rightPriceScale;
     };
-    Pane.prototype._internal_startScalePrice = function (priceScale, x) {
-        priceScale._internal_startScale(x);
+    Pane.prototype.startScalePrice = function (priceScale, x) {
+        priceScale.startScale(x);
     };
-    Pane.prototype._internal_scalePriceTo = function (priceScale, x) {
-        priceScale._internal_scaleTo(x);
+    Pane.prototype.scalePriceTo = function (priceScale, x) {
+        priceScale.scaleTo(x);
         // TODO: be more smart and update only affected views
-        this._internal_updateAllSources();
+        this.updateAllSources();
     };
-    Pane.prototype._internal_endScalePrice = function (priceScale) {
-        priceScale._internal_endScale();
+    Pane.prototype.endScalePrice = function (priceScale) {
+        priceScale.endScale();
     };
-    Pane.prototype._internal_startScrollPrice = function (priceScale, x) {
-        priceScale._internal_startScroll(x);
+    Pane.prototype.startScrollPrice = function (priceScale, x) {
+        priceScale.startScroll(x);
     };
-    Pane.prototype._internal_scrollPriceTo = function (priceScale, x) {
-        priceScale._internal_scrollTo(x);
-        this._internal_updateAllSources();
+    Pane.prototype.scrollPriceTo = function (priceScale, x) {
+        priceScale.scrollTo(x);
+        this.updateAllSources();
     };
-    Pane.prototype._internal_endScrollPrice = function (priceScale) {
-        priceScale._internal_endScroll();
+    Pane.prototype.endScrollPrice = function (priceScale) {
+        priceScale.endScroll();
     };
-    Pane.prototype._internal_updateAllSources = function () {
+    Pane.prototype.updateAllSources = function () {
         this._private__dataSources.forEach(function (source) {
-            source._internal_updateAllViews();
+            source.updateAllViews();
         });
     };
-    Pane.prototype._internal_defaultPriceScale = function () {
+    Pane.prototype.defaultPriceScale = function () {
         var priceScale = null;
-        if (this._private__model._internal_options().rightPriceScale.visible && this._private__rightPriceScale._internal_dataSources().length !== 0) {
+        if (this._private__model.options().rightPriceScale.visible && this._private__rightPriceScale.dataSources().length !== 0) {
             priceScale = this._private__rightPriceScale;
         }
-        else if (this._private__model._internal_options().leftPriceScale.visible && this._private__leftPriceScale._internal_dataSources().length !== 0) {
+        else if (this._private__model.options().leftPriceScale.visible && this._private__leftPriceScale.dataSources().length !== 0) {
             priceScale = this._private__leftPriceScale;
         }
         else if (this._private__dataSources.length !== 0) {
-            priceScale = this._private__dataSources[0]._internal_priceScale();
+            priceScale = this._private__dataSources[0].priceScale();
         }
         if (priceScale === null) {
             priceScale = this._private__rightPriceScale;
         }
         return priceScale;
     };
-    Pane.prototype._internal_defaultVisiblePriceScale = function () {
+    Pane.prototype.defaultVisiblePriceScale = function () {
         var priceScale = null;
-        if (this._private__model._internal_options().rightPriceScale.visible) {
+        if (this._private__model.options().rightPriceScale.visible) {
             priceScale = this._private__rightPriceScale;
         }
-        else if (this._private__model._internal_options().leftPriceScale.visible) {
+        else if (this._private__model.options().leftPriceScale.visible) {
             priceScale = this._private__leftPriceScale;
         }
         return priceScale;
     };
-    Pane.prototype._internal_recalculatePriceScale = function (priceScale) {
-        if (priceScale === null || !priceScale._internal_isAutoScale()) {
+    Pane.prototype.recalculatePriceScale = function (priceScale) {
+        if (priceScale === null || !priceScale.isAutoScale()) {
             return;
         }
         this._private__recalculatePriceScaleImpl(priceScale);
     };
-    Pane.prototype._internal_resetPriceScale = function (priceScale) {
-        var visibleBars = this._private__timeScale._internal_visibleStrictRange();
-        priceScale._internal_setMode({ _internal_autoScale: true });
+    Pane.prototype.resetPriceScale = function (priceScale) {
+        var visibleBars = this._private__timeScale.visibleStrictRange();
+        priceScale.setMode({ autoScale: true });
         if (visibleBars !== null) {
-            priceScale._internal_recalculatePriceRange(visibleBars);
+            priceScale.recalculatePriceRange(visibleBars);
         }
-        this._internal_updateAllSources();
+        this.updateAllSources();
     };
-    Pane.prototype._internal_momentaryAutoScale = function () {
+    Pane.prototype.momentaryAutoScale = function () {
         this._private__recalculatePriceScaleImpl(this._private__leftPriceScale);
         this._private__recalculatePriceScaleImpl(this._private__rightPriceScale);
     };
-    Pane.prototype._internal_recalculate = function () {
+    Pane.prototype.recalculate = function () {
         var _this = this;
-        this._internal_recalculatePriceScale(this._private__leftPriceScale);
-        this._internal_recalculatePriceScale(this._private__rightPriceScale);
+        this.recalculatePriceScale(this._private__leftPriceScale);
+        this.recalculatePriceScale(this._private__rightPriceScale);
         this._private__dataSources.forEach(function (ds) {
-            if (_this._internal_isOverlay(ds)) {
-                _this._internal_recalculatePriceScale(ds._internal_priceScale());
+            if (_this.isOverlay(ds)) {
+                _this.recalculatePriceScale(ds.priceScale());
             }
         });
-        this._internal_updateAllSources();
-        this._private__model._internal_lightUpdate();
+        this.updateAllSources();
+        this._private__model.lightUpdate();
     };
-    Pane.prototype._internal_orderedSources = function () {
+    Pane.prototype.orderedSources = function () {
         if (this._private__cachedOrderedSources === null) {
             this._private__cachedOrderedSources = sortSources(this._private__dataSources);
         }
         return this._private__cachedOrderedSources;
     };
-    Pane.prototype._internal_onDestroyed = function () {
+    Pane.prototype.onDestroyed = function () {
         return this._private__destroyed;
     };
-    Pane.prototype._internal_grid = function () {
+    Pane.prototype.grid = function () {
         return this._private__grid;
     };
     Pane.prototype._private__recalculatePriceScaleImpl = function (priceScale) {
         // TODO: can use this checks
-        var sourceForAutoScale = priceScale._internal_sourcesForAutoScale();
-        if (sourceForAutoScale && sourceForAutoScale.length > 0 && !this._private__timeScale._internal_isEmpty()) {
-            var visibleBars = this._private__timeScale._internal_visibleStrictRange();
+        var sourceForAutoScale = priceScale.sourcesForAutoScale();
+        if (sourceForAutoScale && sourceForAutoScale.length > 0 && !this._private__timeScale.isEmpty()) {
+            var visibleBars = this._private__timeScale.visibleStrictRange();
             if (visibleBars !== null) {
-                priceScale._internal_recalculatePriceRange(visibleBars);
+                priceScale.recalculatePriceRange(visibleBars);
             }
         }
-        priceScale._internal_updateAllViews();
+        priceScale.updateAllViews();
     };
     Pane.prototype._private__getZOrderMinMax = function () {
-        var sources = this._internal_orderedSources();
+        var sources = this.orderedSources();
         if (sources.length === 0) {
             return { _internal_minZOrder: 0, _internal_maxZOrder: 0 };
         }
@@ -5155,7 +5155,7 @@ var Pane = /** @class */ (function () {
         var maxZOrder = 0;
         for (var j = 0; j < sources.length; j++) {
             var ds = sources[j];
-            var zOrder = ds._internal_zorder();
+            var zOrder = ds.zorder();
             if (zOrder !== null) {
                 if (zOrder < minZOrder) {
                     minZOrder = zOrder;
@@ -5168,9 +5168,9 @@ var Pane = /** @class */ (function () {
         return { _internal_minZOrder: minZOrder, _internal_maxZOrder: maxZOrder };
     };
     Pane.prototype._private__insertDataSource = function (source, priceScaleId, zOrder) {
-        var priceScale = this._internal_priceScaleById(priceScaleId);
+        var priceScale = this.priceScaleById(priceScaleId);
         if (priceScale === null) {
-            priceScale = this._private__createPriceScale(priceScaleId, this._private__model._internal_options().overlayPriceScales);
+            priceScale = this._private__createPriceScale(priceScaleId, this._private__model.options().overlayPriceScales);
         }
         this._private__dataSources.push(source);
         if (!isDefaultPriceScale(priceScaleId)) {
@@ -5178,16 +5178,16 @@ var Pane = /** @class */ (function () {
             overlaySources.push(source);
             this._private__overlaySourcesByScaleId.set(priceScaleId, overlaySources);
         }
-        if (typeof source._internal_seriesType === 'undefined' || source._internal_seriesType() !== 'BrokenArea') {
-            priceScale._internal_addDataSource(source);
+        if (typeof source.seriesType === 'undefined' || source.seriesType() !== 'BrokenArea') {
+            priceScale.addDataSource(source);
         }
-        source._internal_setPriceScale(priceScale);
-        source._internal_setZorder(zOrder);
-        this._internal_recalculatePriceScale(priceScale);
+        source.setPriceScale(priceScale);
+        source.setZorder(zOrder);
+        this.recalculatePriceScale(priceScale);
         this._private__cachedOrderedSources = null;
     };
     Pane.prototype._private__onPriceScaleModeChanged = function (priceScale, oldMode, newMode) {
-        if (oldMode._internal_mode === newMode._internal_mode) {
+        if (oldMode.mode === newMode.mode) {
             return;
         }
         // momentary auto scale if we toggle percentage/indexedTo100 mode
@@ -5195,8 +5195,8 @@ var Pane = /** @class */ (function () {
     };
     Pane.prototype._private__createPriceScale = function (id, options) {
         var actualOptions = __assign({ visible: true, autoScale: true }, clone(options));
-        var priceScale = new PriceScale(id, actualOptions, this._private__model._internal_options().layout, this._private__model._internal_options().localization);
-        priceScale._internal_setHeight(this._internal_height());
+        var priceScale = new PriceScale(id, actualOptions, this._private__model.options().layout, this._private__model.options().localization);
+        priceScale.setHeight(this.height());
         return priceScale;
     };
     return Pane;
@@ -5225,7 +5225,7 @@ var LineAnchorRenderer = /** @class */ (function () {
     LineAnchorRenderer.prototype._internal_updateData = function (data) {
         this._internal__data = merge(this._internal__data, data);
     };
-    LineAnchorRenderer.prototype._internal_draw = function (ctx, renderParams) {
+    LineAnchorRenderer.prototype.draw = function (ctx, renderParams) {
         if (this._internal__data === null || !this._internal__data._internal_visible) {
             return;
         }
@@ -5233,7 +5233,7 @@ var LineAnchorRenderer = /** @class */ (function () {
         var squareColors = [];
         var circlePoints = [];
         var circleColors = [];
-        var pixelRatio = renderParams._internal_pixelRatio;
+        var pixelRatio = renderParams.pixelRatio;
         for (var e = 0; e < this._internal__data._internal_points.length; ++e) {
             var point = this._internal__data._internal_points[e];
             var color = this._internal__data._internal_backgroundColors[e];
@@ -5254,14 +5254,14 @@ var LineAnchorRenderer = /** @class */ (function () {
             this._internal__drawPoints(ctx, pixelRatio, circlePoints, circleColors, drawCircleBody, drawCircleShadow);
         }
     };
-    LineAnchorRenderer.prototype._internal_hitTest = function (position) {
+    LineAnchorRenderer.prototype.hitTest = function (position) {
         if (null === this._internal__data) {
             return null;
         }
         for (var r = 0; r < this._internal__data._internal_points.length; ++r) {
             var point = this._internal__data._internal_points[r];
             if (point.subtract(position).length() <= this._internal__data._internal_radius + interactionTolerance._internal_anchor) {
-                var cursorType = this._internal__data._internal_pointsCursorType !== undefined ? this._internal__data._internal_pointsCursorType[r] : PaneCursorType._internal_Default;
+                var cursorType = this._internal__data._internal_pointsCursorType !== undefined ? this._internal__data._internal_pointsCursorType[r] : PaneCursorType.Default;
                 var pointIndex = point._internal_data;
                 return new HitTestResult(this._internal__data._internal_hitTestType, { _internal_pointIndex: pointIndex, _internal_cursorType: cursorType });
             }
@@ -5344,14 +5344,14 @@ var LineToolPaneView = /** @class */ (function () {
         this._internal__model = model;
     }
     // eslint-disable-next-line complexity
-    LineToolPaneView.prototype._internal_onInputEvent = function (paneWidget, eventType, event) {
-        if (!event || (!this._internal__renderer || !this._internal__renderer._internal_hitTest) && this._internal__source._internal_finished()) {
+    LineToolPaneView.prototype.onInputEvent = function (paneWidget, eventType, event) {
+        if (!event || (!this._internal__renderer || !this._internal__renderer.hitTest) && this._internal__source.finished()) {
             return;
         }
-        var crossHair = this._internal__model._internal_crosshairSource();
-        var appliedPoint = new Point(crossHair._internal_appliedX(), crossHair._internal_appliedY());
-        var originPoint = new Point(crossHair._internal_originCoordX(), crossHair._internal_originCoordY());
-        var changed = eventType === 11 /* PressedMouseMove */ && !event._internal_consumed
+        var crossHair = this._internal__model.crosshairSource();
+        var appliedPoint = new Point(crossHair.appliedX(), crossHair.appliedY());
+        var originPoint = new Point(crossHair.originCoordX(), crossHair.originCoordY());
+        var changed = eventType === 11 /* PressedMouseMove */ && !event.consumed
             ? this._internal__onPressedMouseMove(paneWidget, originPoint, appliedPoint)
             : eventType === 9 /* MouseMove */
                 ? this._internal__onMouseMove(paneWidget, originPoint, appliedPoint, event)
@@ -5360,35 +5360,35 @@ var LineToolPaneView = /** @class */ (function () {
                     : eventType === 10 /* MouseUp */
                         ? this._internal__onMouseUp()
                         : false;
-        event._internal_consumed || (event._internal_consumed = this._internal__source._internal_editing() || !this._internal__source._internal_finished());
-        if (changed || this._internal__source._internal_hovered() || this._internal__source._internal_editing() || !this._internal__source._internal_finished()) {
+        event.consumed || (event.consumed = this._internal__source.editing() || !this._internal__source.finished());
+        if (changed || this._internal__source.hovered() || this._internal__source.editing() || !this._internal__source.finished()) {
             this._internal_updateLineAnchors();
         }
     };
-    LineToolPaneView.prototype._internal_renderer = function (height, width, pane) {
+    LineToolPaneView.prototype.renderer = function (height, width, pane) {
         if (this._internal__invalidated) {
             this._internal__updateImpl(height, width);
         }
-        return this._internal__source._internal_visible() ? this._internal__renderer : null;
+        return this._internal__source.visible() ? this._internal__renderer : null;
     };
     LineToolPaneView.prototype._internal_priceToCoordinate = function (price) {
-        var priceScale = this._internal__source._internal_priceScale();
-        var ownerSource = this._internal__source._internal_ownerSource();
+        var priceScale = this._internal__source.priceScale();
+        var ownerSource = this._internal__source.ownerSource();
         if (priceScale === null) {
             return null;
         }
-        var basePrice = ownerSource !== null ? ownerSource._internal_firstValue() : null;
-        return basePrice === null ? null : priceScale._internal_priceToCoordinate(price, basePrice._internal_value);
+        var basePrice = ownerSource !== null ? ownerSource.firstValue() : null;
+        return basePrice === null ? null : priceScale.priceToCoordinate(price, basePrice.value);
     };
     LineToolPaneView.prototype._internal_currentPoint = function () {
-        var crossHair = this._internal__model._internal_crosshairSource();
-        return new Point(crossHair._internal_originCoordX(), crossHair._internal_originCoordY());
+        var crossHair = this._internal__model.crosshairSource();
+        return new Point(crossHair.originCoordX(), crossHair.originCoordY());
     };
     LineToolPaneView.prototype._internal_editedPointIndex = function () {
-        return this._internal__source._internal_editing() ? this._internal__editedPointIndex : null;
+        return this._internal__source.editing() ? this._internal__editedPointIndex : null;
     };
     LineToolPaneView.prototype._internal_areAnchorsVisible = function () {
-        return this._internal__source._internal_hovered() || this._internal__source._internal_selected() || this._internal__source._internal_editing() || !this._internal__source._internal_finished();
+        return this._internal__source.hovered() || this._internal__source.selected() || this._internal__source.editing() || !this._internal__source.finished();
     };
     LineToolPaneView.prototype._internal_update = function () {
         this._internal__invalidated = true;
@@ -5401,59 +5401,59 @@ var LineToolPaneView = /** @class */ (function () {
         this._internal__lineAnchorRenderers.forEach(function (renderer) {
             renderer._internal_updateData({
                 _internal_points: _this._internal__points,
-                _internal_selected: _this._internal__source._internal_selected(),
+                _internal_selected: _this._internal__source.selected(),
                 _internal_visible: _this._internal_areAnchorsVisible(),
                 _internal_currentPoint: _this._internal_currentPoint(),
                 _internal_editedPointIndex: _this._internal_editedPointIndex(),
             });
         });
-        this._internal__model._internal_updateSource(this._internal__source);
-        this._internal__source._internal_updateAllViews();
+        this._internal__model.updateSource(this._internal__source);
+        this._internal__source.updateAllViews();
     };
     LineToolPaneView.prototype._internal_createLineAnchor = function (data, index) {
         var renderer = this._internal__getLineAnchorRenderer(index);
-        renderer._internal_setData(__assign(__assign({}, data), { _internal_radius: 6, _internal_strokeWidth: 1, _internal_color: '#1E53E5', _internal_hoveredStrokeWidth: 4, _internal_selected: this._internal__source._internal_selected(), _internal_visible: this._internal_areAnchorsVisible(), _internal_currentPoint: this._internal_currentPoint(), _internal_backgroundColors: this._internal__lineAnchorColors(data._internal_points), _internal_editedPointIndex: this._internal__source._internal_editing() ? this._internal_editedPointIndex() : null, _internal_hitTestType: HitTestType._internal_ChangePoint }));
+        renderer._internal_setData(__assign(__assign({}, data), { _internal_radius: 6, _internal_strokeWidth: 1, _internal_color: '#1E53E5', _internal_hoveredStrokeWidth: 4, _internal_selected: this._internal__source.selected(), _internal_visible: this._internal_areAnchorsVisible(), _internal_currentPoint: this._internal_currentPoint(), _internal_backgroundColors: this._internal__lineAnchorColors(data._internal_points), _internal_editedPointIndex: this._internal__source.editing() ? this._internal_editedPointIndex() : null, _internal_hitTestType: HitTestType.ChangePoint }));
         return renderer;
     };
     LineToolPaneView.prototype._internal__onMouseUp = function () {
-        if (!this._internal__source._internal_finished()) {
-            this._internal__source._internal_tryFinish();
+        if (!this._internal__source.finished()) {
+            this._internal__source.tryFinish();
         }
-        else if (this._internal__source._internal_editing()) {
-            this._internal__model._internal_magnet()._internal_disable();
+        else if (this._internal__source.editing()) {
+            this._internal__model.magnet().disable();
             this._internal__updateSourcePoints();
             this._internal__lastMovePoint = null;
             this._internal__editedPointIndex = null;
-            this._internal__source._internal_setEditing(false);
+            this._internal__source.setEditing(false);
             return true;
         }
         return false;
     };
     LineToolPaneView.prototype._internal__onPressedMouseMove = function (paneWidget, originPoint, appliedPoint) {
         var _a;
-        if (!this._internal__source._internal_finished()) {
-            if (this._internal__source._internal_lineDrawnWithPressedButton()) {
-                this._internal__source._internal_addPoint(this._internal__source._internal_screenPointToPoint(appliedPoint));
+        if (!this._internal__source.finished()) {
+            if (this._internal__source.lineDrawnWithPressedButton()) {
+                this._internal__source.addPoint(this._internal__source.screenPointToPoint(appliedPoint));
             }
             return false;
         }
-        if (!this._internal__source._internal_selected()) {
+        if (!this._internal__source.selected()) {
             return false;
         }
-        if (!this._internal__source._internal_editing()) {
+        if (!this._internal__source.editing()) {
             var hitResult = this._internal__hitTest(paneWidget, originPoint);
-            var hitData = hitResult === null || hitResult === void 0 ? void 0 : hitResult._internal_data();
-            this._internal__source._internal_setEditing(this._internal__source._internal_hovered() || !!hitResult);
+            var hitData = hitResult === null || hitResult === void 0 ? void 0 : hitResult.data();
+            this._internal__source.setEditing(this._internal__source.hovered() || !!hitResult);
             this._internal__lastMovePoint = appliedPoint;
             this._internal__editedPointIndex = (_a = hitData === null || hitData === void 0 ? void 0 : hitData._internal_pointIndex) !== null && _a !== void 0 ? _a : this._internal__editedPointIndex;
             if (hitData) {
-                this._internal__model._internal_magnet()._internal_enable();
+                this._internal__model.magnet().enable();
             }
         }
         else {
-            paneWidget._internal_setCursor(this._internal__editedPointIndex !== null ? PaneCursorType._internal_Default : PaneCursorType._internal_Grabbing);
+            paneWidget.setCursor(this._internal__editedPointIndex !== null ? PaneCursorType.Default : PaneCursorType.Grabbing);
             if (this._internal__editedPointIndex !== null) {
-                this._internal__source._internal_setPoint(this._internal__editedPointIndex, this._internal__source._internal_screenPointToPoint(appliedPoint));
+                this._internal__source.setPoint(this._internal__editedPointIndex, this._internal__source.screenPointToPoint(appliedPoint));
             }
             else if (this._internal__lastMovePoint) {
                 var diff_1 = appliedPoint.subtract(this._internal__lastMovePoint);
@@ -5469,62 +5469,62 @@ var LineToolPaneView = /** @class */ (function () {
     };
     LineToolPaneView.prototype._internal__onMouseMove = function (paneWidget, originPoint, appliedPoint, event) {
         var _a, _b, _c;
-        if (!this._internal__source._internal_finished()) {
-            if (this._internal__source._internal_hasMagnet()) {
-                this._internal__model._internal_magnet()._internal_enable();
+        if (!this._internal__source.finished()) {
+            if (this._internal__source.hasMagnet()) {
+                this._internal__model.magnet().enable();
             }
-            this._internal__source._internal_setLastPoint(this._internal__source._internal_screenPointToPoint(appliedPoint));
+            this._internal__source.setLastPoint(this._internal__source.screenPointToPoint(appliedPoint));
         }
         else {
             var hitResult = this._internal__hitTest(paneWidget, originPoint);
-            var changed = this._internal__source._internal_setHovered(hitResult !== null && !event._internal_consumed);
-            if (this._internal__source._internal_hovered() && !event._internal_consumed) {
-                paneWidget._internal_setCursor(((_a = hitResult === null || hitResult === void 0 ? void 0 : hitResult._internal_data()) === null || _a === void 0 ? void 0 : _a._internal_cursorType) || PaneCursorType._internal_Pointer);
-                this._internal__editedPointIndex = (_c = (_b = hitResult === null || hitResult === void 0 ? void 0 : hitResult._internal_data()) === null || _b === void 0 ? void 0 : _b._internal_pointIndex) !== null && _c !== void 0 ? _c : null;
+            var changed = this._internal__source.setHovered(hitResult !== null && !event.consumed);
+            if (this._internal__source.hovered() && !event.consumed) {
+                paneWidget.setCursor(((_a = hitResult === null || hitResult === void 0 ? void 0 : hitResult.data()) === null || _a === void 0 ? void 0 : _a._internal_cursorType) || PaneCursorType.Pointer);
+                this._internal__editedPointIndex = (_c = (_b = hitResult === null || hitResult === void 0 ? void 0 : hitResult.data()) === null || _b === void 0 ? void 0 : _b._internal_pointIndex) !== null && _c !== void 0 ? _c : null;
             }
             return changed;
         }
         return false;
     };
     LineToolPaneView.prototype._internal__onMouseDown = function (paneWidget, originPoint, appliedPoint, event) {
-        if (!this._internal__source._internal_finished()) {
-            this._internal__source._internal_addPoint(this._internal__source._internal_screenPointToPoint(appliedPoint));
+        if (!this._internal__source.finished()) {
+            this._internal__source.addPoint(this._internal__source.screenPointToPoint(appliedPoint));
             return false;
         }
         else {
             var hitResult = this._internal__hitTest(paneWidget, originPoint);
-            return this._internal__source._internal_setSelected(hitResult !== null && !event._internal_consumed);
+            return this._internal__source.setSelected(hitResult !== null && !event.consumed);
         }
     };
     LineToolPaneView.prototype._internal__updateSourcePoints = function () {
         var _this = this;
-        this._internal__source._internal_setPoints(this._internal__points.map(function (point) { return _this._internal__source._internal_screenPointToPoint(point); }));
+        this._internal__source.setPoints(this._internal__points.map(function (point) { return _this._internal__source.screenPointToPoint(point); }));
     };
     LineToolPaneView.prototype._internal__hitTest = function (paneWidget, point) {
         var _a;
-        if (!((_a = this._internal__renderer) === null || _a === void 0 ? void 0 : _a._internal_hitTest)) {
+        if (!((_a = this._internal__renderer) === null || _a === void 0 ? void 0 : _a.hitTest)) {
             return null;
         }
-        var renderParams = paneWidget._internal_canvasRenderParams();
-        return this._internal__renderer._internal_hitTest(point, renderParams);
+        var renderParams = paneWidget.canvasRenderParams();
+        return this._internal__renderer.hitTest(point, renderParams);
     };
     LineToolPaneView.prototype._internal__lineAnchorColors = function (points) {
         var _this = this;
-        var height = ensureNotNull(this._internal__model._internal_paneForSource(this._internal__source))._internal_height();
-        return points.map(function (point) { return _this._internal__model._internal_backgroundColorAtYPercentFromTop(point.y / height); });
+        var height = ensureNotNull(this._internal__model.paneForSource(this._internal__source)).height();
+        return points.map(function (point) { return _this._internal__model.backgroundColorAtYPercentFromTop(point.y / height); });
     };
     LineToolPaneView.prototype._internal__updateImpl = function (height, width) {
         this._internal__invalidated = false;
-        if (this._internal__model._internal_timeScale()._internal_isEmpty()) {
+        if (this._internal__model.timeScale().isEmpty()) {
             return;
         }
         if (!this._internal__validatePriceScale()) {
             return;
         }
         this._internal__points = [];
-        var sourcePoints = this._internal__source._internal_points();
+        var sourcePoints = this._internal__source.points();
         for (var i = 0; i < sourcePoints.length; i++) {
-            var point = this._internal__source._internal_pointToScreenPoint(sourcePoints[i]);
+            var point = this._internal__source.pointToScreenPoint(sourcePoints[i]);
             if (!point) {
                 return;
             }
@@ -5533,8 +5533,8 @@ var LineToolPaneView = /** @class */ (function () {
         }
     };
     LineToolPaneView.prototype._internal__validatePriceScale = function () {
-        var priceScale = this._internal__source._internal_priceScale();
-        return null !== priceScale && !priceScale._internal_isEmpty();
+        var priceScale = this._internal__source.priceScale();
+        return null !== priceScale && !priceScale.isEmpty();
     };
     LineToolPaneView.prototype._internal__getLineAnchorRenderer = function (index) {
         for (; this._internal__lineAnchorRenderers.length <= index;) {
@@ -5558,21 +5558,21 @@ var TrendLinePaneView = /** @class */ (function (_super) {
     TrendLinePaneView.prototype._internal__updateImpl = function () {
         this._internal__renderer = null;
         this._internal__invalidated = false;
-        var priceScale = this._internal__source._internal_priceScale();
-        var timeScale = this._internal__model._internal_timeScale();
-        if (!priceScale || priceScale._internal_isEmpty() || timeScale._internal_isEmpty()) {
+        var priceScale = this._internal__source.priceScale();
+        var timeScale = this._internal__model.timeScale();
+        if (!priceScale || priceScale.isEmpty() || timeScale.isEmpty()) {
             return;
         }
-        var strictRange = timeScale._internal_visibleTimeRange();
+        var strictRange = timeScale.visibleTimeRange();
         if (strictRange === null) {
             return;
         }
-        var points = this._internal__source._internal_points();
+        var points = this._internal__source.points();
         if (points.length < 2) {
             return;
         }
-        var options = this._internal__source._internal_options();
-        var isOutsideView = Math.max(points[0].timestamp, points[1].timestamp) < strictRange.from._internal_timestamp;
+        var options = this._internal__source.options();
+        var isOutsideView = Math.max(points[0].timestamp, points[1].timestamp) < strictRange.from.timestamp;
         if (!isOutsideView || options.line.extend.left || options.line.extend.right) {
             _super.prototype._internal__updateImpl.call(this);
             if (this._internal__points.length < 2) {
@@ -5608,11 +5608,11 @@ var LineToolTrendLine = /** @class */ (function (_super) {
     function LineToolTrendLine(model, options, points) {
         if (points === void 0) { points = []; }
         var _this = _super.call(this, model, options, points) || this;
-        _this._internal__toolType = 'TrendLine';
-        _this._internal__setPaneViews([new TrendLinePaneView(_this, model)]);
+        _this._toolType = 'TrendLine';
+        _this._setPaneViews([new TrendLinePaneView(_this, model)]);
         return _this;
     }
-    LineToolTrendLine.prototype._internal_pointsCount = function () {
+    LineToolTrendLine.prototype.pointsCount = function () {
         return 2;
     };
     return LineToolTrendLine;
@@ -5622,7 +5622,7 @@ var LineToolArrow = /** @class */ (function (_super) {
     __extends(LineToolArrow, _super);
     function LineToolArrow() {
         var _this = _super !== null && _super.apply(this, arguments) || this;
-        _this._internal__toolType = 'Arrow';
+        _this._toolType = 'Arrow';
         return _this;
     }
     return LineToolArrow;
@@ -5632,15 +5632,15 @@ var PolygonRenderer = /** @class */ (function (_super) {
     __extends(PolygonRenderer, _super);
     function PolygonRenderer(hitTest) {
         var _this = _super.call(this) || this;
-        _this._internal__backHitTest = new HitTestResult(HitTestType._internal_MovePointBackground);
-        _this._internal__hitTest = hitTest || new HitTestResult(HitTestType._internal_MovePoint);
+        _this._internal__backHitTest = new HitTestResult(HitTestType.MovePointBackground);
+        _this._internal__hitTest = hitTest || new HitTestResult(HitTestType.MovePoint);
         _this._internal__data = null;
         return _this;
     }
     PolygonRenderer.prototype._internal_setData = function (data) {
         this._internal__data = data;
     };
-    PolygonRenderer.prototype._internal_hitTest = function (point) {
+    PolygonRenderer.prototype.hitTest = function (point) {
         if (this._internal__data === null) {
             return null;
         }
@@ -5790,37 +5790,37 @@ var LineToolBrush = /** @class */ (function (_super) {
     function LineToolBrush(model, options, points) {
         if (points === void 0) { points = []; }
         var _this = _super.call(this, model, options, points) || this;
-        _this._internal__toolType = 'Brush';
-        _this._internal__setPaneViews([new BrushPaneView(_this, model)]);
+        _this._toolType = 'Brush';
+        _this._setPaneViews([new BrushPaneView(_this, model)]);
         return _this;
     }
-    LineToolBrush.prototype._internal_pointsCount = function () {
+    LineToolBrush.prototype.pointsCount = function () {
         return -1;
     };
     LineToolBrush.prototype._internal_smooth = function () {
         return 5;
     };
     LineToolBrush.prototype._internal_getBrushOptions = function () {
-        return this._internal_options();
+        return this.options();
     };
-    LineToolBrush.prototype._internal_addPoint = function (point) {
-        if (this._internal__finished) {
+    LineToolBrush.prototype.addPoint = function (point) {
+        if (this._finished) {
             return;
         }
-        this._internal__lastPoint = null;
-        if (this._internal__points.length > 0) {
-            var endPoint = this._internal__points[this._internal__points.length - 1];
-            var endScreenPoint = ensureNotNull(this._internal_pointToScreenPoint(endPoint));
-            if (ensureNotNull(this._internal_pointToScreenPoint(point)).subtract(endScreenPoint).length() < 2) {
+        this._lastPoint = null;
+        if (this._points.length > 0) {
+            var endPoint = this._points[this._points.length - 1];
+            var endScreenPoint = ensureNotNull(this.pointToScreenPoint(endPoint));
+            if (ensureNotNull(this.pointToScreenPoint(point)).subtract(endScreenPoint).length() < 2) {
                 return;
             }
         }
-        return _super.prototype._internal_addPoint.call(this, point);
+        return _super.prototype.addPoint.call(this, point);
     };
-    LineToolBrush.prototype._internal_hasMagnet = function () {
+    LineToolBrush.prototype.hasMagnet = function () {
         return false;
     };
-    LineToolBrush.prototype._internal_lineDrawnWithPressedButton = function () {
+    LineToolBrush.prototype.lineDrawnWithPressedButton = function () {
         return true;
     };
     return LineToolBrush;
@@ -5833,23 +5833,23 @@ var CrossLinePaneView = /** @class */ (function (_super) {
         _this._internal__verticalLineRenderer = new SegmentRenderer();
         _this._internal__horizontalLineRenderer = new SegmentRenderer();
         _this._internal__renderer = null;
-        _this._internal__verticalLineRenderer._internal_setHitTest(new HitTestResult(HitTestType._internal_MovePoint));
-        _this._internal__horizontalLineRenderer._internal_setHitTest(new HitTestResult(HitTestType._internal_MovePoint));
+        _this._internal__verticalLineRenderer._internal_setHitTest(new HitTestResult(HitTestType.MovePoint));
+        _this._internal__horizontalLineRenderer._internal_setHitTest(new HitTestResult(HitTestType.MovePoint));
         return _this;
     }
     CrossLinePaneView.prototype._internal__updateImpl = function (height, width) {
         this._internal__renderer = null;
-        var priceScale = this._internal__source._internal_priceScale();
-        var timeScale = this._internal__model._internal_timeScale();
-        if (!priceScale || priceScale._internal_isEmpty() || timeScale._internal_isEmpty()) {
+        var priceScale = this._internal__source.priceScale();
+        var timeScale = this._internal__model.timeScale();
+        if (!priceScale || priceScale.isEmpty() || timeScale.isEmpty()) {
             return;
         }
-        var points = this._internal__source._internal_points();
+        var points = this._internal__source.points();
         if (points.length < 1) {
             return;
         }
         _super.prototype._internal__updateImpl.call(this);
-        var options = this._internal__source._internal_options();
+        var options = this._internal__source.options();
         if (this._internal__points.length < 1) {
             return;
         }
@@ -5876,18 +5876,18 @@ var LineToolCrossLine = /** @class */ (function (_super) {
     function LineToolCrossLine(model, options, points) {
         if (points === void 0) { points = []; }
         var _this = _super.call(this, model, options, points) || this;
-        _this._internal__toolType = 'CrossLine';
-        _this._internal__setPaneViews([new CrossLinePaneView(_this, model)]);
+        _this._toolType = 'CrossLine';
+        _this._setPaneViews([new CrossLinePaneView(_this, model)]);
         return _this;
     }
-    LineToolCrossLine.prototype._internal_pointsCount = function () {
+    LineToolCrossLine.prototype.pointsCount = function () {
         return 1;
     };
-    LineToolCrossLine.prototype._internal_timeAxisLabelColor = function () {
-        return this._internal_options().line.color;
+    LineToolCrossLine.prototype.timeAxisLabelColor = function () {
+        return this.options().line.color;
     };
-    LineToolCrossLine.prototype._internal_priceAxisLabelColor = function () {
-        return this._internal_options().line.color;
+    LineToolCrossLine.prototype.priceAxisLabelColor = function () {
+        return this.options().line.color;
     };
     return LineToolCrossLine;
 }(LineTool));
@@ -5896,7 +5896,7 @@ var LineToolExtendedLine = /** @class */ (function (_super) {
     __extends(LineToolExtendedLine, _super);
     function LineToolExtendedLine() {
         var _this = _super !== null && _super.apply(this, arguments) || this;
-        _this._internal__toolType = 'ExtendedLine';
+        _this._toolType = 'ExtendedLine';
         return _this;
     }
     return LineToolExtendedLine;
@@ -5904,8 +5904,8 @@ var LineToolExtendedLine = /** @class */ (function (_super) {
 
 var RectangleRenderer = /** @class */ (function () {
     function RectangleRenderer(hitTest, backHitTest) {
-        this._internal__backHitTest = backHitTest || new HitTestResult(HitTestType._internal_MovePointBackground);
-        this._internal__hitTest = hitTest || new HitTestResult(HitTestType._internal_MovePoint);
+        this._internal__backHitTest = backHitTest || new HitTestResult(HitTestType.MovePointBackground);
+        this._internal__hitTest = hitTest || new HitTestResult(HitTestType.MovePoint);
         this._internal__data = null;
     }
     RectangleRenderer.prototype._internal_setData = function (data) {
@@ -5915,7 +5915,7 @@ var RectangleRenderer = /** @class */ (function () {
         if (null === this._internal__data || this._internal__data.points.length < 2) {
             return null;
         }
-        var scaledPoint = new Point(point.x * renderParams._internal_pixelRatio, point.y * renderParams._internal_pixelRatio);
+        var scaledPoint = new Point(point.x * renderParams.pixelRatio, point.y * renderParams.pixelRatio);
         var _a = this._internal__getPointsInPhysicalSpace(renderParams), topLeft = _a[0], bottomRight = _a[1];
         var topRight = new Point(bottomRight.x, topLeft.y);
         var bottomLeft = new Point(topLeft.x, bottomRight.y);
@@ -5950,17 +5950,17 @@ var RectangleRenderer = /** @class */ (function () {
             return;
         }
         ctx.save();
-        var scaledBorderWidth = borderWidth ? Math.max(1, Math.floor(borderWidth * renderParams._internal_pixelRatio)) : 0;
+        var scaledBorderWidth = borderWidth ? Math.max(1, Math.floor(borderWidth * renderParams.pixelRatio)) : 0;
         var borderStyle = ((_g = this._internal__data.border) === null || _g === void 0 ? void 0 : _g.style) || 0 /* Solid */;
         var _h = this._internal__getPointsInPhysicalSpace(renderParams), point0 = _h[0], point1 = _h[1];
         var _j = this._internal__data.extend || {}, left = _j.left, right = _j.right;
-        fillRectWithBorder(ctx, point0, point1, background, borderColor, scaledBorderWidth, borderStyle, 'center', !!left, !!right, renderParams._internal_physicalWidth);
+        fillRectWithBorder(ctx, point0, point1, background, borderColor, scaledBorderWidth, borderStyle, 'center', !!left, !!right, renderParams.physicalWidth);
         ctx.restore();
     };
     RectangleRenderer.prototype._internal__getPointsInPhysicalSpace = function (renderParams) {
         var data = ensureNotNull(this._internal__data);
         var _a = data.points, point0 = _a[0], point1 = _a[1];
-        var pixelRatio = renderParams._internal_pixelRatio;
+        var pixelRatio = renderParams.pixelRatio;
         var minX = Math.min(point0.x, point1.x);
         var maxX = Math.max(point0.x, point1.x);
         var minY = Math.min(point0.y, point1.y);
@@ -5977,7 +5977,7 @@ var RectangleRenderer = /** @class */ (function () {
         if (equalPoints(end0, end1)) {
             return null;
         }
-        var physicalWidth = renderParams._internal_physicalWidth;
+        var physicalWidth = renderParams.physicalWidth;
         var minX = Math.min(end0.x, end1.x);
         var maxX = Math.max(end0.x, end1.x);
         var x1 = ((_a = data.extend) === null || _a === void 0 ? void 0 : _a.left) ? 0 : Math.max(minX, 0);
@@ -6012,21 +6012,21 @@ var FibRetracementPaneView = /** @class */ (function (_super) {
     FibRetracementPaneView.prototype._internal__updateImpl = function () {
         this._internal__renderer = null;
         this._internal__invalidated = false;
-        var priceScale = this._internal__source._internal_priceScale();
-        var timeScale = this._internal__model._internal_timeScale();
-        if (!priceScale || priceScale._internal_isEmpty() || timeScale._internal_isEmpty()) {
+        var priceScale = this._internal__source.priceScale();
+        var timeScale = this._internal__model.timeScale();
+        if (!priceScale || priceScale.isEmpty() || timeScale.isEmpty()) {
             return;
         }
-        var strictRange = timeScale._internal_visibleTimeRange();
+        var strictRange = timeScale.visibleTimeRange();
         if (strictRange === null) {
             return;
         }
-        var points = this._internal__source._internal_points();
+        var points = this._internal__source.points();
         if (points.length < 2) {
             return;
         }
-        var options = this._internal__source._internal_options();
-        var isOutsideView = Math.max(points[0].timestamp, points[1].timestamp) < strictRange.from._internal_timestamp;
+        var options = this._internal__source.options();
+        var isOutsideView = Math.max(points[0].timestamp, points[1].timestamp) < strictRange.from.timestamp;
         if (!isOutsideView || options.extend.left || options.extend.right) {
             _super.prototype._internal__updateImpl.call(this);
             if (this._internal__points.length < 2) {
@@ -6035,7 +6035,7 @@ var FibRetracementPaneView = /** @class */ (function (_super) {
             var compositeRenderer = new CompositeRenderer();
             var minX = Math.min(this._internal__points[0].x, this._internal__points[1].x);
             var maxX = Math.max(this._internal__points[0].x, this._internal__points[1].x);
-            var levelCoordinates = this._internal__levelsData(this._internal__source._internal_points()[0].price, this._internal__source._internal_points()[1].price, options.levels);
+            var levelCoordinates = this._internal__levelsData(this._internal__source.points()[0].price, this._internal__source.points()[1].price, options.levels);
             for (var i = 0, j = -1; i < levelCoordinates.length; i++, j++) {
                 if (!this._internal__lineRenderers[i]) {
                     this._internal__lineRenderers.push(new SegmentRenderer());
@@ -6075,16 +6075,16 @@ var FibRetracementPaneView = /** @class */ (function (_super) {
     };
     FibRetracementPaneView.prototype._internal__levelsData = function (min, max, levels) {
         var _a, _b;
-        var baseValue = ((_b = (_a = this._internal__source._internal_ownerSource()) === null || _a === void 0 ? void 0 : _a._internal_firstValue()) === null || _b === void 0 ? void 0 : _b._internal_value) || 0;
-        var priceScale = this._internal__source._internal_priceScale();
+        var baseValue = ((_b = (_a = this._internal__source.ownerSource()) === null || _a === void 0 ? void 0 : _a.firstValue()) === null || _b === void 0 ? void 0 : _b.value) || 0;
+        var priceScale = this._internal__source.priceScale();
         var gap = max - min;
         if (!priceScale || !baseValue) {
             return [];
         }
         return levels.map(function (level) {
             var price = max - level.coeff * gap;
-            var coordinate = priceScale._internal_priceToCoordinate(price, baseValue);
-            return { _internal_coordinate: coordinate, _internal_price: priceScale._internal_formatPrice(price, baseValue) };
+            var coordinate = priceScale.priceToCoordinate(price, baseValue);
+            return { _internal_coordinate: coordinate, _internal_price: priceScale.formatPrice(price, baseValue) };
         });
     };
     return FibRetracementPaneView;
@@ -6095,11 +6095,11 @@ var LineToolFibRetracement = /** @class */ (function (_super) {
     function LineToolFibRetracement(model, options, points) {
         if (points === void 0) { points = []; }
         var _this = _super.call(this, model, options, points) || this;
-        _this._internal__toolType = 'FibRetracement';
-        _this._internal__setPaneViews([new FibRetracementPaneView(_this, model)]);
+        _this._toolType = 'FibRetracement';
+        _this._setPaneViews([new FibRetracementPaneView(_this, model)]);
         return _this;
     }
-    LineToolFibRetracement.prototype._internal_pointsCount = function () {
+    LineToolFibRetracement.prototype.pointsCount = function () {
         return 2;
     };
     return LineToolFibRetracement;
@@ -6109,11 +6109,11 @@ var LineToolHighlighter = /** @class */ (function (_super) {
     __extends(LineToolHighlighter, _super);
     function LineToolHighlighter() {
         var _this = _super !== null && _super.apply(this, arguments) || this;
-        _this._internal__toolType = 'Highlighter';
+        _this._toolType = 'Highlighter';
         return _this;
     }
     LineToolHighlighter.prototype._internal_getBrushOptions = function () {
-        var options = this._internal_options();
+        var options = this.options();
         return {
             visible: options.visible,
             line: {
@@ -6136,26 +6136,26 @@ var HorizontalLinePaneView = /** @class */ (function (_super) {
         _this._internal__lineRenderer = new SegmentRenderer();
         _this._internal__labelRenderer = new TextRenderer();
         _this._internal__renderer = null;
-        _this._internal__lineRenderer._internal_setHitTest(new HitTestResult(HitTestType._internal_MovePoint));
+        _this._internal__lineRenderer._internal_setHitTest(new HitTestResult(HitTestType.MovePoint));
         return _this;
     }
     // eslint-disable-next-line complexity
     HorizontalLinePaneView.prototype._internal__updateImpl = function (height, width) {
         this._internal__renderer = null;
-        var priceScale = this._internal__source._internal_priceScale();
-        var timeScale = this._internal__model._internal_timeScale();
-        if (!priceScale || priceScale._internal_isEmpty() || timeScale._internal_isEmpty()) {
+        var priceScale = this._internal__source.priceScale();
+        var timeScale = this._internal__model.timeScale();
+        if (!priceScale || priceScale.isEmpty() || timeScale.isEmpty()) {
             return;
         }
-        var points = this._internal__source._internal_points();
+        var points = this._internal__source.points();
         if (points.length < 1) {
             return;
         }
-        var startTime = timeScale._internal_coordinateToTime(0);
-        var endTime = timeScale._internal_coordinateToTime(width);
-        var options = this._internal__source._internal_options();
+        var startTime = timeScale.coordinateToTime(0);
+        var endTime = timeScale.coordinateToTime(width);
+        var options = this._internal__source.options();
         var _a = options.line.extend || {}, left = _a.left, right = _a.right;
-        var isOutsideView = (!left && points[0].timestamp > endTime._internal_timestamp) || (!right && points[0].timestamp < startTime._internal_timestamp);
+        var isOutsideView = (!left && points[0].timestamp > endTime.timestamp) || (!right && points[0].timestamp < startTime.timestamp);
         if (!isOutsideView) {
             _super.prototype._internal__updateImpl.call(this);
             if (this._internal__points.length < 1) {
@@ -6198,21 +6198,21 @@ var LineToolHorizontalLine = /** @class */ (function (_super) {
     function LineToolHorizontalLine(model, options, points) {
         if (points === void 0) { points = []; }
         var _this = _super.call(this, model, options, points) || this;
-        _this._internal__toolType = 'HorizontalLine';
-        _this._internal__setPaneViews([new HorizontalLinePaneView(_this, model)]);
+        _this._toolType = 'HorizontalLine';
+        _this._setPaneViews([new HorizontalLinePaneView(_this, model)]);
         return _this;
     }
-    LineToolHorizontalLine.prototype._internal_pointsCount = function () {
+    LineToolHorizontalLine.prototype.pointsCount = function () {
         return 1;
     };
-    LineToolHorizontalLine.prototype._internal_timeAxisViews = function () {
+    LineToolHorizontalLine.prototype.timeAxisViews = function () {
         return [];
     };
-    LineToolHorizontalLine.prototype._internal_timeAxisPoints = function () {
+    LineToolHorizontalLine.prototype.timeAxisPoints = function () {
         return [];
     };
-    LineToolHorizontalLine.prototype._internal_priceAxisLabelColor = function () {
-        return this._internal_options().line.color;
+    LineToolHorizontalLine.prototype.priceAxisLabelColor = function () {
+        return this.options().line.color;
     };
     return LineToolHorizontalLine;
 }(LineTool));
@@ -6221,7 +6221,7 @@ var LineToolHorizontalRay = /** @class */ (function (_super) {
     __extends(LineToolHorizontalRay, _super);
     function LineToolHorizontalRay() {
         var _this = _super !== null && _super.apply(this, arguments) || this;
-        _this._internal__toolType = 'HorizontalRay';
+        _this._toolType = 'HorizontalRay';
         return _this;
     }
     return LineToolHorizontalRay;
@@ -6231,15 +6231,15 @@ var ParallelChannelRenderer = /** @class */ (function (_super) {
     __extends(ParallelChannelRenderer, _super);
     function ParallelChannelRenderer(hitTest, backHitTest) {
         var _this = _super.call(this) || this;
-        _this._internal__backHitTest = backHitTest || new HitTestResult(HitTestType._internal_MovePointBackground);
-        _this._internal__hitTest = hitTest || new HitTestResult(HitTestType._internal_MovePoint);
+        _this._internal__backHitTest = backHitTest || new HitTestResult(HitTestType.MovePointBackground);
+        _this._internal__hitTest = hitTest || new HitTestResult(HitTestType.MovePoint);
         _this._internal__data = null;
         return _this;
     }
     ParallelChannelRenderer.prototype._internal_setData = function (data) {
         this._internal__data = data;
     };
-    ParallelChannelRenderer.prototype._internal_hitTest = function (point, renderParams) {
+    ParallelChannelRenderer.prototype.hitTest = function (point, renderParams) {
         if (this._internal__data === null || this._internal__data.points.length < 2) {
             return null;
         }
@@ -6306,7 +6306,7 @@ var ParallelChannelRenderer = /** @class */ (function (_super) {
     ParallelChannelRenderer.prototype._internal__extendAndClipLineSegment = function (end0, end1, renderParams) {
         var _a, _b;
         var data = ensureNotNull(this._internal__data);
-        return extendAndClipLineSegment(end0, end1, renderParams._internal_cssWidth, renderParams._internal_cssHeight, !!((_a = data.extend) === null || _a === void 0 ? void 0 : _a.left), !!((_b = data.extend) === null || _b === void 0 ? void 0 : _b.right));
+        return extendAndClipLineSegment(end0, end1, renderParams.cssWidth, renderParams.cssHeight, !!((_a = data.extend) === null || _a === void 0 ? void 0 : _a.left), !!((_b = data.extend) === null || _b === void 0 ? void 0 : _b.right));
     };
     ParallelChannelRenderer.prototype._internal__drawBackground = function (ctx, points, renderParams) {
         var _a, _b, _c, _d, _e, _f;
@@ -6315,13 +6315,13 @@ var ParallelChannelRenderer = /** @class */ (function (_super) {
         if (equalPoints(end0, end1) || equalPoints(end2, end3)) {
             return;
         }
-        if (renderParams._internal_cssWidth <= 0 || renderParams._internal_cssHeight <= 0) {
+        if (renderParams.cssWidth <= 0 || renderParams.cssHeight <= 0) {
             return;
         }
         if (distanceToLine(end0, end1, end2)._internal_distance < 1e-6 || distanceToLine(end0, end1, end3)._internal_distance < 1e-6) {
             return;
         }
-        var width = renderParams._internal_cssWidth, height = renderParams._internal_cssHeight;
+        var width = renderParams.cssWidth, height = renderParams.cssHeight;
         var computedPoints = [new Point(0, 0), new Point(width, 0), new Point(width, height), new Point(0, height)];
         computedPoints = this._internal__computePoints(computedPoints, end0, end1, end3);
         if (!((_a = data.extend) === null || _a === void 0 ? void 0 : _a.right)) {
@@ -6368,7 +6368,7 @@ var ParallelChannelRenderer = /** @class */ (function (_super) {
     return ParallelChannelRenderer;
 }(ScaledRenderer));
 
-var pointsCursorType = [PaneCursorType._internal_Default, PaneCursorType._internal_Default, PaneCursorType._internal_Default, PaneCursorType._internal_Default, PaneCursorType._internal_VerticalResize, PaneCursorType._internal_VerticalResize];
+var pointsCursorType = [PaneCursorType.Default, PaneCursorType.Default, PaneCursorType.Default, PaneCursorType.Default, PaneCursorType.VerticalResize, PaneCursorType.VerticalResize];
 var ParallelChannelPaneView = /** @class */ (function (_super) {
     __extends(ParallelChannelPaneView, _super);
     function ParallelChannelPaneView(source, model) {
@@ -6380,11 +6380,11 @@ var ParallelChannelPaneView = /** @class */ (function (_super) {
     ParallelChannelPaneView.prototype._internal__updateImpl = function () {
         _super.prototype._internal__updateImpl.call(this);
         this._internal__renderer = null;
-        var priceScale = this._internal__source._internal_priceScale();
-        if (!priceScale || priceScale._internal_isEmpty()) {
+        var priceScale = this._internal__source.priceScale();
+        if (!priceScale || priceScale.isEmpty()) {
             return;
         }
-        if (this._internal__source._internal_points().length === 0) {
+        if (this._internal__source.points().length === 0) {
             return;
         }
         if (this._internal__points.length <= 1) {
@@ -6400,7 +6400,7 @@ var ParallelChannelPaneView = /** @class */ (function (_super) {
             end3 = new AnchorPoint(end1.x, end1.y + height, 3);
         }
         var points = end2 && end3 ? [end0, end1, end2, end3] : [end0, end1];
-        var options = this._internal__source._internal_options();
+        var options = this._internal__source.options();
         this._internal__channelRenderer._internal_setData(__assign(__assign({}, deepCopy(options)), { points: points, hitTestBackground: false }));
         var compositeRenderer = new CompositeRenderer();
         compositeRenderer._internal_append(this._internal__channelRenderer);
@@ -6434,79 +6434,79 @@ var LineToolParallelChannel = /** @class */ (function (_super) {
     function LineToolParallelChannel(model, options, points) {
         if (points === void 0) { points = []; }
         var _this = _super.call(this, model, options, points) || this;
-        _this._internal__toolType = 'ParallelChannel';
-        _this._internal__priceAxisViews.push(new LineToolPriceAxisLabelView(_this, 3));
-        _this._internal__setPaneViews([new ParallelChannelPaneView(_this, model)]);
+        _this._toolType = 'ParallelChannel';
+        _this._priceAxisViews.push(new LineToolPriceAxisLabelView(_this, 3));
+        _this._setPaneViews([new ParallelChannelPaneView(_this, model)]);
         return _this;
     }
-    LineToolParallelChannel.prototype._internal_pointsCount = function () {
+    LineToolParallelChannel.prototype.pointsCount = function () {
         return 3;
     };
-    LineToolParallelChannel.prototype._internal_addPoint = function (point) {
-        if (this._internal__points.length === 2) {
-            _super.prototype._internal_addPoint.call(this, this._internal__correctLastPoint(point));
+    LineToolParallelChannel.prototype.addPoint = function (point) {
+        if (this._points.length === 2) {
+            _super.prototype.addPoint.call(this, this._internal__correctLastPoint(point));
         }
         else {
-            _super.prototype._internal_addPoint.call(this, point);
+            _super.prototype.addPoint.call(this, point);
         }
     };
-    LineToolParallelChannel.prototype._internal_points = function () {
-        var points = _super.prototype._internal_points.call(this);
-        if (points.length === 3 && !this._internal_finished()) {
+    LineToolParallelChannel.prototype.points = function () {
+        var points = _super.prototype.points.call(this);
+        if (points.length === 3 && !this.finished()) {
             return [points[0], points[1], this._internal__correctLastPoint(points[2])];
         }
         else {
             return points;
         }
     };
-    LineToolParallelChannel.prototype._internal_setPoint = function (index, point) {
-        if (this._internal__points[0].timestamp === this._internal__points[1].timestamp && index >= 4) {
+    LineToolParallelChannel.prototype.setPoint = function (index, point) {
+        if (this._points[0].timestamp === this._points[1].timestamp && index >= 4) {
             return;
         }
-        var screenPoint0 = ensureNotNull(this._internal_pointToScreenPoint(this._internal__points[0]));
-        var screenPoint1 = ensureNotNull(this._internal_pointToScreenPoint(this._internal__points[1]));
-        var screenPoint = ensureNotNull(this._internal_pointToScreenPoint(point));
+        var screenPoint0 = ensureNotNull(this.pointToScreenPoint(this._points[0]));
+        var screenPoint1 = ensureNotNull(this.pointToScreenPoint(this._points[1]));
+        var screenPoint = ensureNotNull(this.pointToScreenPoint(point));
         var movingCoordOffset = this._internal__findPixelsHeight() || 0;
-        var priceScale = ensureNotNull(this._internal_priceScale());
-        var ownerSource = this._internal_ownerSource();
-        var firstValue = ensure(ownerSource === null ? undefined : ownerSource._internal_firstValue());
+        var priceScale = ensureNotNull(this.priceScale());
+        var ownerSource = this.ownerSource();
+        var firstValue = ensure(ownerSource === null ? undefined : ownerSource.firstValue());
         if (index === 0) {
-            _super.prototype._internal_setPoint.call(this, index, point);
-            this._internal__points[2].price = priceScale._internal_coordinateToPrice(screenPoint.y + movingCoordOffset, firstValue._internal_value);
+            _super.prototype.setPoint.call(this, index, point);
+            this._points[2].price = priceScale.coordinateToPrice(screenPoint.y + movingCoordOffset, firstValue.value);
         }
         else if (index === 1) {
-            _super.prototype._internal_setPoint.call(this, index, point);
+            _super.prototype.setPoint.call(this, index, point);
         }
         else if (index === 2) {
-            _super.prototype._internal_setPoint.call(this, index, point);
-            this._internal__points[0].timestamp = point.timestamp;
-            this._internal__points[0].price = priceScale._internal_coordinateToPrice(screenPoint.y - movingCoordOffset, firstValue._internal_value);
+            _super.prototype.setPoint.call(this, index, point);
+            this._points[0].timestamp = point.timestamp;
+            this._points[0].price = priceScale.coordinateToPrice(screenPoint.y - movingCoordOffset, firstValue.value);
         }
         else if (index === 3) {
-            this._internal__points[1].timestamp = point.timestamp;
-            this._internal__points[1].price = priceScale._internal_coordinateToPrice(screenPoint.y - movingCoordOffset, firstValue._internal_value);
+            this._points[1].timestamp = point.timestamp;
+            this._points[1].price = priceScale.coordinateToPrice(screenPoint.y - movingCoordOffset, firstValue.value);
         }
         else if (index === 4) {
             var heading = screenPoint1.subtract(screenPoint0);
             var scale = (screenPoint.x - screenPoint0.x) / heading.x;
             var displace = screenPoint.y - screenPoint0.addScaled(heading, scale).y;
-            this._internal__points[2].price = priceScale._internal_coordinateToPrice(screenPoint0.y + displace, firstValue._internal_value);
+            this._points[2].price = priceScale.coordinateToPrice(screenPoint0.y + displace, firstValue.value);
         }
         else if (index === 5) {
             var heading = screenPoint1.subtract(screenPoint0);
             var scale = (screenPoint.x - screenPoint0.x) / heading.x;
             var displace = screenPoint.y - screenPoint0.addScaled(heading, scale).y;
-            this._internal__points[0].price = priceScale._internal_coordinateToPrice(screenPoint0.y + displace, firstValue._internal_value);
-            this._internal__points[1].price = priceScale._internal_coordinateToPrice(screenPoint1.y + displace, firstValue._internal_value);
+            this._points[0].price = priceScale.coordinateToPrice(screenPoint0.y + displace, firstValue.value);
+            this._points[1].price = priceScale.coordinateToPrice(screenPoint1.y + displace, firstValue.value);
         }
     };
-    LineToolParallelChannel.prototype._internal_getPoint = function (index) {
+    LineToolParallelChannel.prototype.getPoint = function (index) {
         if (index < 3) {
-            return _super.prototype._internal_getPoint.call(this, index);
+            return _super.prototype.getPoint.call(this, index);
         }
-        var end0 = this._internal_pointToScreenPoint(this._internal__points[0]);
-        var end1 = this._internal_pointToScreenPoint(this._internal__points[1]);
-        var end2 = this._internal_pointToScreenPoint(this._internal__points[2]);
+        var end0 = this.pointToScreenPoint(this._points[0]);
+        var end1 = this.pointToScreenPoint(this._points[1]);
+        var end2 = this.pointToScreenPoint(this._points[2]);
         if (!end0 || !end1 || !end2) {
             return null;
         }
@@ -6514,57 +6514,57 @@ var LineToolParallelChannel = /** @class */ (function (_super) {
             case 3: {
                 var height = end2.y - end0.y;
                 var end3 = end1.add(new Point(0, height));
-                return this._internal_screenPointToPoint(end3);
+                return this.screenPointToPoint(end3);
             }
             case 4: {
                 var height = end2.y - end0.y;
                 var end3 = end1.add(new Point(0, height));
                 var middle0 = end2.add(end3).scaled(0.5);
-                return this._internal_screenPointToPoint(middle0);
+                return this.screenPointToPoint(middle0);
             }
             case 5: {
                 var middle1 = end0.add(end1).scaled(0.5);
-                return this._internal_screenPointToPoint(middle1);
+                return this.screenPointToPoint(middle1);
             }
         }
         return null;
     };
-    LineToolParallelChannel.prototype._internal_priceAxisPoints = function () {
+    LineToolParallelChannel.prototype.priceAxisPoints = function () {
         return this._internal__axisPoints();
     };
-    LineToolParallelChannel.prototype._internal_timeAxisPoints = function () {
+    LineToolParallelChannel.prototype.timeAxisPoints = function () {
         return this._internal__axisPoints().slice(0, 2);
     };
     LineToolParallelChannel.prototype._internal__findPixelsHeight = function () {
-        var end2 = this._internal_pointToScreenPoint(this._internal__points[2]);
-        var end0 = this._internal_pointToScreenPoint(this._internal__points[0]);
+        var end2 = this.pointToScreenPoint(this._points[2]);
+        var end0 = this.pointToScreenPoint(this._points[0]);
         return end2 && end0 ? end2.y - end0.y : null;
     };
     LineToolParallelChannel.prototype._internal__axisPoints = function () {
-        var points = this._internal_points();
-        var screenPoint0 = this._internal__points[0] ? this._internal_pointToScreenPoint(this._internal__points[0]) : null;
-        var screenPoint1 = this._internal__points[1] ? this._internal_pointToScreenPoint(this._internal__points[1]) : null;
-        var screenPoint2 = this._internal__points[2] ? this._internal_pointToScreenPoint(this._internal__points[2]) : null;
+        var points = this.points();
+        var screenPoint0 = this._points[0] ? this.pointToScreenPoint(this._points[0]) : null;
+        var screenPoint1 = this._points[1] ? this.pointToScreenPoint(this._points[1]) : null;
+        var screenPoint2 = this._points[2] ? this.pointToScreenPoint(this._points[2]) : null;
         if (screenPoint0 && screenPoint1 && screenPoint2) {
             var height = screenPoint1.y - screenPoint0.y;
             var screenPoint3 = screenPoint2.add(new Point(0, height));
-            points.push(ensureNotNull(this._internal_screenPointToPoint(screenPoint3)));
+            points.push(ensureNotNull(this.screenPointToPoint(screenPoint3)));
         }
         return points;
     };
     LineToolParallelChannel.prototype._internal__correctLastPoint = function (point2) {
-        if (this._internal__points.length < 2 || this._internal__points[1].timestamp === this._internal__points[0].timestamp) {
+        if (this._points.length < 2 || this._points[1].timestamp === this._points[0].timestamp) {
             return point2;
         }
-        var screenPoint2 = ensureNotNull(this._internal_pointToScreenPoint(point2));
-        var screenPoint1 = ensureNotNull(this._internal_pointToScreenPoint(this._internal__points[1]));
-        var screenPoint0 = ensureNotNull(this._internal_pointToScreenPoint(this._internal__points[0]));
+        var screenPoint2 = ensureNotNull(this.pointToScreenPoint(point2));
+        var screenPoint1 = ensureNotNull(this.pointToScreenPoint(this._points[1]));
+        var screenPoint0 = ensureNotNull(this.pointToScreenPoint(this._points[0]));
         var heading = screenPoint1.subtract(screenPoint0);
         var scale = (screenPoint2.x - screenPoint0.x) / heading.x;
         var height = screenPoint0.addScaled(heading, scale);
         var displaceY = screenPoint2.y - height.y;
         var correctedPoint = screenPoint0.add(new Point(0, displaceY));
-        return ensureNotNull(this._internal_screenPointToPoint(correctedPoint));
+        return ensureNotNull(this.screenPointToPoint(correctedPoint));
     };
     return LineToolParallelChannel;
 }(LineTool));
@@ -6580,7 +6580,7 @@ var PathPaneView = /** @class */ (function (_super) {
     PathPaneView.prototype._internal__updateImpl = function () {
         _super.prototype._internal__updateImpl.call(this);
         this._internal__renderer = null;
-        var options = this._internal__source._internal_options();
+        var options = this._internal__source.options();
         this._internal__polygonRenderer._internal_setData({ _internal_line: deepCopy(options.line), _internal_points: this._internal__points });
         var compositeRenderer = new CompositeRenderer();
         compositeRenderer._internal_append(this._internal__polygonRenderer);
@@ -6595,24 +6595,24 @@ var LineToolPath = /** @class */ (function (_super) {
     function LineToolPath(model, options, points) {
         if (points === void 0) { points = []; }
         var _this = _super.call(this, model, options, points) || this;
-        _this._internal__toolType = 'Path';
-        _this._internal__setPaneViews([new PathPaneView(_this, model)]);
+        _this._toolType = 'Path';
+        _this._setPaneViews([new PathPaneView(_this, model)]);
         return _this;
     }
-    LineToolPath.prototype._internal_pointsCount = function () {
+    LineToolPath.prototype.pointsCount = function () {
         return -1;
     };
-    LineToolPath.prototype._internal_tryFinish = function () {
-        if (this._internal__points.length > 0) {
-            var point0 = this._internal__points[this._internal__points.length - 1];
-            var point1 = this._internal__points[this._internal__points.length - 2];
-            var screenPoint0 = ensureNotNull(this._internal_pointToScreenPoint(point0));
-            var screenPoint1 = ensureNotNull(this._internal_pointToScreenPoint(point1));
+    LineToolPath.prototype.tryFinish = function () {
+        if (this._points.length > 0) {
+            var point0 = this._points[this._points.length - 1];
+            var point1 = this._points[this._points.length - 2];
+            var screenPoint0 = ensureNotNull(this.pointToScreenPoint(point0));
+            var screenPoint1 = ensureNotNull(this.pointToScreenPoint(point1));
             if (screenPoint0.subtract(screenPoint1).length() < 10) {
-                this._internal__points.pop();
-                this._internal__finished = true;
-                this._internal__selected = true;
-                this._internal__lastPoint = null;
+                this._points.pop();
+                this._finished = true;
+                this._selected = true;
+                this._lastPoint = null;
             }
         }
     };
@@ -6623,7 +6623,7 @@ var LineToolRay = /** @class */ (function (_super) {
     __extends(LineToolRay, _super);
     function LineToolRay() {
         var _this = _super !== null && _super.apply(this, arguments) || this;
-        _this._internal__toolType = 'Ray';
+        _this._toolType = 'Ray';
         return _this;
     }
     return LineToolRay;
@@ -6642,21 +6642,21 @@ var RectanglePaneView = /** @class */ (function (_super) {
     RectanglePaneView.prototype._internal__updateImpl = function () {
         this._internal__renderer = null;
         this._internal__invalidated = false;
-        var priceScale = this._internal__source._internal_priceScale();
-        var timeScale = this._internal__model._internal_timeScale();
-        if (!priceScale || priceScale._internal_isEmpty() || timeScale._internal_isEmpty()) {
+        var priceScale = this._internal__source.priceScale();
+        var timeScale = this._internal__model.timeScale();
+        if (!priceScale || priceScale.isEmpty() || timeScale.isEmpty()) {
             return;
         }
-        var strictRange = timeScale._internal_visibleTimeRange();
+        var strictRange = timeScale.visibleTimeRange();
         if (strictRange === null) {
             return;
         }
-        var points = this._internal__source._internal_points();
+        var points = this._internal__source.points();
         if (points.length < 2) {
             return;
         }
-        var options = this._internal__source._internal_options();
-        var isOutsideView = Math.max(points[0].timestamp, points[1].timestamp) < strictRange.from._internal_timestamp;
+        var options = this._internal__source.options();
+        var isOutsideView = Math.max(points[0].timestamp, points[1].timestamp) < strictRange.from.timestamp;
         if (!isOutsideView || options.rectangle.extend.left || options.rectangle.extend.right) {
             _super.prototype._internal__updateImpl.call(this);
             if (this._internal__points.length < 2) {
@@ -6720,14 +6720,14 @@ var RectanglePaneView = /** @class */ (function (_super) {
         var yDiff = topLeft.y - bottomRight.y;
         var sign = Math.sign(xDiff * yDiff);
         var pointsCursorType = [
-            sign < 0 ? PaneCursorType._internal_DiagonalNeSwResize : PaneCursorType._internal_DiagonalNwSeResize,
-            sign < 0 ? PaneCursorType._internal_DiagonalNeSwResize : PaneCursorType._internal_DiagonalNwSeResize,
-            sign > 0 ? PaneCursorType._internal_DiagonalNeSwResize : PaneCursorType._internal_DiagonalNwSeResize,
-            sign > 0 ? PaneCursorType._internal_DiagonalNeSwResize : PaneCursorType._internal_DiagonalNwSeResize,
-            PaneCursorType._internal_HorizontalResize,
-            PaneCursorType._internal_HorizontalResize,
-            PaneCursorType._internal_VerticalResize,
-            PaneCursorType._internal_VerticalResize,
+            sign < 0 ? PaneCursorType.DiagonalNeSwResize : PaneCursorType.DiagonalNwSeResize,
+            sign < 0 ? PaneCursorType.DiagonalNeSwResize : PaneCursorType.DiagonalNwSeResize,
+            sign > 0 ? PaneCursorType.DiagonalNeSwResize : PaneCursorType.DiagonalNwSeResize,
+            sign > 0 ? PaneCursorType.DiagonalNeSwResize : PaneCursorType.DiagonalNwSeResize,
+            PaneCursorType.HorizontalResize,
+            PaneCursorType.HorizontalResize,
+            PaneCursorType.VerticalResize,
+            PaneCursorType.VerticalResize,
         ];
         var anchorData = {
             _internal_points: [topLeft, bottomRight, bottomLeft, topRight, middleLeft, middleRight, topCenter, bottomCenter],
@@ -6743,45 +6743,45 @@ var LineToolRectangle = /** @class */ (function (_super) {
     function LineToolRectangle(model, options, points) {
         if (points === void 0) { points = []; }
         var _this = _super.call(this, model, options, points) || this;
-        _this._internal__toolType = 'Rectangle';
-        _this._internal__setPaneViews([new RectanglePaneView(_this, model)]);
+        _this._toolType = 'Rectangle';
+        _this._setPaneViews([new RectanglePaneView(_this, model)]);
         return _this;
     }
-    LineToolRectangle.prototype._internal_pointsCount = function () {
+    LineToolRectangle.prototype.pointsCount = function () {
         return 2;
     };
-    LineToolRectangle.prototype._internal_setPoint = function (index, point) {
+    LineToolRectangle.prototype.setPoint = function (index, point) {
         if (index < 2) {
-            _super.prototype._internal_setPoint.call(this, index, point);
+            _super.prototype.setPoint.call(this, index, point);
         }
         switch (index) {
             case 2:
-                this._internal__points[1].price = point.price;
-                this._internal__points[0].timestamp = point.timestamp;
+                this._points[1].price = point.price;
+                this._points[0].timestamp = point.timestamp;
                 break;
             case 3:
-                this._internal__points[0].price = point.price;
-                this._internal__points[1].timestamp = point.timestamp;
+                this._points[0].price = point.price;
+                this._points[1].timestamp = point.timestamp;
                 break;
             case 4:
-                this._internal__points[0].timestamp = point.timestamp;
+                this._points[0].timestamp = point.timestamp;
                 break;
             case 5:
-                this._internal__points[1].timestamp = point.timestamp;
+                this._points[1].timestamp = point.timestamp;
                 break;
             case 6:
-                this._internal__points[0].price = point.price;
+                this._points[0].price = point.price;
                 break;
             case 7:
-                this._internal__points[1].price = point.price;
+                this._points[1].price = point.price;
         }
     };
-    LineToolRectangle.prototype._internal_getPoint = function (index) {
-        return index < 2 ? _super.prototype._internal_getPoint.call(this, index) : this._internal__getAnchorPointForIndex(index);
+    LineToolRectangle.prototype.getPoint = function (index) {
+        return index < 2 ? _super.prototype.getPoint.call(this, index) : this._internal__getAnchorPointForIndex(index);
     };
     LineToolRectangle.prototype._internal__getAnchorPointForIndex = function (index) {
-        var start = this._internal_points()[0];
-        var end = this._internal_points()[1];
+        var start = this.points()[0];
+        var end = this.points()[1];
         return [
             { _internal_price: start.price, _internal_timestamp: start.timestamp },
             { _internal_price: end.price, _internal_timestamp: end.timestamp },
@@ -6806,16 +6806,16 @@ var TextPaneView = /** @class */ (function (_super) {
     }
     TextPaneView.prototype._internal__updateImpl = function (height, width) {
         this._internal__renderer = null;
-        var priceScale = this._internal__source._internal_priceScale();
-        var timeScale = this._internal__model._internal_timeScale();
-        if (!priceScale || priceScale._internal_isEmpty() || timeScale._internal_isEmpty()) {
+        var priceScale = this._internal__source.priceScale();
+        var timeScale = this._internal__model.timeScale();
+        if (!priceScale || priceScale.isEmpty() || timeScale.isEmpty()) {
             return;
         }
         _super.prototype._internal__updateImpl.call(this);
         if (this._internal__points.length < 1) {
             return;
         }
-        var options = this._internal__source._internal_options();
+        var options = this._internal__source.options();
         var data = deepCopy(options.text);
         data.box.alignment = { vertical: "bottom" /* Bottom */, horizontal: "center" /* Center */ };
         data.alignment = "center" /* Center */;
@@ -6834,11 +6834,11 @@ var LineToolText = /** @class */ (function (_super) {
     function LineToolText(model, options, points) {
         if (points === void 0) { points = []; }
         var _this = _super.call(this, model, options, points) || this;
-        _this._internal__toolType = 'Text';
-        _this._internal__setPaneViews([new TextPaneView(_this, model)]);
+        _this._toolType = 'Text';
+        _this._setPaneViews([new TextPaneView(_this, model)]);
         return _this;
     }
-    LineToolText.prototype._internal_pointsCount = function () {
+    LineToolText.prototype.pointsCount = function () {
         return 1;
     };
     return LineToolText;
@@ -6854,26 +6854,26 @@ var TriangleRenderer = /** @class */ (function (_super) {
     TriangleRenderer.prototype._internal_setData = function (data) {
         this._internal__data = data;
     };
-    TriangleRenderer.prototype._internal_hitTest = function (point) {
+    TriangleRenderer.prototype.hitTest = function (point) {
         if (null === this._internal__data || this._internal__data.points.length < 2) {
             return null;
         }
         var _a = this._internal__data.points, end0 = _a[0], end1 = _a[1];
         if (distanceToSegment(end0, end1, point)._internal_distance <= interactionTolerance._internal_line) {
-            return new HitTestResult(HitTestType._internal_MovePoint);
+            return new HitTestResult(HitTestType.MovePoint);
         }
         if (this._internal__data.points.length !== 3) {
             return null;
         }
         var end3 = this._internal__data.points[2];
         if (distanceToSegment(end1, end3, point)._internal_distance <= interactionTolerance._internal_line) {
-            return new HitTestResult(HitTestType._internal_MovePoint);
+            return new HitTestResult(HitTestType.MovePoint);
         }
         else if (distanceToSegment(end3, end0, point)._internal_distance <= interactionTolerance._internal_line) {
-            return new HitTestResult(HitTestType._internal_MovePoint);
+            return new HitTestResult(HitTestType.MovePoint);
         }
         if (this._internal__data.hitTestBackground && pointInTriangle(point, end0, end1, end3)) {
-            return new HitTestResult(HitTestType._internal_MovePointBackground);
+            return new HitTestResult(HitTestType.MovePointBackground);
         }
         return null;
     };
@@ -6911,7 +6911,7 @@ var TrianglePaneView = /** @class */ (function (_super) {
         return _this;
     }
     TrianglePaneView.prototype._internal__updateImpl = function () {
-        var options = this._internal__source._internal_options();
+        var options = this._internal__source.options();
         _super.prototype._internal__updateImpl.call(this);
         this._internal__renderer = null;
         this._internal__triangleRenderer._internal_setData(__assign(__assign({}, options.triangle), { points: this._internal__points, hitTestBackground: false }));
@@ -6928,11 +6928,11 @@ var LineToolTriangle = /** @class */ (function (_super) {
     function LineToolTriangle(model, options, points) {
         if (points === void 0) { points = []; }
         var _this = _super.call(this, model, options, points) || this;
-        _this._internal__toolType = 'Triangle';
-        _this._internal__setPaneViews([new TrianglePaneView(_this, model)]);
+        _this._toolType = 'Triangle';
+        _this._setPaneViews([new TrianglePaneView(_this, model)]);
         return _this;
     }
-    LineToolTriangle.prototype._internal_pointsCount = function () {
+    LineToolTriangle.prototype.pointsCount = function () {
         return 3;
     };
     return LineToolTriangle;
@@ -6945,24 +6945,24 @@ var VerticalLinePaneView = /** @class */ (function (_super) {
         _this._internal__lineRenderer = new SegmentRenderer();
         _this._internal__labelRenderer = new TextRenderer();
         _this._internal__renderer = null;
-        _this._internal__lineRenderer._internal_setHitTest(new HitTestResult(HitTestType._internal_MovePoint));
+        _this._internal__lineRenderer._internal_setHitTest(new HitTestResult(HitTestType.MovePoint));
         return _this;
     }
     VerticalLinePaneView.prototype._internal__updateImpl = function (height, width) {
         this._internal__renderer = null;
-        var priceScale = this._internal__source._internal_priceScale();
-        var timeScale = this._internal__model._internal_timeScale();
-        if (!priceScale || priceScale._internal_isEmpty() || timeScale._internal_isEmpty()) {
+        var priceScale = this._internal__source.priceScale();
+        var timeScale = this._internal__model.timeScale();
+        if (!priceScale || priceScale.isEmpty() || timeScale.isEmpty()) {
             return;
         }
-        var points = this._internal__source._internal_points();
+        var points = this._internal__source.points();
         if (points.length < 1) {
             return;
         }
-        var startTime = timeScale._internal_coordinateToTime(0);
-        var endTime = timeScale._internal_coordinateToTime(width);
-        var options = this._internal__source._internal_options();
-        var isOutsideView = (points[0].timestamp > endTime._internal_timestamp) || (points[0].timestamp < startTime._internal_timestamp);
+        var startTime = timeScale.coordinateToTime(0);
+        var endTime = timeScale.coordinateToTime(width);
+        var options = this._internal__source.options();
+        var isOutsideView = (points[0].timestamp > endTime.timestamp) || (points[0].timestamp < startTime.timestamp);
         if (!isOutsideView) {
             _super.prototype._internal__updateImpl.call(this);
             if (this._internal__points.length < 1) {
@@ -7001,21 +7001,21 @@ var LineToolVerticalLine = /** @class */ (function (_super) {
     function LineToolVerticalLine(model, options, points) {
         if (points === void 0) { points = []; }
         var _this = _super.call(this, model, options, points) || this;
-        _this._internal__toolType = 'VerticalLine';
-        _this._internal__setPaneViews([new VerticalLinePaneView(_this, model)]);
+        _this._toolType = 'VerticalLine';
+        _this._setPaneViews([new VerticalLinePaneView(_this, model)]);
         return _this;
     }
-    LineToolVerticalLine.prototype._internal_pointsCount = function () {
+    LineToolVerticalLine.prototype.pointsCount = function () {
         return 1;
     };
-    LineToolVerticalLine.prototype._internal_priceAxisViews = function () {
+    LineToolVerticalLine.prototype.priceAxisViews = function () {
         return [];
     };
-    LineToolVerticalLine.prototype._internal_priceAxisPoints = function () {
+    LineToolVerticalLine.prototype.priceAxisPoints = function () {
         return [];
     };
-    LineToolVerticalLine.prototype._internal_timeAxisLabelColor = function () {
-        return this._internal_options().line.color;
+    LineToolVerticalLine.prototype.timeAxisLabelColor = function () {
+        return this.options().line.color;
     };
     return LineToolVerticalLine;
 }(LineTool));
@@ -7042,41 +7042,41 @@ var LineTools = {
 
 var LineToolCreator = /** @class */ (function () {
     function LineToolCreator(model) {
-        this._internal__lastLineTool = null;
-        this._internal__activeOptions = null;
-        this._internal__activeType = null;
-        this._internal__model = model;
+        this._lastLineTool = null;
+        this._activeOptions = null;
+        this._activeType = null;
+        this._model = model;
     }
-    LineToolCreator.prototype._internal_setActiveLineTool = function (lineToolType, options) {
-        this._internal__activeOptions = options || {};
-        this._internal__activeType = lineToolType;
-        this._internal__model._internal_dataSources().forEach(function (source) {
+    LineToolCreator.prototype.setActiveLineTool = function (lineToolType, options) {
+        this._activeOptions = options || {};
+        this._activeType = lineToolType;
+        this._model.dataSources().forEach(function (source) {
             if (source instanceof LineTool) {
-                source._internal_setSelected(false);
-                source._internal_setHovered(false);
-                source._internal_setEditing(false);
+                source.setSelected(false);
+                source.setHovered(false);
+                source.setEditing(false);
             }
         });
-        this._internal__model._internal_lightUpdate();
+        this._model.lightUpdate();
     };
-    LineToolCreator.prototype._internal_hasActiveToolLine = function () {
-        return this._internal__activeType !== null;
+    LineToolCreator.prototype.hasActiveToolLine = function () {
+        return this._activeType !== null;
     };
-    LineToolCreator.prototype._internal_onInputEvent = function (paneWidget, eventType, event) {
+    LineToolCreator.prototype.onInputEvent = function (paneWidget, eventType, event) {
         var _a;
-        if (!this._internal__activeType || !this._internal__activeOptions) {
+        if (!this._activeType || !this._activeOptions) {
             return;
         }
-        event._internal_consumed = true;
+        event.consumed = true;
         if (eventType !== 6 /* MouseDown */) {
             return;
         }
-        var priceScaleId = ((_a = paneWidget._internal_state()._internal_dataSources()[0]._internal_priceScale()) === null || _a === void 0 ? void 0 : _a._internal_id()) || paneWidget._internal_state()._internal_model()._internal_defaultVisiblePriceScaleId();
-        var strictOptions = merge(clone(LineToolsOptionDefaults[this._internal__activeType]), this._internal__activeOptions || {});
-        this._internal__lastLineTool = new LineTools[this._internal__activeType](this._internal__model, strictOptions, []);
-        paneWidget._internal_state()._internal_addDataSource(this._internal__lastLineTool, priceScaleId);
-        this._internal__activeType = null;
-        this._internal__activeOptions = null;
+        var priceScaleId = ((_a = paneWidget.state().dataSources()[0].priceScale()) === null || _a === void 0 ? void 0 : _a.id()) || paneWidget.state().model().defaultVisiblePriceScaleId();
+        var strictOptions = merge(clone(LineToolsOptionDefaults[this._activeType]), this._activeOptions || {});
+        this._lastLineTool = new LineTools[this._activeType](this._model, strictOptions, []);
+        paneWidget.state().addDataSource(this._lastLineTool, priceScaleId);
+        this._activeType = null;
+        this._activeOptions = null;
     };
     return LineToolCreator;
 }());
@@ -7139,8 +7139,8 @@ function walkLine(ctx, points, lineType, visibleRange) {
             ctx.closePath();
             ctx.beginPath();
         }
-        var x = points[j]._internal_x;
-        var y = points[j]._internal_y;
+        var x = points[j].x;
+        var y = points[j].y;
         ctx.moveTo(x, y);
         ctx.strokeStyle = currentColor !== null && currentColor !== void 0 ? currentColor : ctx.strokeStyle;
         colorUsedMap[currentColor || 'undefiend'] = true;
@@ -7149,19 +7149,19 @@ function walkLine(ctx, points, lineType, visibleRange) {
             //  x---x---x   or   x---x   o   or   start
             if (points[i - 1]._internal_color === currentColor) {
                 if (lineType === 1 /* WithSteps */) {
-                    var prevY = points[i - 1]._internal_y;
-                    var currX = currItem._internal_x;
+                    var prevY = points[i - 1].y;
+                    var currX = currItem.x;
                     ctx.lineTo(currX, prevY);
                 }
                 else if (lineType === 2 /* WithStepsUpsideDown */) {
-                    var prevX = points[i - 1]._internal_x;
-                    var currY = currItem._internal_y;
+                    var prevX = points[i - 1].x;
+                    var currY = currItem.y;
                     ctx.lineTo(prevX, currY);
                 }
-                ctx.lineTo(currItem._internal_x, currItem._internal_y);
+                ctx.lineTo(currItem.x, currItem.y);
             }
             else {
-                ctx.moveTo(currItem._internal_x, currItem._internal_y);
+                ctx.moveTo(currItem.x, currItem.y);
             }
         }
     }
@@ -7193,18 +7193,18 @@ var PaneRendererAreaBase = /** @class */ (function (_super) {
         if (this._internal__data._internal_items.length === 1) {
             var point = this._internal__data._internal_items[0];
             var halfBarWidth = this._internal__data._internal_barWidth / 2;
-            ctx.moveTo(point._internal_x - halfBarWidth, this._internal__data._internal_baseLevelCoordinate);
-            ctx.lineTo(point._internal_x - halfBarWidth, point._internal_y);
-            ctx.lineTo(point._internal_x + halfBarWidth, point._internal_y);
-            ctx.lineTo(point._internal_x + halfBarWidth, this._internal__data._internal_baseLevelCoordinate);
+            ctx.moveTo(point.x - halfBarWidth, this._internal__data._internal_baseLevelCoordinate);
+            ctx.lineTo(point.x - halfBarWidth, point.y);
+            ctx.lineTo(point.x + halfBarWidth, point.y);
+            ctx.lineTo(point.x + halfBarWidth, this._internal__data._internal_baseLevelCoordinate);
         }
         else {
-            ctx.moveTo(this._internal__data._internal_items[this._internal__data._internal_visibleRange.from]._internal_x, this._internal__data._internal_baseLevelCoordinate);
-            ctx.lineTo(this._internal__data._internal_items[this._internal__data._internal_visibleRange.from]._internal_x, this._internal__data._internal_items[this._internal__data._internal_visibleRange.from]._internal_y);
+            ctx.moveTo(this._internal__data._internal_items[this._internal__data._internal_visibleRange.from].x, this._internal__data._internal_baseLevelCoordinate);
+            ctx.lineTo(this._internal__data._internal_items[this._internal__data._internal_visibleRange.from].x, this._internal__data._internal_items[this._internal__data._internal_visibleRange.from].y);
             walkLine(ctx, this._internal__data._internal_items, this._internal__data._internal_lineType, this._internal__data._internal_visibleRange);
             if (this._internal__data._internal_visibleRange.to > this._internal__data._internal_visibleRange.from) {
-                ctx.lineTo(this._internal__data._internal_items[this._internal__data._internal_visibleRange.to - 1]._internal_x, this._internal__data._internal_baseLevelCoordinate);
-                ctx.lineTo(this._internal__data._internal_items[this._internal__data._internal_visibleRange.from]._internal_x, this._internal__data._internal_baseLevelCoordinate);
+                ctx.lineTo(this._internal__data._internal_items[this._internal__data._internal_visibleRange.to - 1].x, this._internal__data._internal_baseLevelCoordinate);
+                ctx.lineTo(this._internal__data._internal_items[this._internal__data._internal_visibleRange.from].x, this._internal__data._internal_baseLevelCoordinate);
             }
         }
         ctx.closePath();
@@ -7254,8 +7254,8 @@ var PaneRendererLineBase = /** @class */ (function (_super) {
         // TODO: implement drawing a colored line, see https://github.com/tradingview/lightweight-charts/issues/195#issuecomment-961850692
         if (this._internal__data._internal_items.length === 1) {
             var point = this._internal__data._internal_items[0];
-            ctx.moveTo(point._internal_x - this._internal__data._internal_barWidth / 2, point._internal_y);
-            ctx.lineTo(point._internal_x + this._internal__data._internal_barWidth / 2, point._internal_y);
+            ctx.moveTo(point.x - this._internal__data._internal_barWidth / 2, point.y);
+            ctx.lineTo(point.x + this._internal__data._internal_barWidth / 2, point.y);
             if (point._internal_color !== undefined) {
                 ctx.strokeStyle = point._internal_color;
             }
@@ -7287,7 +7287,7 @@ var PaneRendererLine = /** @class */ (function (_super) {
         }
         ctx.beginPath();
         var firstItem = items[visibleRange.from];
-        ctx.moveTo(firstItem._internal_x, firstItem._internal_y);
+        ctx.moveTo(firstItem.x, firstItem.y);
         var prevStrokeStyle = (_a = firstItem._internal_color) !== null && _a !== void 0 ? _a : lineColor;
         ctx.strokeStyle = prevStrokeStyle;
         var changeColor = function (color) {
@@ -7301,16 +7301,16 @@ var PaneRendererLine = /** @class */ (function (_super) {
             var prevItem = items[i - 1];
             var currentStrokeStyle = (_b = currItem._internal_color) !== null && _b !== void 0 ? _b : lineColor;
             if (lineType === 1 /* WithSteps */) {
-                ctx.lineTo(currItem._internal_x, prevItem._internal_y);
+                ctx.lineTo(currItem.x, prevItem.y);
                 if (currentStrokeStyle !== prevStrokeStyle) {
                     changeColor(currentStrokeStyle);
-                    ctx.moveTo(currItem._internal_x, prevItem._internal_y);
+                    ctx.moveTo(currItem.x, prevItem.y);
                 }
             }
-            ctx.lineTo(currItem._internal_x, currItem._internal_y);
+            ctx.lineTo(currItem.x, currItem.y);
             if (lineType !== 1 /* WithSteps */ && currentStrokeStyle !== prevStrokeStyle) {
                 changeColor(currentStrokeStyle);
-                ctx.moveTo(currItem._internal_x, currItem._internal_y);
+                ctx.moveTo(currItem.x, currItem.y);
             }
         }
         ctx.stroke();
@@ -7366,14 +7366,14 @@ function findLastIndex(items, callback) {
 }
 
 function lowerBoundItemsCompare(item, time) {
-    return item._internal_time < time;
+    return item.time < time;
 }
 function upperBoundItemsCompare(time, item) {
-    return time < item._internal_time;
+    return time < item.time;
 }
 function visibleTimedValues(items, range, extendedRange) {
-    var firstBar = range._internal_left();
-    var lastBar = range._internal_right();
+    var firstBar = range.left();
+    var lastBar = range.right();
     var from = lowerbound(items, firstBar, lowerBoundItemsCompare);
     var to = upperbound(items, lastBar, upperBoundItemsCompare);
     if (!extendedRange) {
@@ -7381,10 +7381,10 @@ function visibleTimedValues(items, range, extendedRange) {
     }
     var extendedFrom = from;
     var extendedTo = to;
-    if (from > 0 && from < items.length && items[from]._internal_time >= firstBar) {
+    if (from > 0 && from < items.length && items[from].time >= firstBar) {
         extendedFrom = from - 1;
     }
-    if (to > 0 && to < items.length && items[to - 1]._internal_time <= lastBar) {
+    if (to > 0 && to < items.length && items[to - 1].time <= lastBar) {
         extendedTo = to + 1;
     }
     return { from: extendedFrom, to: extendedTo };
@@ -7401,7 +7401,7 @@ var SeriesPaneViewBase = /** @class */ (function () {
         this._internal__model = model;
         this._internal__extendedVisibleRange = extendedVisibleRange;
     }
-    SeriesPaneViewBase.prototype._internal_update = function (updateType) {
+    SeriesPaneViewBase.prototype.update = function (updateType) {
         this._internal__invalidated = true;
         if (updateType === 'data') {
             this._internal__dataInvalidated = true;
@@ -7428,25 +7428,25 @@ var SeriesPaneViewBase = /** @class */ (function () {
         this._internal__itemsVisibleRange = null;
     };
     SeriesPaneViewBase.prototype._internal__updatePoints = function () {
-        var priceScale = this._internal__series._internal_priceScale();
-        var timeScale = this._internal__model._internal_timeScale();
+        var priceScale = this._internal__series.priceScale();
+        var timeScale = this._internal__model.timeScale();
         this._internal__clearVisibleRange();
-        if (timeScale._internal_isEmpty() || priceScale._internal_isEmpty()) {
+        if (timeScale.isEmpty() || priceScale.isEmpty()) {
             return;
         }
-        var visibleBars = timeScale._internal_visibleStrictRange();
+        var visibleBars = timeScale.visibleStrictRange();
         if (visibleBars === null) {
             return;
         }
-        if (this._internal__series._internal_bars()._internal_size() === 0) {
+        if (this._internal__series.bars().size() === 0) {
             return;
         }
-        var firstValue = this._internal__series._internal_firstValue();
+        var firstValue = this._internal__series.firstValue();
         if (firstValue === null) {
             return;
         }
         this._internal__itemsVisibleRange = visibleTimedValues(this._internal__items, visibleBars, this._internal__extendedVisibleRange);
-        this._internal__convertToCoordinates(priceScale, timeScale, firstValue._internal_value);
+        this._internal__convertToCoordinates(priceScale, timeScale, firstValue.value);
     };
     return SeriesPaneViewBase;
 }());
@@ -7457,24 +7457,24 @@ var LinePaneViewBase = /** @class */ (function (_super) {
         return _super.call(this, series, model, true) || this;
     }
     LinePaneViewBase.prototype._internal__convertToCoordinates = function (priceScale, timeScale, firstValue) {
-        timeScale._internal_indexesToCoordinates(this._internal__items, undefinedIfNull(this._internal__itemsVisibleRange));
-        priceScale._internal_pointsArrayToCoordinates(this._internal__items, firstValue, undefinedIfNull(this._internal__itemsVisibleRange));
+        timeScale.indexesToCoordinates(this._internal__items, undefinedIfNull(this._internal__itemsVisibleRange));
+        priceScale.pointsArrayToCoordinates(this._internal__items, firstValue, undefinedIfNull(this._internal__itemsVisibleRange));
     };
     LinePaneViewBase.prototype._internal__createRawItemBase = function (time, price) {
         return {
-            _internal_time: time,
-            _internal_price: price,
-            _internal_x: NaN,
-            _internal_y: NaN,
+            time: time,
+            price: price,
+            x: NaN,
+            y: NaN,
         };
     };
     LinePaneViewBase.prototype._internal__updateOptions = function () { };
     LinePaneViewBase.prototype._internal__fillRawPoints = function () {
         var _this = this;
-        var colorer = this._internal__series._internal_barColorer();
-        this._internal__items = this._internal__series._internal_bars()._internal_rows().map(function (row) {
-            var value = row._internal_value[3 /* Close */];
-            return _this._internal__createRawItem(row._internal_index, value, colorer);
+        var colorer = this._internal__series.barColorer();
+        this._internal__items = this._internal__series.bars().rows().map(function (row) {
+            var value = row.value[3 /* Close */];
+            return _this._internal__createRawItem(row.index, value, colorer);
         });
     };
     return LinePaneViewBase;
@@ -7490,11 +7490,11 @@ var SeriesAreaPaneView = /** @class */ (function (_super) {
         _this._private__renderer._internal_setRenderers([_this._private__areaRenderer, _this._private__lineRenderer]);
         return _this;
     }
-    SeriesAreaPaneView.prototype._internal_renderer = function (height, width) {
-        if (!this._internal__series._internal_visible()) {
+    SeriesAreaPaneView.prototype.renderer = function (height, width) {
+        if (!this._internal__series.visible()) {
             return null;
         }
-        var areaStyleProperties = this._internal__series._internal_options();
+        var areaStyleProperties = this._internal__series.options();
         this._internal__makeValid();
         this._private__areaRenderer._internal_setData({
             _internal_lineType: areaStyleProperties.lineType,
@@ -7506,7 +7506,7 @@ var SeriesAreaPaneView = /** @class */ (function (_super) {
             _internal_baseLevelCoordinate: height,
             _internal_bottom: height,
             _internal_visibleRange: this._internal__itemsVisibleRange,
-            _internal_barWidth: this._internal__model._internal_timeScale()._internal_barSpacing(),
+            _internal_barWidth: this._internal__model.timeScale().barSpacing(),
         });
         this._private__lineRenderer._internal_setData({
             _internal_lineType: areaStyleProperties.lineType,
@@ -7515,7 +7515,7 @@ var SeriesAreaPaneView = /** @class */ (function (_super) {
             _internal_lineStyle: areaStyleProperties.lineStyle,
             _internal_lineWidth: areaStyleProperties.lineWidth,
             _internal_visibleRange: this._internal__itemsVisibleRange,
-            _internal_barWidth: this._internal__model._internal_timeScale()._internal_barSpacing(),
+            _internal_barWidth: this._internal__model.timeScale().barSpacing(),
         });
         return this._private__renderer;
     };
@@ -7535,11 +7535,11 @@ var PaneRendererBars = /** @class */ (function () {
         this._private__data = data;
     };
     // eslint-disable-next-line complexity
-    PaneRendererBars.prototype._internal_draw = function (ctx, renderParams) {
+    PaneRendererBars.prototype.draw = function (ctx, renderParams) {
         if (this._private__data === null || this._private__data._internal_bars.length === 0 || this._private__data._internal_visibleRange === null) {
             return;
         }
-        var pixelRatio = renderParams._internal_pixelRatio;
+        var pixelRatio = renderParams.pixelRatio;
         this._private__barWidth = this._private__calcBarWidth(pixelRatio);
         // grid and crosshair have line width = Math.floor(pixelRatio)
         // if this value is odd, we have to make bars' width odd
@@ -7562,12 +7562,12 @@ var PaneRendererBars = /** @class */ (function () {
                 prevColor = bar._internal_color;
             }
             var bodyWidthHalf = Math.floor(this._private__barLineWidth * 0.5);
-            var bodyCenter = Math.round(bar._internal_x * pixelRatio);
+            var bodyCenter = Math.round(bar.x * pixelRatio);
             var bodyLeft = bodyCenter - bodyWidthHalf;
             var bodyWidth = this._private__barLineWidth;
             var bodyRight = bodyLeft + bodyWidth - 1;
-            var high = Math.min(bar._internal_highY, bar._internal_lowY);
-            var low = Math.max(bar._internal_highY, bar._internal_lowY);
+            var high = Math.min(bar.highY, bar.lowY);
+            var low = Math.max(bar.highY, bar.lowY);
             var bodyTop = Math.round(high * pixelRatio) - bodyWidthHalf;
             var bodyBottom = Math.round(low * pixelRatio) + bodyWidthHalf;
             var bodyHeight = Math.max((bodyBottom - bodyTop), this._private__barLineWidth);
@@ -7576,7 +7576,7 @@ var PaneRendererBars = /** @class */ (function () {
             if (drawOpenClose) {
                 if (this._private__data._internal_openVisible) {
                     var openLeft = bodyCenter - sideWidth;
-                    var openTop = Math.max(bodyTop, Math.round(bar._internal_openY * pixelRatio) - bodyWidthHalf);
+                    var openTop = Math.max(bodyTop, Math.round(bar.openY * pixelRatio) - bodyWidthHalf);
                     var openBottom = openTop + bodyWidth - 1;
                     if (openBottom > bodyTop + bodyHeight - 1) {
                         openBottom = bodyTop + bodyHeight - 1;
@@ -7585,7 +7585,7 @@ var PaneRendererBars = /** @class */ (function () {
                     ctx.fillRect(openLeft, openTop, bodyLeft - openLeft, openBottom - openTop + 1);
                 }
                 var closeRight = bodyCenter + sideWidth;
-                var closeTop = Math.max(bodyTop, Math.round(bar._internal_closeY * pixelRatio) - bodyWidthHalf);
+                var closeTop = Math.max(bodyTop, Math.round(bar.closeY * pixelRatio) - bodyWidthHalf);
                 var closeBottom = closeTop + bodyWidth - 1;
                 if (closeBottom > bodyTop + bodyHeight - 1) {
                     closeBottom = bodyTop + bodyHeight - 1;
@@ -7608,27 +7608,27 @@ var BarsPaneViewBase = /** @class */ (function (_super) {
         return _super.call(this, series, model, false) || this;
     }
     BarsPaneViewBase.prototype._internal__convertToCoordinates = function (priceScale, timeScale, firstValue) {
-        timeScale._internal_indexesToCoordinates(this._internal__items, undefinedIfNull(this._internal__itemsVisibleRange));
-        priceScale._internal_barPricesToCoordinates(this._internal__items, firstValue, undefinedIfNull(this._internal__itemsVisibleRange));
+        timeScale.indexesToCoordinates(this._internal__items, undefinedIfNull(this._internal__itemsVisibleRange));
+        priceScale.barPricesToCoordinates(this._internal__items, firstValue, undefinedIfNull(this._internal__itemsVisibleRange));
     };
     BarsPaneViewBase.prototype._internal__createDefaultItem = function (time, bar, colorer) {
         return {
-            _internal_time: time,
-            open: bar._internal_value[0 /* Open */],
-            high: bar._internal_value[1 /* High */],
-            low: bar._internal_value[2 /* Low */],
-            close: bar._internal_value[3 /* Close */],
-            _internal_x: NaN,
-            _internal_openY: NaN,
-            _internal_highY: NaN,
-            _internal_lowY: NaN,
-            _internal_closeY: NaN,
+            time: time,
+            open: bar.value[0 /* Open */],
+            high: bar.value[1 /* High */],
+            low: bar.value[2 /* Low */],
+            close: bar.value[3 /* Close */],
+            x: NaN,
+            openY: NaN,
+            highY: NaN,
+            lowY: NaN,
+            closeY: NaN,
         };
     };
     BarsPaneViewBase.prototype._internal__fillRawPoints = function () {
         var _this = this;
-        var colorer = this._internal__series._internal_barColorer();
-        this._internal__items = this._internal__series._internal_bars()._internal_rows().map(function (row) { return _this._internal__createRawItem(row._internal_index, row, colorer); });
+        var colorer = this._internal__series.barColorer();
+        this._internal__items = this._internal__series.bars().rows().map(function (row) { return _this._internal__createRawItem(row.index, row, colorer); });
     };
     return BarsPaneViewBase;
 }(SeriesPaneViewBase));
@@ -7640,15 +7640,15 @@ var SeriesBarsPaneView = /** @class */ (function (_super) {
         _this._private__renderer = new PaneRendererBars();
         return _this;
     }
-    SeriesBarsPaneView.prototype._internal_renderer = function (height, width) {
-        if (!this._internal__series._internal_visible()) {
+    SeriesBarsPaneView.prototype.renderer = function (height, width) {
+        if (!this._internal__series.visible()) {
             return null;
         }
-        var barStyleProps = this._internal__series._internal_options();
+        var barStyleProps = this._internal__series.options();
         this._internal__makeValid();
         var data = {
             _internal_bars: this._internal__items,
-            _internal_barSpacing: this._internal__model._internal_timeScale()._internal_barSpacing(),
+            _internal_barSpacing: this._internal__model.timeScale().barSpacing(),
             _internal_openVisible: barStyleProps.openVisible,
             _internal_thinBars: barStyleProps.thinBars,
             _internal_visibleRange: this._internal__itemsVisibleRange,
@@ -7659,11 +7659,11 @@ var SeriesBarsPaneView = /** @class */ (function (_super) {
     SeriesBarsPaneView.prototype._internal__updateOptions = function () {
         var _this = this;
         this._internal__items.forEach(function (item) {
-            item._internal_color = _this._internal__series._internal_barColorer()._internal_barStyle(item._internal_time)._internal_barColor;
+            item._internal_color = _this._internal__series.barColorer().barStyle(item.time).barColor;
         });
     };
     SeriesBarsPaneView.prototype._internal__createRawItem = function (time, bar, colorer) {
-        return __assign(__assign({}, this._internal__createDefaultItem(time, bar, colorer)), { _internal_color: colorer._internal_barStyle(time)._internal_barColor });
+        return __assign(__assign({}, this._internal__createDefaultItem(time, bar, colorer)), { _internal_color: colorer.barStyle(time).barColor });
     };
     return SeriesBarsPaneView;
 }(BarsPaneViewBase));
@@ -7715,18 +7715,18 @@ var SeriesBaselinePaneView = /** @class */ (function (_super) {
         _this._private__compositeRenderer._internal_setRenderers([_this._private__baselineAreaRenderer, _this._private__baselineLineRenderer]);
         return _this;
     }
-    SeriesBaselinePaneView.prototype._internal_renderer = function (height, width) {
-        if (!this._internal__series._internal_visible()) {
+    SeriesBaselinePaneView.prototype.renderer = function (height, width) {
+        if (!this._internal__series.visible()) {
             return null;
         }
-        var firstValue = this._internal__series._internal_firstValue();
+        var firstValue = this._internal__series.firstValue();
         if (firstValue === null) {
             return null;
         }
-        var baselineProps = this._internal__series._internal_options();
+        var baselineProps = this._internal__series.options();
         this._internal__makeValid();
-        var baseLevelCoordinate = this._internal__series._internal_priceScale()._internal_priceToCoordinate(baselineProps.baseValue.price, firstValue._internal_value);
-        var barWidth = this._internal__model._internal_timeScale()._internal_barSpacing();
+        var baseLevelCoordinate = this._internal__series.priceScale().priceToCoordinate(baselineProps.baseValue.price, firstValue.value);
+        var barWidth = this._internal__model.timeScale().barSpacing();
         this._private__baselineAreaRenderer._internal_setData({
             _internal_items: this._internal__items,
             _internal_topFillColor1: baselineProps.topFillColor1,
@@ -7790,11 +7790,11 @@ var PaneRendererBrokenArea = /** @class */ (function (_super) {
         var lastColor = null;
         for (var i = chunkStart; i < chunkEnd; ++i) {
             var currItem = this._internal__data._internal_items[i];
-            if (lastTime !== null && (currItem._internal_time - lastTime > 1 || currItem._internal_color !== lastColor)) {
-                chunks.push([chunkStart, currItem._internal_time - lastTime > 1 ? i - 1 : i]);
+            if (lastTime !== null && (currItem.time - lastTime > 1 || currItem._internal_color !== lastColor)) {
+                chunks.push([chunkStart, currItem.time - lastTime > 1 ? i - 1 : i]);
                 chunkStart = i;
             }
-            lastTime = currItem._internal_time;
+            lastTime = currItem.time;
             lastColor = currItem._internal_color;
         }
         chunks.push([chunkStart, chunkEnd ? chunkEnd - 1 : 0]);
@@ -7806,31 +7806,31 @@ var PaneRendererBrokenArea = /** @class */ (function (_super) {
             var toItemIndex = chunks[i][1];
             if (typeof this._internal__data._internal_items[fromItemIndex]._internal_label !== 'undefined') {
                 ctx.fillStyle = this._internal__data._internal_strokeColor;
-                ctx.fillText(this._internal__data._internal_items[fromItemIndex]._internal_label, this._internal__data._internal_items[fromItemIndex]._internal_x, this._internal__data._internal_items[fromItemIndex]._internal_higherY - 4);
+                ctx.fillText(this._internal__data._internal_items[fromItemIndex]._internal_label, this._internal__data._internal_items[fromItemIndex].x, this._internal__data._internal_items[fromItemIndex].higherY - 4);
                 ctx.fillStyle = this._internal__data._internal_color;
             }
             if (typeof this._internal__data._internal_items[fromItemIndex]._internal_color !== 'undefined') {
                 ctx.fillStyle = this._internal__data._internal_items[fromItemIndex]._internal_color;
             }
             ctx.beginPath();
-            ctx.moveTo(this._internal__data._internal_items[fromItemIndex]._internal_x, this._internal__data._internal_items[fromItemIndex]._internal_higherY);
-            if (this._internal__data._internal_items[0]._internal_extendRight && this._internal__data._internal_items[fromItemIndex]._internal_higherY === this._internal__data._internal_items[fromItemIndex]._internal_lowerY && this._internal__data._internal_items.length === 1) {
-                ctx.lineTo(this._internal__data._internal_items[toItemIndex]._internal_end, this._internal__data._internal_items[toItemIndex]._internal_higherY);
-                ctx.lineTo(this._internal__data._internal_items[toItemIndex]._internal_end, this._internal__data._internal_items[toItemIndex]._internal_lowerY);
+            ctx.moveTo(this._internal__data._internal_items[fromItemIndex].x, this._internal__data._internal_items[fromItemIndex].higherY);
+            if (this._internal__data._internal_items[0]._internal_extendRight && this._internal__data._internal_items[fromItemIndex].higherY === this._internal__data._internal_items[fromItemIndex].lowerY && this._internal__data._internal_items.length === 1) {
+                ctx.lineTo(this._internal__data._internal_items[toItemIndex].end, this._internal__data._internal_items[toItemIndex].higherY);
+                ctx.lineTo(this._internal__data._internal_items[toItemIndex].end, this._internal__data._internal_items[toItemIndex].lowerY);
                 if (this._internal__data._internal_strokeWidth) {
                     ctx.stroke();
                 }
                 continue;
             }
             for (var j = fromItemIndex; j <= toItemIndex; j++) {
-                ctx.lineTo(this._internal__data._internal_items[j]._internal_x, this._internal__data._internal_items[j]._internal_higherY);
+                ctx.lineTo(this._internal__data._internal_items[j].x, this._internal__data._internal_items[j].higherY);
             }
             if (this._internal__data._internal_items[0]._internal_extendRight) {
-                ctx.lineTo(this._internal__data._internal_items[toItemIndex]._internal_end, this._internal__data._internal_items[toItemIndex]._internal_higherY);
-                ctx.lineTo(this._internal__data._internal_items[toItemIndex]._internal_end, this._internal__data._internal_items[toItemIndex]._internal_lowerY);
+                ctx.lineTo(this._internal__data._internal_items[toItemIndex].end, this._internal__data._internal_items[toItemIndex].higherY);
+                ctx.lineTo(this._internal__data._internal_items[toItemIndex].end, this._internal__data._internal_items[toItemIndex].lowerY);
             }
             for (var j = toItemIndex; j >= fromItemIndex; --j) {
-                ctx.lineTo(this._internal__data._internal_items[j]._internal_x, this._internal__data._internal_items[j]._internal_lowerY);
+                ctx.lineTo(this._internal__data._internal_items[j].x, this._internal__data._internal_items[j].lowerY);
             }
             ctx.closePath();
             if (this._internal__data._internal_color) {
@@ -7850,37 +7850,37 @@ var CloudAreaPaneViewBase = /** @class */ (function (_super) {
         return _super.call(this, series, model, true) || this;
     }
     CloudAreaPaneViewBase.prototype._internal__convertToCoordinates = function (priceScale, timeScale, firstValue) {
-        timeScale._internal_indexesToCoordinates(this._internal__items, undefinedIfNull(this._internal__itemsVisibleRange));
-        priceScale._internal_cloudPointsArrayToCoordinates(this._internal__items, firstValue, undefinedIfNull(this._internal__itemsVisibleRange));
+        timeScale.indexesToCoordinates(this._internal__items, undefinedIfNull(this._internal__itemsVisibleRange));
+        priceScale.cloudPointsArrayToCoordinates(this._internal__items, firstValue, undefinedIfNull(this._internal__itemsVisibleRange));
     };
     CloudAreaPaneViewBase.prototype._internal__updateOptions = function () { };
     CloudAreaPaneViewBase.prototype._internal__updatePoints = function () {
-        var priceScale = this._internal__series._internal_priceScale();
-        var timeScale = this._internal__model._internal_timeScale();
+        var priceScale = this._internal__series.priceScale();
+        var timeScale = this._internal__model.timeScale();
         this._internal__clearVisibleRange();
-        if (timeScale._internal_isEmpty() || priceScale._internal_isEmpty()) {
+        if (timeScale.isEmpty() || priceScale.isEmpty()) {
             return;
         }
-        var visibleBars = timeScale._internal_visibleStrictRange();
+        var visibleBars = timeScale.visibleStrictRange();
         if (visibleBars === null) {
             return;
         }
-        if (this._internal__series._internal_bars()._internal_size() === 0) {
+        if (this._internal__series.bars().size() === 0) {
             return;
         }
-        var firstValue = this._internal__series._internal_firstValue();
+        var firstValue = this._internal__series.firstValue();
         if (firstValue === null) {
             return;
         }
         this._internal__itemsVisibleRange = visibleTimedValues(this._internal__items, visibleBars, this._internal__extendedVisibleRange);
-        this._internal__convertToCoordinates(priceScale, timeScale, firstValue._internal_value);
+        this._internal__convertToCoordinates(priceScale, timeScale, firstValue.value);
     };
     CloudAreaPaneViewBase.prototype._internal__fillRawPoints = function () {
-        this._internal__items = this._internal__series._internal_bars()._internal_rows().map(function (row) {
-            var higherValue = row._internal_value[1 /* High */];
-            var lowerValue = row._internal_value[2 /* Low */];
+        this._internal__items = this._internal__series.bars().rows().map(function (row) {
+            var higherValue = row.value[1 /* High */];
+            var lowerValue = row.value[2 /* Low */];
             return {
-                _internal_time: row._internal_index,
+                _internal_time: row.index,
                 _internal_higherPrice: higherValue,
                 _internal_lowerPrice: lowerValue,
                 _internal_x: NaN,
@@ -7905,11 +7905,11 @@ var SeriesBrokenAreaPaneView = /** @class */ (function (_super) {
     SeriesBrokenAreaPaneView.prototype._internal_setExtensionsBoundaries = function (extensionsBoundaries) {
         this._private__brokenAreaRenderer._internal_extensionsBoundaries = extensionsBoundaries;
     };
-    SeriesBrokenAreaPaneView.prototype._internal_renderer = function (height, width) {
-        if (!this._internal__series._internal_visible()) {
+    SeriesBrokenAreaPaneView.prototype.renderer = function (height, width) {
+        if (!this._internal__series.visible()) {
             return null;
         }
-        var areaStyleProperties = this._internal__series._internal_options();
+        var areaStyleProperties = this._internal__series.options();
         this._internal__makeValid();
         var brokenAreaRenderer = {
             _internal_items: this._internal__items,
@@ -7919,39 +7919,39 @@ var SeriesBrokenAreaPaneView = /** @class */ (function (_super) {
             _internal_compositeOperation: areaStyleProperties.compositeOperation,
             _internal_width: width,
             _internal_visibleRange: this._internal__itemsVisibleRange,
-            _internal_barWidth: this._internal__model._internal_timeScale()._internal_barSpacing(),
+            _internal_barWidth: this._internal__model.timeScale().barSpacing(),
         };
         this._private__brokenAreaRenderer._internal_setData(brokenAreaRenderer);
         return this._private__renderer;
     };
     SeriesBrokenAreaPaneView.prototype._internal__convertToCoordinates = function (priceScale, timeScale, firstValue) {
-        timeScale._internal_indexesToCoordinatesExtensions(this._internal__items, this._private__brokenAreaRenderer._internal_extensionsBoundaries, undefinedIfNull(this._internal__itemsVisibleRange));
-        priceScale._internal_cloudPointsArrayToCoordinates(this._internal__items, firstValue, undefinedIfNull(this._internal__itemsVisibleRange));
+        timeScale.indexesToCoordinatesExtensions(this._internal__items, this._private__brokenAreaRenderer._internal_extensionsBoundaries, undefinedIfNull(this._internal__itemsVisibleRange));
+        priceScale.cloudPointsArrayToCoordinates(this._internal__items, firstValue, undefinedIfNull(this._internal__itemsVisibleRange));
     };
     SeriesBrokenAreaPaneView.prototype._internal__fillRawPoints = function () {
-        this._internal__items = this._internal__series._internal_bars()._internal_rows().map(function (row) {
-            var higherValue = row._internal_value[1 /* High */];
-            var lowerValue = row._internal_value[2 /* Low */];
+        this._internal__items = this._internal__series.bars().rows().map(function (row) {
+            var higherValue = row.value[1 /* High */];
+            var lowerValue = row.value[2 /* Low */];
             var res = {
-                _internal_time: row._internal_index,
-                _internal_higherPrice: higherValue,
-                _internal_lowerPrice: lowerValue,
-                _internal_x: NaN,
-                _internal_end: NaN,
-                _internal_higherY: NaN,
-                _internal_lowerY: NaN,
+                time: row.index,
+                higherPrice: higherValue,
+                lowerPrice: lowerValue,
+                x: NaN,
+                end: NaN,
+                higherY: NaN,
+                lowerY: NaN,
             };
-            if (typeof row._internal_color !== 'undefined') {
-                res._internal_color = row._internal_color;
+            if (typeof row.color !== 'undefined') {
+                res._internal_color = row.color;
             }
-            if (typeof row._internal_id !== 'undefined') {
-                res._internal_id = row._internal_id;
+            if (typeof row.id !== 'undefined') {
+                res.id = row.id;
             }
-            if (typeof row._internal_label !== 'undefined') {
-                res._internal_label = row._internal_label;
+            if (typeof row.label !== 'undefined') {
+                res._internal_label = row.label;
             }
-            if (typeof row._internal_extendRight !== 'undefined') {
-                res._internal_extendRight = row._internal_extendRight;
+            if (typeof row.extendRight !== 'undefined') {
+                res._internal_extendRight = row.extendRight;
             }
             return res;
         });
@@ -7968,11 +7968,11 @@ var PaneRendererCandlesticks = /** @class */ (function () {
     PaneRendererCandlesticks.prototype._internal_setData = function (data) {
         this._private__data = data;
     };
-    PaneRendererCandlesticks.prototype._internal_draw = function (ctx, renderParams) {
+    PaneRendererCandlesticks.prototype.draw = function (ctx, renderParams) {
         if (this._private__data === null || this._private__data._internal_bars.length === 0 || this._private__data._internal_visibleRange === null) {
             return;
         }
-        var pixelRatio = renderParams._internal_pixelRatio;
+        var pixelRatio = renderParams.pixelRatio;
         // now we know pixelRatio and we could calculate barWidth effectively
         this._private__barWidth = optimalCandlestickWidth(this._private__data._internal_barSpacing, pixelRatio);
         // grid and crosshair have line width = Math.floor(pixelRatio)
@@ -8012,11 +8012,11 @@ var PaneRendererCandlesticks = /** @class */ (function () {
                 ctx.fillStyle = bar._internal_wickColor;
                 prevWickColor = bar._internal_wickColor;
             }
-            var top_1 = Math.round(Math.min(bar._internal_openY, bar._internal_closeY) * pixelRatio);
-            var bottom = Math.round(Math.max(bar._internal_openY, bar._internal_closeY) * pixelRatio);
-            var high = Math.round(bar._internal_highY * pixelRatio);
-            var low = Math.round(bar._internal_lowY * pixelRatio);
-            var scaledX = Math.round(pixelRatio * bar._internal_x);
+            var top_1 = Math.round(Math.min(bar.openY, bar.closeY) * pixelRatio);
+            var bottom = Math.round(Math.max(bar.openY, bar.closeY) * pixelRatio);
+            var high = Math.round(bar.highY * pixelRatio);
+            var low = Math.round(bar.lowY * pixelRatio);
+            var scaledX = Math.round(pixelRatio * bar.x);
             var left = scaledX - wickOffset;
             var right = left + wickWidth - 1;
             if (prevEdge !== null) {
@@ -8054,11 +8054,11 @@ var PaneRendererCandlesticks = /** @class */ (function () {
                 ctx.fillStyle = bar._internal_borderColor;
                 prevBorderColor = bar._internal_borderColor;
             }
-            var left = Math.round(bar._internal_x * pixelRatio) - Math.floor(this._private__barWidth * 0.5);
+            var left = Math.round(bar.x * pixelRatio) - Math.floor(this._private__barWidth * 0.5);
             // this is important to calculate right before patching left
             var right = left + this._private__barWidth - 1;
-            var top_2 = Math.round(Math.min(bar._internal_openY, bar._internal_closeY) * pixelRatio);
-            var bottom = Math.round(Math.max(bar._internal_openY, bar._internal_closeY) * pixelRatio);
+            var top_2 = Math.round(Math.min(bar.openY, bar.closeY) * pixelRatio);
+            var bottom = Math.round(Math.max(bar.openY, bar.closeY) * pixelRatio);
             if (prevEdge !== null) {
                 left = Math.max(prevEdge + 1, left);
                 left = Math.min(left, right);
@@ -8081,9 +8081,9 @@ var PaneRendererCandlesticks = /** @class */ (function () {
         var borderWidth = this._private__calculateBorderWidth(pixelRatio);
         for (var i = visibleRange.from; i < visibleRange.to; i++) {
             var bar = bars[i];
-            var top_3 = Math.round(Math.min(bar._internal_openY, bar._internal_closeY) * pixelRatio);
-            var bottom = Math.round(Math.max(bar._internal_openY, bar._internal_closeY) * pixelRatio);
-            var left = Math.round(bar._internal_x * pixelRatio) - Math.floor(this._private__barWidth * 0.5);
+            var top_3 = Math.round(Math.min(bar.openY, bar.closeY) * pixelRatio);
+            var bottom = Math.round(Math.max(bar.openY, bar.closeY) * pixelRatio);
+            var left = Math.round(bar.x * pixelRatio) - Math.floor(this._private__barWidth * 0.5);
             var right = left + this._private__barWidth - 1;
             if (bar._internal_color !== prevBarColor) {
                 var barColor = bar._internal_color;
@@ -8112,15 +8112,15 @@ var SeriesCandlesticksPaneView = /** @class */ (function (_super) {
         _this._private__renderer = new PaneRendererCandlesticks();
         return _this;
     }
-    SeriesCandlesticksPaneView.prototype._internal_renderer = function (height, width) {
-        if (!this._internal__series._internal_visible()) {
+    SeriesCandlesticksPaneView.prototype.renderer = function (height, width) {
+        if (!this._internal__series.visible()) {
             return null;
         }
-        var candlestickStyleProps = this._internal__series._internal_options();
+        var candlestickStyleProps = this._internal__series.options();
         this._internal__makeValid();
         var data = {
             _internal_bars: this._internal__items,
-            _internal_barSpacing: this._internal__model._internal_timeScale()._internal_barSpacing(),
+            _internal_barSpacing: this._internal__model.timeScale().barSpacing(),
             _internal_wickVisible: candlestickStyleProps.wickVisible,
             _internal_borderVisible: candlestickStyleProps.borderVisible,
             _internal_visibleRange: this._internal__itemsVisibleRange,
@@ -8131,15 +8131,15 @@ var SeriesCandlesticksPaneView = /** @class */ (function (_super) {
     SeriesCandlesticksPaneView.prototype._internal__updateOptions = function () {
         var _this = this;
         this._internal__items.forEach(function (item) {
-            var style = _this._internal__series._internal_barColorer()._internal_barStyle(item._internal_time);
-            item._internal_color = style._internal_barColor;
-            item._internal_wickColor = style._internal_barWickColor;
-            item._internal_borderColor = style._internal_barBorderColor;
+            var style = _this._internal__series.barColorer().barStyle(item.time);
+            item._internal_color = style.barColor;
+            item._internal_wickColor = style.barWickColor;
+            item._internal_borderColor = style.barBorderColor;
         });
     };
     SeriesCandlesticksPaneView.prototype._internal__createRawItem = function (time, bar, colorer) {
-        var style = colorer._internal_barStyle(time);
-        return __assign(__assign({}, this._internal__createDefaultItem(time, bar, colorer)), { _internal_color: style._internal_barColor, _internal_wickColor: style._internal_barWickColor, _internal_borderColor: style._internal_barBorderColor });
+        var style = colorer.barStyle(time);
+        return __assign(__assign({}, this._internal__createDefaultItem(time, bar, colorer)), { _internal_color: style.barColor, _internal_wickColor: style.barWickColor, _internal_borderColor: style.barBorderColor });
     };
     return SeriesCandlesticksPaneView;
 }(BarsPaneViewBase));
@@ -8164,7 +8164,7 @@ var PaneRendererCloudArea = /** @class */ (function (_super) {
         var sign = -2;
         for (var i = this._internal__data._internal_visibleRange.from + 1; i < this._internal__data._internal_visibleRange.to; ++i) {
             var currItem = this._internal__data._internal_items[i];
-            var delta = currItem._internal_higherPrice - currItem._internal_lowerPrice;
+            var delta = currItem.higherPrice - currItem.lowerPrice;
             var newSign = delta > 0 ? 1 : -1;
             if (i === this._internal__data._internal_visibleRange.from + 1) {
                 startGreen = delta;
@@ -8185,20 +8185,20 @@ var PaneRendererCloudArea = /** @class */ (function (_super) {
             lastPoint = turningPoints[i];
             ctx.beginPath();
             if (i === 0) {
-                ctx.moveTo(this._internal__data._internal_items[firstPoint]._internal_x, this._internal__data._internal_items[firstPoint]._internal_higherY);
+                ctx.moveTo(this._internal__data._internal_items[firstPoint].x, this._internal__data._internal_items[firstPoint].higherY);
             }
             else {
                 ctx.moveTo(intersectionPoint[0], intersectionPoint[1]);
             }
             for (var j = firstPoint; j < lastPoint; j++) {
-                ctx.lineTo(this._internal__data._internal_items[j]._internal_x, this._internal__data._internal_items[j]._internal_higherY);
+                ctx.lineTo(this._internal__data._internal_items[j].x, this._internal__data._internal_items[j].higherY);
             }
             if (i !== turningPoints.length - 1) {
                 newIntersectionPoint = this._private__calculateIntersection(lastPoint);
                 ctx.lineTo(newIntersectionPoint[0], newIntersectionPoint[1]);
             }
             for (var j = lastPoint - 1; j >= firstPoint; --j) {
-                ctx.lineTo(this._internal__data._internal_items[j]._internal_x, this._internal__data._internal_items[j]._internal_lowerY);
+                ctx.lineTo(this._internal__data._internal_items[j].x, this._internal__data._internal_items[j].lowerY);
             }
             if (i !== 0) {
                 ctx.lineTo(intersectionPoint[0], intersectionPoint[1]);
@@ -8219,7 +8219,7 @@ var PaneRendererCloudArea = /** @class */ (function (_super) {
         if (this._internal__data === null || this._internal__data._internal_items.length === 0 || this._internal__data._internal_visibleRange === null) {
             throw new Error('Empty data');
         }
-        return PaneRendererCloudArea._private__getIntersection(this._internal__data._internal_items[turning - 1]._internal_x, this._internal__data._internal_items[turning - 1]._internal_higherY, this._internal__data._internal_items[turning]._internal_x, this._internal__data._internal_items[turning]._internal_higherY, this._internal__data._internal_items[turning - 1]._internal_lowerY, this._internal__data._internal_items[turning]._internal_lowerY);
+        return PaneRendererCloudArea._private__getIntersection(this._internal__data._internal_items[turning - 1].x, this._internal__data._internal_items[turning - 1].higherY, this._internal__data._internal_items[turning].x, this._internal__data._internal_items[turning].higherY, this._internal__data._internal_items[turning - 1].lowerY, this._internal__data._internal_items[turning].lowerY);
     };
     PaneRendererCloudArea._private__getIntersection = function (x11, y11, x12, y12, y21, y22) {
         var A1 = y12 - y11;
@@ -8250,11 +8250,11 @@ var SeriesCloudAreaPaneView = /** @class */ (function (_super) {
         _this._private__renderer._internal_setRenderers([_this._private__cloudAreaRenderer, _this._private__higherRenderer, _this._private__lowerRenderer]);
         return _this;
     }
-    SeriesCloudAreaPaneView.prototype._internal_renderer = function (height, width) {
-        if (!this._internal__series._internal_visible()) {
+    SeriesCloudAreaPaneView.prototype.renderer = function (height, width) {
+        if (!this._internal__series.visible()) {
             return null;
         }
-        var areaStyleProperties = this._internal__series._internal_options();
+        var areaStyleProperties = this._internal__series.options();
         this._internal__makeValid();
         var cloudRendererData = {
             _internal_items: this._internal__items,
@@ -8262,15 +8262,15 @@ var SeriesCloudAreaPaneView = /** @class */ (function (_super) {
             _internal_negativeColor: areaStyleProperties.negativeColor,
             _internal_bottom: height,
             _internal_visibleRange: this._internal__itemsVisibleRange,
-            _internal_barWidth: this._internal__model._internal_timeScale()._internal_barSpacing(),
+            _internal_barWidth: this._internal__model.timeScale().barSpacing(),
         };
         var higherLineData = [];
         for (var i = 0; i < this._internal__items.length; i++) {
             var temp = {
-                _internal_time: this._internal__items[i]._internal_time,
-                _internal_price: this._internal__items[i]._internal_higherPrice,
-                _internal_x: this._internal__items[i]._internal_x,
-                _internal_y: this._internal__items[i]._internal_higherY,
+                time: this._internal__items[i].time,
+                price: this._internal__items[i].higherPrice,
+                x: this._internal__items[i].x,
+                y: this._internal__items[i].higherY,
             };
             higherLineData.push(temp);
         }
@@ -8281,15 +8281,15 @@ var SeriesCloudAreaPaneView = /** @class */ (function (_super) {
             _internal_lineType: areaStyleProperties.higherLineType,
             _internal_lineWidth: areaStyleProperties.higherLineWidth,
             _internal_visibleRange: this._internal__itemsVisibleRange,
-            _internal_barWidth: this._internal__model._internal_timeScale()._internal_barSpacing(),
+            _internal_barWidth: this._internal__model.timeScale().barSpacing(),
         };
         var lowerLineData = [];
         for (var i = 0; i < this._internal__items.length; i++) {
             var temp = {
-                _internal_time: this._internal__items[i]._internal_time,
-                _internal_price: this._internal__items[i]._internal_lowerPrice,
-                _internal_x: this._internal__items[i]._internal_x,
-                _internal_y: this._internal__items[i]._internal_lowerY,
+                time: this._internal__items[i].time,
+                price: this._internal__items[i].lowerPrice,
+                x: this._internal__items[i].x,
+                y: this._internal__items[i].lowerY,
             };
             lowerLineData.push(temp);
         }
@@ -8300,7 +8300,7 @@ var SeriesCloudAreaPaneView = /** @class */ (function (_super) {
             _internal_lineType: areaStyleProperties.lowerLineType,
             _internal_lineWidth: areaStyleProperties.lowerLineWidth,
             _internal_visibleRange: this._internal__itemsVisibleRange,
-            _internal_barWidth: this._internal__model._internal_timeScale()._internal_barSpacing(),
+            _internal_barWidth: this._internal__model.timeScale().barSpacing(),
         };
         this._private__cloudAreaRenderer._internal_setData(cloudRendererData);
         this._private__higherRenderer._internal_setData(higherRendererLineData);
@@ -8321,11 +8321,11 @@ var PaneRendererHistogram = /** @class */ (function () {
         this._private__data = data;
         this._private__precalculatedCache = [];
     };
-    PaneRendererHistogram.prototype._internal_draw = function (ctx, renderParams) {
+    PaneRendererHistogram.prototype.draw = function (ctx, renderParams) {
         if (this._private__data === null || this._private__data._internal_items.length === 0 || this._private__data._internal_visibleRange === null) {
             return;
         }
-        var pixelRatio = renderParams._internal_pixelRatio;
+        var pixelRatio = renderParams.pixelRatio;
         if (!this._private__precalculatedCache.length) {
             this._private__fillPrecalculatedCache(pixelRatio);
         }
@@ -8336,7 +8336,7 @@ var PaneRendererHistogram = /** @class */ (function () {
         for (var i = this._private__data._internal_visibleRange.from; i < this._private__data._internal_visibleRange.to; i++) {
             var item = this._private__data._internal_items[i];
             var current = this._private__precalculatedCache[i - this._private__data._internal_visibleRange.from];
-            var y = Math.round(item._internal_y * pixelRatio);
+            var y = Math.round(item.y * pixelRatio);
             ctx.fillStyle = item._internal_color;
             var top_1 = void 0;
             var bottom = void 0;
@@ -8363,7 +8363,7 @@ var PaneRendererHistogram = /** @class */ (function () {
         for (var i = this._private__data._internal_visibleRange.from; i < this._private__data._internal_visibleRange.to; i++) {
             var item = this._private__data._internal_items[i];
             // force cast to avoid ensureDefined call
-            var x = Math.round(item._internal_x * pixelRatio);
+            var x = Math.round(item.x * pixelRatio);
             var left = void 0;
             var right = void 0;
             if (columnWidth % 2) {
@@ -8381,8 +8381,8 @@ var PaneRendererHistogram = /** @class */ (function () {
                 _internal_left: left,
                 _internal_right: right,
                 _internal_roundedCenter: x,
-                _internal_center: (item._internal_x * pixelRatio),
-                _internal_time: item._internal_time,
+                _internal_center: (item.x * pixelRatio),
+                _internal_time: item.time,
             };
         }
         // correct positions
@@ -8442,10 +8442,10 @@ function createEmptyHistogramData(barSpacing) {
 }
 function createRawItem(time, price, color) {
     return {
-        _internal_time: time,
-        _internal_price: price,
-        _internal_x: NaN,
-        _internal_y: NaN,
+        time: time,
+        price: price,
+        x: NaN,
+        y: NaN,
         _internal_color: color,
     };
 }
@@ -8458,24 +8458,24 @@ var SeriesHistogramPaneView = /** @class */ (function (_super) {
         _this._private__renderer = new PaneRendererHistogram();
         return _this;
     }
-    SeriesHistogramPaneView.prototype._internal_renderer = function (height, width) {
-        if (!this._internal__series._internal_visible()) {
+    SeriesHistogramPaneView.prototype.renderer = function (height, width) {
+        if (!this._internal__series.visible()) {
             return null;
         }
         this._internal__makeValid();
         return this._private__compositeRenderer;
     };
     SeriesHistogramPaneView.prototype._internal__fillRawPoints = function () {
-        var barSpacing = this._internal__model._internal_timeScale()._internal_barSpacing();
+        var barSpacing = this._internal__model.timeScale().barSpacing();
         this._private__histogramData = createEmptyHistogramData(barSpacing);
         var targetIndex = 0;
         var itemIndex = 0;
-        var defaultColor = this._internal__series._internal_options().color;
-        for (var _i = 0, _a = this._internal__series._internal_bars()._internal_rows(); _i < _a.length; _i++) {
+        var defaultColor = this._internal__series.options().color;
+        for (var _i = 0, _a = this._internal__series.bars().rows(); _i < _a.length; _i++) {
             var row = _a[_i];
-            var value = row._internal_value[3 /* Close */];
-            var color = row._internal_color !== undefined ? row._internal_color : defaultColor;
-            var item = createRawItem(row._internal_index, value, color);
+            var value = row.value[3 /* Close */];
+            var color = row.color !== undefined ? row.color : defaultColor;
+            var item = createRawItem(row.index, value, color);
             targetIndex++;
             if (targetIndex < this._private__histogramData._internal_items.length) {
                 this._private__histogramData._internal_items[targetIndex] = item;
@@ -8483,7 +8483,7 @@ var SeriesHistogramPaneView = /** @class */ (function (_super) {
             else {
                 this._private__histogramData._internal_items.push(item);
             }
-            this._internal__items[itemIndex++] = { _internal_time: row._internal_index, _internal_x: 0 };
+            this._internal__items[itemIndex++] = { time: row.index, x: 0 };
         }
         this._private__renderer._internal_setData(this._private__histogramData);
         this._private__compositeRenderer._internal_setRenderers([this._private__renderer]);
@@ -8497,11 +8497,11 @@ var SeriesHistogramPaneView = /** @class */ (function (_super) {
         if (this._internal__itemsVisibleRange === null) {
             return;
         }
-        var barSpacing = timeScale._internal_barSpacing();
-        var visibleBars = ensureNotNull(timeScale._internal_visibleStrictRange());
-        var histogramBase = priceScale._internal_priceToCoordinate(this._internal__series._internal_options().base, firstValue);
-        timeScale._internal_indexesToCoordinates(this._private__histogramData._internal_items);
-        priceScale._internal_pointsArrayToCoordinates(this._private__histogramData._internal_items, firstValue);
+        var barSpacing = timeScale.barSpacing();
+        var visibleBars = ensureNotNull(timeScale.visibleStrictRange());
+        var histogramBase = priceScale.priceToCoordinate(this._internal__series.options().base, firstValue);
+        timeScale.indexesToCoordinates(this._private__histogramData._internal_items);
+        priceScale.pointsArrayToCoordinates(this._private__histogramData._internal_items, firstValue);
         this._private__histogramData._internal_histogramBase = histogramBase;
         this._private__histogramData._internal_visibleRange = visibleTimedValues(this._private__histogramData._internal_items, visibleBars, false);
         this._private__histogramData._internal_barSpacing = barSpacing;
@@ -8519,11 +8519,11 @@ var SeriesLinePaneView = /** @class */ (function (_super) {
         _this._private__lineRenderer = new PaneRendererLine();
         return _this;
     }
-    SeriesLinePaneView.prototype._internal_renderer = function (height, width) {
-        if (!this._internal__series._internal_visible()) {
+    SeriesLinePaneView.prototype.renderer = function (height, width) {
+        if (!this._internal__series.visible()) {
             return null;
         }
-        var lineStyleProps = this._internal__series._internal_options();
+        var lineStyleProps = this._internal__series.options();
         this._internal__makeValid();
         var data = {
             _internal_items: this._internal__items,
@@ -8532,7 +8532,7 @@ var SeriesLinePaneView = /** @class */ (function (_super) {
             _internal_lineType: lineStyleProps.lineType,
             _internal_lineWidth: lineStyleProps.lineWidth,
             _internal_visibleRange: this._internal__itemsVisibleRange,
-            _internal_barWidth: this._internal__model._internal_timeScale()._internal_barSpacing(),
+            _internal_barWidth: this._internal__model.timeScale().barSpacing(),
         };
         this._private__lineRenderer._internal_setData(data);
         return this._private__lineRenderer;
@@ -8540,12 +8540,12 @@ var SeriesLinePaneView = /** @class */ (function (_super) {
     SeriesLinePaneView.prototype._internal__updateOptions = function () {
         var _this = this;
         this._internal__items.forEach(function (item) {
-            item._internal_color = _this._internal__series._internal_barColorer()._internal_barStyle(item._internal_time)._internal_barColor;
+            item._internal_color = _this._internal__series.barColorer().barStyle(item.time).barColor;
         });
     };
     SeriesLinePaneView.prototype._internal__createRawItem = function (time, price, colorer) {
         var item = this._internal__createRawItemBase(time, price);
-        item._internal_color = colorer._internal_barStyle(time)._internal_barColor;
+        item._internal_color = colorer.barStyle(time).barColor;
         return item;
     };
     return SeriesLinePaneView;
@@ -8560,11 +8560,11 @@ var PanePriceAxisLabelRenderer = /** @class */ (function () {
         this._private__priceAxisViewRenderer = priceAxisViewRenderer;
         this._private__rendererOptions = rendererOptions;
     };
-    PanePriceAxisLabelRenderer.prototype._internal_draw = function (ctx, renderParams) {
-        if (this._private__rendererOptions === null || this._private__priceAxisViewRenderer === null || !this._private__priceAxisViewRenderer._internal_draw) {
+    PanePriceAxisLabelRenderer.prototype.draw = function (ctx, renderParams) {
+        if (this._private__rendererOptions === null || this._private__priceAxisViewRenderer === null || !this._private__priceAxisViewRenderer.draw) {
             return;
         }
-        this._private__priceAxisViewRenderer._internal_draw(ctx, this._private__rendererOptions, renderParams);
+        this._private__priceAxisViewRenderer.draw(ctx, this._private__rendererOptions, renderParams);
     };
     return PanePriceAxisLabelRenderer;
 }());
@@ -8575,22 +8575,22 @@ var PanePriceAxisLabelView = /** @class */ (function () {
         this._private__chartModel = chartModel;
         this._private__renderer = new PanePriceAxisLabelRenderer();
     }
-    PanePriceAxisLabelView.prototype._internal_renderer = function (height, width) {
-        var pane = this._private__chartModel._internal_paneForSource(this._private__dataSource);
+    PanePriceAxisLabelView.prototype.renderer = function (height, width) {
+        var pane = this._private__chartModel.paneForSource(this._private__dataSource);
         if (pane === null) {
             return null;
         }
         // this price scale will be used to find label placement only (left, right, none)
-        var priceScale = pane._internal_isOverlay(this._private__dataSource) ? pane._internal_defaultVisiblePriceScale() : this._private__dataSource._internal_priceScale();
+        var priceScale = pane.isOverlay(this._private__dataSource) ? pane.defaultVisiblePriceScale() : this._private__dataSource.priceScale();
         if (priceScale === null) {
             return null;
         }
-        var position = pane._internal_priceScalePosition(priceScale);
+        var position = pane.priceScalePosition(priceScale);
         if (position === 'overlay') {
             return null;
         }
-        var options = this._private__chartModel._internal_priceAxisRendererOptions();
-        options._internal_align = position;
+        var options = this._private__chartModel.priceAxisRendererOptions();
+        options.align = position;
         this._private__renderer._internal_setParams(this._private__priceAxisLabelView._internal_paneRenderer(), options);
         return this._private__renderer;
     };
@@ -8604,14 +8604,14 @@ var HorizontalLineRenderer = /** @class */ (function () {
     HorizontalLineRenderer.prototype._internal_setData = function (data) {
         this._private__data = data;
     };
-    HorizontalLineRenderer.prototype._internal_draw = function (ctx, renderParams) {
+    HorizontalLineRenderer.prototype.draw = function (ctx, renderParams) {
         if (this._private__data === null) {
             return;
         }
         if (this._private__data._internal_visible === false) {
             return;
         }
-        var pixelRatio = renderParams._internal_pixelRatio;
+        var pixelRatio = renderParams.pixelRatio;
         var y = Math.round(this._private__data._internal_y * pixelRatio);
         if (y < 0 || y > Math.ceil(this._private__data._internal_height * pixelRatio)) {
             return;
@@ -8644,14 +8644,14 @@ var SeriesHorizontalLinePaneView = /** @class */ (function () {
         this._internal__lineRenderer = new HorizontalLineRenderer();
         this._private__invalidated = true;
         this._internal__series = series;
-        this._internal__model = series._internal_model();
+        this._internal__model = series.model();
         this._internal__lineRenderer._internal_setData(this._internal__lineRendererData);
     }
     SeriesHorizontalLinePaneView.prototype._internal_update = function () {
         this._private__invalidated = true;
     };
-    SeriesHorizontalLinePaneView.prototype._internal_renderer = function (height, width) {
-        if (!this._internal__series._internal_visible()) {
+    SeriesHorizontalLinePaneView.prototype.renderer = function (height, width) {
+        if (!this._internal__series.visible()) {
             return null;
         }
         if (this._private__invalidated) {
@@ -8671,21 +8671,21 @@ var SeriesHorizontalBaseLinePaneView = /** @class */ (function (_super) {
     }
     SeriesHorizontalBaseLinePaneView.prototype._internal__updateImpl = function (height, width) {
         this._internal__lineRendererData._internal_visible = false;
-        var priceScale = this._internal__series._internal_priceScale();
-        var mode = priceScale._internal_mode()._internal_mode;
+        var priceScale = this._internal__series.priceScale();
+        var mode = priceScale.mode().mode;
         if (mode !== 2 /* Percentage */ && mode !== 3 /* IndexedTo100 */) {
             return;
         }
-        var seriesOptions = this._internal__series._internal_options();
-        if (!seriesOptions.baseLineVisible || !this._internal__series._internal_visible()) {
+        var seriesOptions = this._internal__series.options();
+        if (!seriesOptions.baseLineVisible || !this._internal__series.visible()) {
             return;
         }
-        var firstValue = this._internal__series._internal_firstValue();
+        var firstValue = this._internal__series.firstValue();
         if (firstValue === null) {
             return;
         }
         this._internal__lineRendererData._internal_visible = true;
-        this._internal__lineRendererData._internal_y = priceScale._internal_priceToCoordinate(firstValue._internal_value, firstValue._internal_value);
+        this._internal__lineRendererData._internal_y = priceScale.priceToCoordinate(firstValue.value, firstValue.value);
         this._internal__lineRendererData._internal_width = width;
         this._internal__lineRendererData._internal_height = height;
         this._internal__lineRendererData._internal_color = seriesOptions.baseLineColor;
@@ -8705,13 +8705,13 @@ var SeriesLastPriceAnimationRenderer = /** @class */ (function () {
     SeriesLastPriceAnimationRenderer.prototype._internal_data = function () {
         return this._private__data;
     };
-    SeriesLastPriceAnimationRenderer.prototype._internal_draw = function (ctx, renderParams) {
+    SeriesLastPriceAnimationRenderer.prototype.draw = function (ctx, renderParams) {
         var data = this._private__data;
         if (data === null) {
             return;
         }
         ctx.save();
-        var pixelRatio = renderParams._internal_pixelRatio;
+        var pixelRatio = renderParams.pixelRatio;
         var tickWidth = Math.max(1, Math.floor(pixelRatio));
         var correction = (tickWidth % 2) / 2;
         var centerX = Math.round(data._internal_center.x * pixelRatio) + correction; // correct x coordinate only
@@ -8803,11 +8803,11 @@ var SeriesLastPriceAnimationPaneView = /** @class */ (function () {
     }
     SeriesLastPriceAnimationPaneView.prototype._internal_onDataCleared = function () {
         this._private__endTime = this._private__startTime - 1;
-        this._internal_update();
+        this.update();
     };
     SeriesLastPriceAnimationPaneView.prototype._internal_onNewRealtimeDataReceived = function () {
-        this._internal_update();
-        if (this._private__series._internal_options().lastPriceAnimation === 2 /* OnDataUpdate */) {
+        this.update();
+        if (this._private__series.options().lastPriceAnimation === 2 /* OnDataUpdate */) {
             var now = performance.now();
             var timeToAnimationEnd = this._private__endTime - now;
             if (timeToAnimationEnd > 0) {
@@ -8820,7 +8820,7 @@ var SeriesLastPriceAnimationPaneView = /** @class */ (function () {
             this._private__endTime = now + 2600 /* AnimationPeriod */;
         }
     };
-    SeriesLastPriceAnimationPaneView.prototype._internal_update = function () {
+    SeriesLastPriceAnimationPaneView.prototype.update = function () {
         this._private__invalidated = true;
     };
     SeriesLastPriceAnimationPaneView.prototype._internal_invalidateStage = function () {
@@ -8828,10 +8828,10 @@ var SeriesLastPriceAnimationPaneView = /** @class */ (function () {
     };
     SeriesLastPriceAnimationPaneView.prototype._internal_visible = function () {
         // center point is always visible if lastPriceAnimation is not LastPriceAnimationMode.Disabled
-        return this._private__series._internal_options().lastPriceAnimation !== 0 /* Disabled */;
+        return this._private__series.options().lastPriceAnimation !== 0 /* Disabled */;
     };
     SeriesLastPriceAnimationPaneView.prototype._internal_animationActive = function () {
-        switch (this._private__series._internal_options().lastPriceAnimation) {
+        switch (this._private__series.options().lastPriceAnimation) {
             case 0 /* Disabled */:
                 return false;
             case 1 /* Continuous */:
@@ -8840,7 +8840,7 @@ var SeriesLastPriceAnimationPaneView = /** @class */ (function () {
                 return performance.now() <= this._private__endTime;
         }
     };
-    SeriesLastPriceAnimationPaneView.prototype._internal_renderer = function (height, width) {
+    SeriesLastPriceAnimationPaneView.prototype.renderer = function (height, width) {
         if (this._private__invalidated) {
             this._private__updateImpl(height, width);
             this._private__invalidated = false;
@@ -8854,19 +8854,19 @@ var SeriesLastPriceAnimationPaneView = /** @class */ (function () {
     };
     SeriesLastPriceAnimationPaneView.prototype._private__updateImpl = function (height, width) {
         this._private__renderer._internal_setData(null);
-        var timeScale = this._private__series._internal_model()._internal_timeScale();
-        var visibleRange = timeScale._internal_visibleStrictRange();
-        var firstValue = this._private__series._internal_firstValue();
+        var timeScale = this._private__series.model().timeScale();
+        var visibleRange = timeScale.visibleStrictRange();
+        var firstValue = this._private__series.firstValue();
         if (visibleRange === null || firstValue === null) {
             return;
         }
-        var lastValue = this._private__series._internal_lastValueData(true);
-        if (lastValue._internal_noData || !visibleRange._internal_contains(lastValue._internal_index)) {
+        var lastValue = this._private__series.lastValueData(true);
+        if (lastValue.noData || !visibleRange.contains(lastValue.index)) {
             return;
         }
-        var lastValuePoint = new Point(timeScale._internal_indexToCoordinate(lastValue._internal_index), this._private__series._internal_priceScale()._internal_priceToCoordinate(lastValue._internal_price, firstValue._internal_value));
-        var seriesLineColor = lastValue._internal_color;
-        var seriesLineWidth = this._private__series._internal_options().lineWidth;
+        var lastValuePoint = new Point(timeScale.indexToCoordinate(lastValue.index), this._private__series.priceScale().priceToCoordinate(lastValue.price, firstValue.value));
+        var seriesLineColor = lastValue.color;
+        var seriesLineWidth = this._private__series.options().lineWidth;
         var data = animationData(this._private__duration(), seriesLineColor);
         this._private__renderer._internal_setData({
             _internal_seriesLineColor: seriesLineColor,
@@ -8993,7 +8993,7 @@ var SeriesMarkersRenderer = /** @class */ (function (_super) {
             this._private__fontSize = fontSize;
             this._private__fontFamily = fontFamily;
             this._private__font = makeFont(fontSize, fontFamily);
-            this._private__textWidthCache._internal_reset();
+            this._private__textWidthCache.reset();
         }
     };
     // TODO: iosif check if neeeded
@@ -9021,7 +9021,7 @@ var SeriesMarkersRenderer = /** @class */ (function (_super) {
         for (var i = this._private__data._internal_visibleRange.from; i < this._private__data._internal_visibleRange.to; i++) {
             var item = this._private__data._internal_items[i];
             if (item._internal_text !== undefined) {
-                item._internal_text._internal_width = this._private__textWidthCache._internal_measureText(ctx, item._internal_text._internal_content);
+                item._internal_text._internal_width = this._private__textWidthCache.measureText(ctx, item._internal_text._internal_content);
                 item._internal_text._internal_height = this._private__fontSize;
             }
             drawItem(item, ctx);
@@ -9036,13 +9036,13 @@ function drawItem(item, ctx) {
     ctx.lineWidth = ((_b = item._internal_stroke) === null || _b === void 0 ? void 0 : _b.width) || 1;
     ctx.fillStyle = item._internal_color;
     if (item._internal_text !== undefined) {
-        drawText(ctx, item._internal_text._internal_content, item._internal_x - item._internal_text._internal_width / 2, item._internal_text._internal_y);
+        drawText(ctx, item._internal_text._internal_content, item.x - item._internal_text._internal_width / 2, item._internal_text._internal_y);
     }
     if (rotation) {
         ctx.save();
-        ctx.translate(item._internal_x, item._internal_y);
+        ctx.translate(item.x, item._internal_y);
         ctx.rotate(rotation * (Math.PI / 180));
-        ctx.translate(-item._internal_x, -item._internal_y);
+        ctx.translate(-item.x, -item._internal_y);
     }
     drawShape(item, ctx);
     if (rotation) {
@@ -9055,19 +9055,19 @@ function drawShape(item, ctx) {
     }
     switch (item._internal_shape) {
         case 'triangle':
-            drawTriangle(ctx, item._internal_x, item._internal_y, item._internal_size);
+            drawTriangle(ctx, item.x, item._internal_y, item._internal_size);
             return;
         case 'arrowDown':
-            drawArrow(false, ctx, item._internal_x, item._internal_y, item._internal_size);
+            drawArrow(false, ctx, item.x, item._internal_y, item._internal_size);
             return;
         case 'arrowUp':
-            drawArrow(true, ctx, item._internal_x, item._internal_y, item._internal_size);
+            drawArrow(true, ctx, item.x, item._internal_y, item._internal_size);
             return;
         case 'circle':
-            drawCircle(ctx, item._internal_x, item._internal_y, item._internal_size);
+            drawCircle(ctx, item.x, item._internal_y, item._internal_size);
             return;
         case 'square':
-            drawSquare(ctx, item._internal_x, item._internal_y, item._internal_size);
+            drawSquare(ctx, item.x, item._internal_y, item._internal_size);
             return;
     }
     ensureNever(item._internal_shape);
@@ -9104,7 +9104,7 @@ function fillSizeAndY(rendererItem, marker, seriesData, offsets, textHeight, sha
     var highPrice = isNumber(seriesData) ? seriesData : seriesData.high;
     var lowPrice = isNumber(seriesData) ? seriesData : seriesData.low;
     var sizeMultiplier = isNumber(marker.size) ? Math.max(marker.size, 0) : 1;
-    var shapeSize = calculateShapeHeight(timeScale._internal_barSpacing()) * sizeMultiplier;
+    var shapeSize = calculateShapeHeight(timeScale.barSpacing()) * sizeMultiplier;
     var halfSize = shapeSize / 2;
     rendererItem._internal_size = shapeSize;
     switch (marker.position) {
@@ -9113,8 +9113,8 @@ function fillSizeAndY(rendererItem, marker, seriesData, offsets, textHeight, sha
             var anchor = marker.anchor || 'center';
             var displaceY = anchor === 'top' ? 1 : anchor === 'bottom' ? -1 : 0;
             var displaceX = anchor === 'left' ? 1 : anchor === 'right' ? -1 : 0;
-            rendererItem._internal_y = (priceScale._internal_priceToCoordinate(markerPrice, firstValue) + halfSize * displaceY);
-            rendererItem._internal_x = (rendererItem._internal_x + halfSize * displaceX);
+            rendererItem._internal_y = (priceScale.priceToCoordinate(markerPrice, firstValue) + halfSize * displaceY);
+            rendererItem.x = (rendererItem.x + halfSize * displaceX);
             if (rendererItem._internal_text !== undefined) {
                 rendererItem._internal_text._internal_y = (rendererItem._internal_y + (halfSize + shapeMargin + textHeight * (0.5 + 0.1 /* TextMargin */)) * displaceY ||
                     1);
@@ -9122,14 +9122,14 @@ function fillSizeAndY(rendererItem, marker, seriesData, offsets, textHeight, sha
             return;
         }
         case 'inBar': {
-            rendererItem._internal_y = priceScale._internal_priceToCoordinate(inBarPrice, firstValue);
+            rendererItem._internal_y = priceScale.priceToCoordinate(inBarPrice, firstValue);
             if (rendererItem._internal_text !== undefined) {
                 rendererItem._internal_text._internal_y = (rendererItem._internal_y + halfSize + shapeMargin + textHeight * (0.5 + 0.1 /* TextMargin */));
             }
             return;
         }
         case 'aboveBar': {
-            rendererItem._internal_y = (priceScale._internal_priceToCoordinate(highPrice, firstValue) - halfSize - offsets._internal_aboveBar);
+            rendererItem._internal_y = (priceScale.priceToCoordinate(highPrice, firstValue) - halfSize - offsets._internal_aboveBar);
             if (rendererItem._internal_text !== undefined) {
                 rendererItem._internal_text._internal_y = (rendererItem._internal_y - halfSize - textHeight * (0.5 + 0.1 /* TextMargin */));
                 offsets._internal_aboveBar += textHeight * (1 + 2 * 0.1 /* TextMargin */);
@@ -9138,7 +9138,7 @@ function fillSizeAndY(rendererItem, marker, seriesData, offsets, textHeight, sha
             return;
         }
         case 'belowBar': {
-            rendererItem._internal_y = (priceScale._internal_priceToCoordinate(lowPrice, firstValue) + halfSize + offsets._internal_belowBar);
+            rendererItem._internal_y = (priceScale.priceToCoordinate(lowPrice, firstValue) + halfSize + offsets._internal_belowBar);
             if (rendererItem._internal_text !== undefined) {
                 rendererItem._internal_text._internal_y = (rendererItem._internal_y + halfSize + shapeMargin + textHeight * (0.5 + 0.1 /* TextMargin */));
                 offsets._internal_belowBar += textHeight * (1 + 2 * 0.1 /* TextMargin */);
@@ -9163,29 +9163,29 @@ var SeriesMarkersPaneView = /** @class */ (function () {
             _internal_visibleRange: null,
         };
     }
-    SeriesMarkersPaneView.prototype._internal_update = function (updateType) {
+    SeriesMarkersPaneView.prototype.update = function (updateType) {
         this._private__invalidated = true;
         this._private__autoScaleMarginsInvalidated = true;
         if (updateType === 'data') {
             this._private__dataInvalidated = true;
         }
     };
-    SeriesMarkersPaneView.prototype._internal_renderer = function (height, width, pane) {
-        if (!this._private__series._internal_visible()) {
+    SeriesMarkersPaneView.prototype.renderer = function (height, width, pane) {
+        if (!this._private__series.visible()) {
             return null;
         }
         if (this._private__invalidated) {
             this._internal__makeValid();
         }
-        var layout = this._private__model._internal_options().layout;
+        var layout = this._private__model.options().layout;
         this._private__renderer._internal_setParams(layout.fontSize, layout.fontFamily);
         this._private__renderer._internal_setData(this._private__data);
         return this._private__renderer;
     };
     SeriesMarkersPaneView.prototype._internal_autoScaleMargins = function () {
         if (this._private__autoScaleMarginsInvalidated) {
-            if (this._private__series._internal_indexedMarkers().length > 0) {
-                var barSpacing = this._private__model._internal_timeScale()._internal_barSpacing();
+            if (this._private__series.indexedMarkers().length > 0) {
+                var barSpacing = this._private__model.timeScale().barSpacing();
                 var shapeMargin$1 = shapeMargin(barSpacing);
                 var marginsAboveAndBelow = calculateShapeHeight(barSpacing) * 1.5 + shapeMargin$1 * 2;
                 this._private__autoScaleMargins = {
@@ -9201,13 +9201,13 @@ var SeriesMarkersPaneView = /** @class */ (function () {
         return this._private__autoScaleMargins;
     };
     SeriesMarkersPaneView.prototype._internal__makeValid = function () {
-        var priceScale = this._private__series._internal_priceScale();
-        var timeScale = this._private__model._internal_timeScale();
-        var seriesMarkers = this._private__series._internal_indexedMarkers();
+        var priceScale = this._private__series.priceScale();
+        var timeScale = this._private__model.timeScale();
+        var seriesMarkers = this._private__series.indexedMarkers();
         if (this._private__dataInvalidated) {
             this._private__data._internal_items = seriesMarkers.map(function (marker) { return ({
-                _internal_time: marker.time,
-                _internal_x: 0,
+                time: marker.time,
+                x: 0,
                 _internal_y: 0,
                 _internal_size: 0,
                 _internal_stroke: marker.stroke,
@@ -9215,19 +9215,19 @@ var SeriesMarkersPaneView = /** @class */ (function () {
                 _internal_anchor: marker.anchor,
                 _internal_color: marker.color,
                 _internal_rotation: marker.rotation,
-                _internal_internalId: marker._internal_internalId,
+                _internal_internalId: marker.internalId,
                 _internal_externalId: marker.id,
                 _internal_text: undefined,
             }); });
             this._private__dataInvalidated = false;
         }
-        var layoutOptions = this._private__model._internal_options().layout;
+        var layoutOptions = this._private__model.options().layout;
         this._private__data._internal_visibleRange = null;
-        var visibleBars = timeScale._internal_visibleStrictRange();
+        var visibleBars = timeScale.visibleStrictRange();
         if (visibleBars === null) {
             return;
         }
-        var firstValue = this._private__series._internal_firstValue();
+        var firstValue = this._private__series.firstValue();
         if (firstValue === null) {
             return;
         }
@@ -9235,7 +9235,7 @@ var SeriesMarkersPaneView = /** @class */ (function () {
             return;
         }
         var prevTimeIndex = NaN;
-        var shapeMargin$1 = shapeMargin(timeScale._internal_barSpacing());
+        var shapeMargin$1 = shapeMargin(timeScale.barSpacing());
         var offsets = {
             _internal_aboveBar: shapeMargin$1,
             _internal_belowBar: shapeMargin$1,
@@ -9250,7 +9250,7 @@ var SeriesMarkersPaneView = /** @class */ (function () {
                 prevTimeIndex = marker.time;
             }
             var rendererItem = this._private__data._internal_items[index];
-            rendererItem._internal_x = timeScale._internal_indexToCoordinate(marker.time);
+            rendererItem.x = timeScale.indexToCoordinate(marker.time);
             if (marker.text !== undefined && marker.text.length > 0) {
                 rendererItem._internal_text = {
                     _internal_content: marker.text,
@@ -9259,11 +9259,11 @@ var SeriesMarkersPaneView = /** @class */ (function () {
                     _internal_height: 0,
                 };
             }
-            var dataAt = this._private__series._internal_dataAt(marker.time);
+            var dataAt = this._private__series.dataAt(marker.time);
             if (dataAt === null) {
                 continue;
             }
-            fillSizeAndY(rendererItem, marker, dataAt, offsets, layoutOptions.fontSize, shapeMargin$1, priceScale, timeScale, firstValue._internal_value);
+            fillSizeAndY(rendererItem, marker, dataAt, offsets, layoutOptions.fontSize, shapeMargin$1, priceScale, timeScale, firstValue.value);
         }
         this._private__invalidated = false;
     };
@@ -9279,17 +9279,17 @@ var SeriesPriceLinePaneView = /** @class */ (function (_super) {
     SeriesPriceLinePaneView.prototype._internal__updateImpl = function (height, width) {
         var data = this._internal__lineRendererData;
         data._internal_visible = false;
-        var seriesOptions = this._internal__series._internal_options();
-        if (!seriesOptions.priceLineVisible || !this._internal__series._internal_visible()) {
+        var seriesOptions = this._internal__series.options();
+        if (!seriesOptions.priceLineVisible || !this._internal__series.visible()) {
             return;
         }
-        var lastValueData = this._internal__series._internal_lastValueData(seriesOptions.priceLineSource === 0 /* LastBar */);
-        if (lastValueData._internal_noData) {
+        var lastValueData = this._internal__series.lastValueData(seriesOptions.priceLineSource === 0 /* LastBar */);
+        if (lastValueData.noData) {
             return;
         }
         data._internal_visible = true;
-        data._internal_y = lastValueData._internal_coordinate;
-        data._internal_color = this._internal__series._internal_priceLineColor(lastValueData._internal_color);
+        data._internal_y = lastValueData.coordinate;
+        data._internal_color = this._internal__series.priceLineColor(lastValueData.color);
         data._internal_width = width;
         data._internal_height = height;
         data._internal_lineWidth = seriesOptions.priceLineWidth;
@@ -9309,15 +9309,15 @@ var SeriesPriceAxisLabelView = /** @class */ (function (_super) {
         axisRendererData._internal_visible = false;
         paneRendererData._internal_visible = false;
         var source = this._private__source;
-        if (!source._internal_visible()) {
+        if (!source.visible()) {
             return;
         }
-        var seriesOptions = source._internal_options();
+        var seriesOptions = source.options();
         var showSeriesLastValue = seriesOptions.lastValueVisible;
-        var showSymbolLabel = source._internal_title() !== '';
+        var showSymbolLabel = source.title() !== '';
         var showPriceAndPercentage = seriesOptions.seriesLastValueMode === 0 /* LastPriceAndPercentageValue */;
-        var lastValueData = source._internal_lastValueData(false);
-        if (lastValueData._internal_noData) {
+        var lastValueData = source.lastValueData(false);
+        if (lastValueData.noData) {
             return;
         }
         if (showSeriesLastValue) {
@@ -9328,23 +9328,23 @@ var SeriesPriceAxisLabelView = /** @class */ (function (_super) {
             paneRendererData._internal_text = this._internal__paneText(lastValueData, showSeriesLastValue, showSymbolLabel, showPriceAndPercentage);
             paneRendererData._internal_visible = paneRendererData._internal_text.length > 0;
         }
-        var lastValueColor = source._internal_priceLineColor(lastValueData._internal_color);
+        var lastValueColor = source.priceLineColor(lastValueData.color);
         var colors = generateContrastColors(lastValueColor);
         commonRendererData._internal_background = colors._internal_background;
         commonRendererData._internal_color = colors._internal_foreground;
-        commonRendererData._internal_coordinate = lastValueData._internal_coordinate;
-        paneRendererData._internal_borderColor = source._internal_model()._internal_backgroundColorAtYPercentFromTop(lastValueData._internal_coordinate / source._internal_priceScale()._internal_height());
+        commonRendererData._internal_coordinate = lastValueData.coordinate;
+        paneRendererData._internal_borderColor = source.model().backgroundColorAtYPercentFromTop(lastValueData.coordinate / source.priceScale().height());
         axisRendererData._internal_borderColor = lastValueColor;
     };
     SeriesPriceAxisLabelView.prototype._internal__paneText = function (lastValue, showSeriesLastValue, showSymbolLabel, showPriceAndPercentage) {
         var result = '';
-        var title = this._private__source._internal_title();
+        var title = this._private__source.title();
         if (showSymbolLabel && title.length !== 0) {
             result += "".concat(title, " ");
         }
         if (showSeriesLastValue && showPriceAndPercentage) {
-            result += this._private__source._internal_priceScale()._internal_isPercentage() ?
-                lastValue._internal_formattedPriceAbsolute : lastValue._internal_formattedPricePercentage;
+            result += this._private__source.priceScale().isPercentage() ?
+                lastValue.formattedPriceAbsolute : lastValue.formattedPricePercentage;
         }
         return result.trim();
     };
@@ -9353,10 +9353,10 @@ var SeriesPriceAxisLabelView = /** @class */ (function (_super) {
             return '';
         }
         if (!showPriceAndPercentage) {
-            return lastValueData._internal_text;
+            return lastValueData.text;
         }
-        return this._private__source._internal_priceScale()._internal_isPercentage() ?
-            lastValueData._internal_formattedPricePercentage : lastValueData._internal_formattedPriceAbsolute;
+        return this._private__source.priceScale().isPercentage() ?
+            lastValueData.formattedPricePercentage : lastValueData.formattedPriceAbsolute;
     };
     return SeriesPriceAxisLabelView;
 }(PriceAxisLabelView));
@@ -9366,23 +9366,23 @@ var AutoscaleInfoImpl = /** @class */ (function () {
         this._private__priceRange = priceRange;
         this._private__margins = margins || null;
     }
-    AutoscaleInfoImpl.prototype._internal_priceRange = function () {
+    AutoscaleInfoImpl.prototype.priceRange = function () {
         return this._private__priceRange;
     };
-    AutoscaleInfoImpl.prototype._internal_margins = function () {
+    AutoscaleInfoImpl.prototype.margins = function () {
         return this._private__margins;
     };
-    AutoscaleInfoImpl.prototype._internal_toRaw = function () {
+    AutoscaleInfoImpl.prototype.toRaw = function () {
         if (this._private__priceRange === null) {
             return null;
         }
         return {
-            priceRange: this._private__priceRange._internal_toRaw(),
+            priceRange: this._private__priceRange.toRaw(),
             margins: this._private__margins || undefined,
         };
     };
-    AutoscaleInfoImpl._internal_fromRaw = function (raw) {
-        return (raw === null) ? null : new AutoscaleInfoImpl(PriceRangeImpl._internal_fromRaw(raw.priceRange), raw.margins);
+    AutoscaleInfoImpl.fromRaw = function (raw) {
+        return (raw === null) ? null : new AutoscaleInfoImpl(PriceRangeImpl.fromRaw(raw.priceRange), raw.margins);
     };
     return AutoscaleInfoImpl;
 }());
@@ -9395,19 +9395,19 @@ var CustomPriceLinePaneView = /** @class */ (function (_super) {
         return _this;
     }
     CustomPriceLinePaneView.prototype._internal__updateImpl = function (height, width) {
-        var lineOptions = this._private__priceLine._internal_options();
+        var lineOptions = this._private__priceLine.options();
         var data = this._internal__lineRendererData;
         data._internal_visible = false;
-        if (!this._internal__series._internal_visible() || (!lineOptions.visible || !lineOptions.lineVisible)) {
+        if (!this._internal__series.visible() || (!lineOptions.visible || !lineOptions.lineVisible)) {
             return;
         }
-        var y = this._private__priceLine._internal_yCoord();
+        var y = this._private__priceLine.yCoord();
         if (y === null) {
             return;
         }
         var x;
         if (lineOptions.index !== undefined) {
-            x = this._internal__model._internal_timeScale()._internal_indexToCoordinate(lineOptions.index);
+            x = this._internal__model.timeScale().indexToCoordinate(lineOptions.index);
         }
         data._internal_visible = true;
         data._internal_y = y;
@@ -9432,14 +9432,14 @@ var CustomPriceLinePriceAxisLabelView = /** @class */ (function (_super) {
     CustomPriceLinePriceAxisLabelView.prototype._internal__updateRendererData = function (axisRendererData, paneRendererData, commonData) {
         axisRendererData._internal_visible = false;
         paneRendererData._internal_visible = false;
-        var options = this._private__priceLine._internal_options();
+        var options = this._private__priceLine.options();
         var labelVisible = options.axisLabelVisible;
         var showPaneLabel = options.title !== '';
         var series = this._private__series;
-        if (!labelVisible || !options.visible || !series._internal_visible()) {
+        if (!labelVisible || !options.visible || !series.visible()) {
             return;
         }
-        var y = this._private__priceLine._internal_yCoord();
+        var y = this._private__priceLine.yCoord();
         if (y === null) {
             return;
         }
@@ -9447,8 +9447,8 @@ var CustomPriceLinePriceAxisLabelView = /** @class */ (function (_super) {
             paneRendererData._internal_text = options.title;
             paneRendererData._internal_visible = true;
         }
-        paneRendererData._internal_borderColor = series._internal_model()._internal_backgroundColorAtYPercentFromTop(y / series._internal_priceScale()._internal_height());
-        axisRendererData._internal_text = series._internal_priceScale()._internal_formatPriceAbsolute(options.price);
+        paneRendererData._internal_borderColor = series.model().backgroundColorAtYPercentFromTop(y / series.priceScale().height());
+        axisRendererData._internal_text = series.priceScale().formatPriceAbsolute(options.price);
         axisRendererData._internal_visible = true;
         var colors = generateContrastColors(options.color);
         commonData._internal_background = colors._internal_background;
@@ -9464,41 +9464,41 @@ var CustomPriceLine = /** @class */ (function () {
         this._private__options = options;
         this._private__priceLineView = new CustomPriceLinePaneView(series, this);
         this._private__priceAxisView = new CustomPriceLinePriceAxisLabelView(series, this);
-        this._private__panePriceAxisView = new PanePriceAxisLabelView(this._private__priceAxisView, series, series._internal_model());
+        this._private__panePriceAxisView = new PanePriceAxisLabelView(this._private__priceAxisView, series, series.model());
     }
-    CustomPriceLine.prototype._internal_applyOptions = function (options) {
+    CustomPriceLine.prototype.applyOptions = function (options) {
         merge(this._private__options, options);
-        this._internal_update();
-        this._private__series._internal_model()._internal_lightUpdate();
+        this.update();
+        this._private__series.model().lightUpdate();
     };
-    CustomPriceLine.prototype._internal_options = function () {
+    CustomPriceLine.prototype.options = function () {
         return this._private__options;
     };
-    CustomPriceLine.prototype._internal_paneViews = function () {
+    CustomPriceLine.prototype.paneViews = function () {
         return [
             this._private__priceLineView,
             this._private__panePriceAxisView,
         ];
     };
-    CustomPriceLine.prototype._internal_priceAxisView = function () {
+    CustomPriceLine.prototype.priceAxisView = function () {
         return this._private__priceAxisView;
     };
-    CustomPriceLine.prototype._internal_update = function () {
+    CustomPriceLine.prototype.update = function () {
         this._private__priceLineView._internal_update();
-        this._private__priceAxisView._internal_update();
+        this._private__priceAxisView.update();
     };
-    CustomPriceLine.prototype._internal_yCoord = function () {
+    CustomPriceLine.prototype.yCoord = function () {
         var series = this._private__series;
-        var priceScale = series._internal_priceScale();
-        var timeScale = series._internal_model()._internal_timeScale();
-        if (timeScale._internal_isEmpty() || priceScale._internal_isEmpty()) {
+        var priceScale = series.priceScale();
+        var timeScale = series.model().timeScale();
+        if (timeScale.isEmpty() || priceScale.isEmpty()) {
             return null;
         }
-        var firstValue = series._internal_firstValue();
+        var firstValue = series.firstValue();
         if (firstValue === null) {
             return null;
         }
-        return priceScale._internal_priceToCoordinate(this._private__options.price, firstValue._internal_value);
+        return priceScale.priceToCoordinate(this._private__options.price, firstValue.value);
     };
     return CustomPriceLine;
 }());
@@ -9510,26 +9510,26 @@ var PriceDataSource = /** @class */ (function (_super) {
         _this._private__model = model;
         return _this;
     }
-    PriceDataSource.prototype._internal_model = function () {
+    PriceDataSource.prototype.model = function () {
         return this._private__model;
     };
     return PriceDataSource;
 }(DataSource));
 
 var emptyResult = {
-    _internal_barColor: '',
-    _internal_barBorderColor: '',
-    _internal_barWickColor: '',
+    barColor: '',
+    barBorderColor: '',
+    barWickColor: '',
 };
 var SeriesBarColorer = /** @class */ (function () {
     function SeriesBarColorer(series) {
         this._private__series = series;
     }
-    SeriesBarColorer.prototype._internal_barStyle = function (barIndex, precomputedBars) {
+    SeriesBarColorer.prototype.barStyle = function (barIndex, precomputedBars) {
         // precomputedBars: {value: [Array BarValues], previousValue: [Array BarValues] | undefined}
         // Used to avoid binary search if bars are already known
-        var targetType = this._private__series._internal_seriesType();
-        var seriesOptions = this._private__series._internal_options();
+        var targetType = this._private__series.seriesType();
+        var seriesOptions = this._private__series.options();
         switch (targetType) {
             case 'Line':
                 return this._private__lineStyle(seriesOptions, barIndex, precomputedBars);
@@ -9557,14 +9557,14 @@ var SeriesBarColorer = /** @class */ (function () {
         var borderUpColor = upColor;
         var borderDownColor = downColor;
         var currentBar = ensureNotNull(this._private__findBar(barIndex, precomputedBars));
-        var isUp = ensure(currentBar._internal_value[0 /* Open */]) <= ensure(currentBar._internal_value[3 /* Close */]);
-        if (currentBar._internal_color !== undefined) {
-            result._internal_barColor = currentBar._internal_color;
-            result._internal_barBorderColor = currentBar._internal_color;
+        var isUp = ensure(currentBar.value[0 /* Open */]) <= ensure(currentBar.value[3 /* Close */]);
+        if (currentBar.color !== undefined) {
+            result.barColor = currentBar.color;
+            result.barBorderColor = currentBar.color;
         }
         else {
-            result._internal_barColor = isUp ? upColor : downColor;
-            result._internal_barBorderColor = isUp ? borderUpColor : borderDownColor;
+            result.barColor = isUp ? upColor : downColor;
+            result.barBorderColor = isUp ? borderUpColor : borderDownColor;
         }
         return result;
     };
@@ -9578,42 +9578,42 @@ var SeriesBarColorer = /** @class */ (function () {
         var wickUpColor = candlestickStyle.wickUpColor;
         var wickDownColor = candlestickStyle.wickDownColor;
         var currentBar = ensureNotNull(this._private__findBar(barIndex, precomputedBars));
-        var isUp = ensure(currentBar._internal_value[0 /* Open */]) <= ensure(currentBar._internal_value[3 /* Close */]);
-        result._internal_barColor = (_a = currentBar._internal_color) !== null && _a !== void 0 ? _a : (isUp ? upColor : downColor);
-        result._internal_barBorderColor = (_b = currentBar._internal_borderColor) !== null && _b !== void 0 ? _b : (isUp ? borderUpColor : borderDownColor);
-        result._internal_barWickColor = (_c = currentBar._internal_wickColor) !== null && _c !== void 0 ? _c : (isUp ? wickUpColor : wickDownColor);
+        var isUp = ensure(currentBar.value[0 /* Open */]) <= ensure(currentBar.value[3 /* Close */]);
+        result.barColor = (_a = currentBar.color) !== null && _a !== void 0 ? _a : (isUp ? upColor : downColor);
+        result.barBorderColor = (_b = currentBar.borderColor) !== null && _b !== void 0 ? _b : (isUp ? borderUpColor : borderDownColor);
+        result.barWickColor = (_c = currentBar.wickColor) !== null && _c !== void 0 ? _c : (isUp ? wickUpColor : wickDownColor);
         return result;
     };
     SeriesBarColorer.prototype._private__areaStyle = function (areaStyle) {
-        return __assign(__assign({}, emptyResult), { _internal_barColor: areaStyle.lineColor });
+        return __assign(__assign({}, emptyResult), { barColor: areaStyle.lineColor });
     };
     SeriesBarColorer.prototype._private__baselineStyle = function (baselineStyle, barIndex, precomputedBars) {
         var currentBar = ensureNotNull(this._private__findBar(barIndex, precomputedBars));
-        var isAboveBaseline = currentBar._internal_value[3 /* Close */] >= baselineStyle.baseValue.price;
-        return __assign(__assign({}, emptyResult), { _internal_barColor: isAboveBaseline ? baselineStyle.topLineColor : baselineStyle.bottomLineColor });
+        var isAboveBaseline = currentBar.value[3 /* Close */] >= baselineStyle.baseValue.price;
+        return __assign(__assign({}, emptyResult), { barColor: isAboveBaseline ? baselineStyle.topLineColor : baselineStyle.bottomLineColor });
     };
     SeriesBarColorer.prototype._private__cloudAreaStyle = function (cloudAreaStyle) {
-        return __assign(__assign({}, emptyResult), { _internal_barColor: cloudAreaStyle.higherLineColor });
+        return __assign(__assign({}, emptyResult), { barColor: cloudAreaStyle.higherLineColor });
     };
     SeriesBarColorer.prototype._private__brokenAreaStyle = function (brokenAreaStyle) {
-        return __assign(__assign({}, emptyResult), { _internal_barColor: brokenAreaStyle.color });
+        return __assign(__assign({}, emptyResult), { barColor: brokenAreaStyle.color });
     };
     SeriesBarColorer.prototype._private__lineStyle = function (lineStyle, barIndex, precomputedBars) {
         var _a;
         var currentBar = ensureNotNull(this._private__findBar(barIndex, precomputedBars));
-        return __assign(__assign({}, emptyResult), { _internal_barColor: (_a = currentBar._internal_color) !== null && _a !== void 0 ? _a : lineStyle.color });
+        return __assign(__assign({}, emptyResult), { barColor: (_a = currentBar.color) !== null && _a !== void 0 ? _a : lineStyle.color });
     };
     SeriesBarColorer.prototype._private__histogramStyle = function (histogramStyle, barIndex, precomputedBars) {
         var result = __assign({}, emptyResult);
         var currentBar = ensureNotNull(this._private__findBar(barIndex, precomputedBars));
-        result._internal_barColor = currentBar._internal_color !== undefined ? currentBar._internal_color : histogramStyle.color;
+        result.barColor = currentBar.color !== undefined ? currentBar.color : histogramStyle.color;
         return result;
     };
     SeriesBarColorer.prototype._private__findBar = function (barIndex, precomputedBars) {
         if (precomputedBars !== undefined) {
-            return precomputedBars._internal_value;
+            return precomputedBars.value;
         }
-        return this._private__series._internal_bars()._internal_valueAt(barIndex);
+        return this._private__series.bars().valueAt(barIndex);
     };
     return SeriesBarColorer;
 }());
@@ -9631,42 +9631,42 @@ var PlotList = /** @class */ (function () {
         this._private__rowSearchCache = new Map();
     }
     // @returns Last row
-    PlotList.prototype._internal_last = function () {
-        return this._internal_size() > 0 ? this._private__items[this._private__items.length - 1] : null;
+    PlotList.prototype.last = function () {
+        return this.size() > 0 ? this._private__items[this._private__items.length - 1] : null;
     };
-    PlotList.prototype._internal_firstIndex = function () {
-        return this._internal_size() > 0 ? this._private__indexAt(0) : null;
+    PlotList.prototype.firstIndex = function () {
+        return this.size() > 0 ? this._private__indexAt(0) : null;
     };
-    PlotList.prototype._internal_lastIndex = function () {
-        return this._internal_size() > 0 ? this._private__indexAt((this._private__items.length - 1)) : null;
+    PlotList.prototype.lastIndex = function () {
+        return this.size() > 0 ? this._private__indexAt((this._private__items.length - 1)) : null;
     };
-    PlotList.prototype._internal_size = function () {
+    PlotList.prototype.size = function () {
         return this._private__items.length;
     };
-    PlotList.prototype._internal_isEmpty = function () {
-        return this._internal_size() === 0;
+    PlotList.prototype.isEmpty = function () {
+        return this.size() === 0;
     };
-    PlotList.prototype._internal_contains = function (index) {
+    PlotList.prototype.contains = function (index) {
         return this._private__search(index, 0 /* Exact */) !== null;
     };
-    PlotList.prototype._internal_valueAt = function (index) {
-        return this._internal_search(index);
+    PlotList.prototype.valueAt = function (index) {
+        return this.search(index);
     };
-    PlotList.prototype._internal_search = function (index, searchMode) {
+    PlotList.prototype.search = function (index, searchMode) {
         if (searchMode === void 0) { searchMode = 0 /* Exact */; }
         var pos = this._private__search(index, searchMode);
         if (pos === null) {
             return null;
         }
-        return __assign(__assign({}, this._private__valueAt(pos)), { _internal_index: this._private__indexAt(pos) });
+        return __assign(__assign({}, this._private__valueAt(pos)), { index: this._private__indexAt(pos) });
     };
-    PlotList.prototype._internal_rows = function () {
+    PlotList.prototype.rows = function () {
         return this._private__items;
     };
-    PlotList.prototype._internal_minMaxOnRangeCached = function (start, end, plots) {
+    PlotList.prototype.minMaxOnRangeCached = function (start, end, plots) {
         // this code works for single series only
         // could fail after whitespaces implementation
-        if (this._internal_isEmpty()) {
+        if (this.isEmpty()) {
             return null;
         }
         var result = null;
@@ -9677,13 +9677,13 @@ var PlotList = /** @class */ (function () {
         }
         return result;
     };
-    PlotList.prototype._internal_setData = function (plotRows) {
+    PlotList.prototype.setData = function (plotRows) {
         this._private__rowSearchCache.clear();
         this._private__minMaxCache.clear();
         this._private__items = plotRows;
     };
     PlotList.prototype._private__indexAt = function (offset) {
-        return this._private__items[offset]._internal_index;
+        return this._private__items[offset].index;
     };
     PlotList.prototype._private__valueAt = function (offset) {
         return this._private__items[offset];
@@ -9715,34 +9715,34 @@ var PlotList = /** @class */ (function () {
     };
     PlotList.prototype._private__bsearch = function (index) {
         var start = this._private__lowerbound(index);
-        if (start !== this._private__items.length && !(index < this._private__items[start]._internal_index)) {
+        if (start !== this._private__items.length && !(index < this._private__items[start].index)) {
             return start;
         }
         return null;
     };
     PlotList.prototype._private__lowerbound = function (index) {
-        return lowerbound(this._private__items, index, function (a, b) { return a._internal_index < b; });
+        return lowerbound(this._private__items, index, function (a, b) { return a.index < b; });
     };
     PlotList.prototype._private__upperbound = function (index) {
-        return upperbound(this._private__items, index, function (a, b) { return b._internal_index > a; });
+        return upperbound(this._private__items, index, function (a, b) { return b.index > a; });
     };
     PlotList.prototype._private__plotMinMax = function (startIndex, endIndexExclusive, plotIndex) {
         var result = null;
         for (var i = startIndex; i < endIndexExclusive; i++) {
-            var values = this._private__items[i]._internal_value;
+            var values = this._private__items[i].value;
             var v = values[plotIndex];
             if (Number.isNaN(v)) {
                 continue;
             }
             if (result === null) {
-                result = { _internal_min: v, _internal_max: v };
+                result = { min: v, max: v };
             }
             else {
-                if (v < result._internal_min) {
-                    result._internal_min = v;
+                if (v < result.min) {
+                    result.min = v;
                 }
-                if (v > result._internal_max) {
-                    result._internal_max = v;
+                if (v > result.max) {
+                    result.max = v;
                 }
             }
         }
@@ -9751,13 +9751,13 @@ var PlotList = /** @class */ (function () {
     PlotList.prototype._private__minMaxOnRangeCachedImpl = function (start, end, plotIndex) {
         // this code works for single series only
         // could fail after whitespaces implementation
-        if (this._internal_isEmpty()) {
+        if (this.isEmpty()) {
             return null;
         }
         var result = null;
         // assume that bar indexes only increase
-        var firstIndex = ensureNotNull(this._internal_firstIndex());
-        var lastIndex = ensureNotNull(this._internal_lastIndex());
+        var firstIndex = ensureNotNull(this.firstIndex());
+        var lastIndex = ensureNotNull(this.lastIndex());
         var s = Math.max(start, firstIndex);
         var e = Math.min(end, lastIndex);
         var cachedLow = Math.ceil(s / CHUNK_SIZE) * CHUNK_SIZE;
@@ -9806,9 +9806,9 @@ function mergeMinMax(first, second) {
         }
         else {
             // merge MinMax values
-            var min = Math.min(first._internal_min, second._internal_min);
-            var max = Math.max(first._internal_max, second._internal_max);
-            return { _internal_min: min, _internal_max: max };
+            var min = Math.min(first.min, second.min);
+            var max = Math.max(first.max, second.max);
+            return { min: min, max: max };
         }
     }
 }
@@ -9842,22 +9842,22 @@ var Series = /** @class */ (function (_super) {
         _this._private__recreatePaneViews();
         return _this;
     }
-    Series.prototype._internal_destroy = function () {
+    Series.prototype.destroy = function () {
         if (this._private__animationTimeoutId !== null) {
             clearTimeout(this._private__animationTimeoutId);
         }
     };
-    Series.prototype._internal_priceLineColor = function (lastBarColor) {
+    Series.prototype.priceLineColor = function (lastBarColor) {
         return this._private__options.priceLineColor || lastBarColor;
     };
-    Series.prototype._internal_lastValueData = function (globalLast) {
-        var noDataRes = { _internal_noData: true };
-        var priceScale = this._internal_priceScale();
-        if (this._internal_model()._internal_timeScale()._internal_isEmpty() || priceScale._internal_isEmpty() || this._private__data._internal_isEmpty()) {
+    Series.prototype.lastValueData = function (globalLast) {
+        var noDataRes = { noData: true };
+        var priceScale = this.priceScale();
+        if (this.model().timeScale().isEmpty() || priceScale.isEmpty() || this._private__data.isEmpty()) {
             return noDataRes;
         }
-        var visibleBars = this._internal_model()._internal_timeScale()._internal_visibleStrictRange();
-        var firstValue = this._internal_firstValue();
+        var visibleBars = this.model().timeScale().visibleStrictRange();
+        var firstValue = this.firstValue();
         if (visibleBars === null || firstValue === null) {
             return noDataRes;
         }
@@ -9866,61 +9866,61 @@ var Series = /** @class */ (function (_super) {
         var bar;
         var lastIndex;
         if (globalLast) {
-            var lastBar = this._private__data._internal_last();
+            var lastBar = this._private__data.last();
             if (lastBar === null) {
                 return noDataRes;
             }
             bar = lastBar;
-            lastIndex = lastBar._internal_index;
+            lastIndex = lastBar.index;
         }
         else {
-            var endBar = this._private__data._internal_search(visibleBars._internal_right(), -1 /* NearestLeft */);
+            var endBar = this._private__data.search(visibleBars.right(), -1 /* NearestLeft */);
             if (endBar === null) {
                 return noDataRes;
             }
-            bar = this._private__data._internal_valueAt(endBar._internal_index);
+            bar = this._private__data.valueAt(endBar.index);
             if (bar === null) {
                 return noDataRes;
             }
-            lastIndex = endBar._internal_index;
+            lastIndex = endBar.index;
         }
-        var price = bar._internal_value[3 /* Close */];
-        var barColorer = this._internal_barColorer();
-        var style = barColorer._internal_barStyle(lastIndex, { _internal_value: bar });
-        var coordinate = priceScale._internal_priceToCoordinate(price, firstValue._internal_value);
+        var price = bar.value[3 /* Close */];
+        var barColorer = this.barColorer();
+        var style = barColorer.barStyle(lastIndex, { value: bar });
+        var coordinate = priceScale.priceToCoordinate(price, firstValue.value);
         return {
-            _internal_noData: false,
-            _internal_price: price,
-            _internal_text: priceScale._internal_formatPrice(price, firstValue._internal_value),
-            _internal_formattedPriceAbsolute: priceScale._internal_formatPriceAbsolute(price),
-            _internal_formattedPricePercentage: priceScale._internal_formatPricePercentage(price, firstValue._internal_value),
-            _internal_color: style._internal_barColor,
-            _internal_coordinate: coordinate,
-            _internal_index: lastIndex,
+            noData: false,
+            price: price,
+            text: priceScale.formatPrice(price, firstValue.value),
+            formattedPriceAbsolute: priceScale.formatPriceAbsolute(price),
+            formattedPricePercentage: priceScale.formatPricePercentage(price, firstValue.value),
+            color: style.barColor,
+            coordinate: coordinate,
+            index: lastIndex,
         };
     };
-    Series.prototype._internal_barColorer = function () {
+    Series.prototype.barColorer = function () {
         if (this._private__barColorerCache !== null) {
             return this._private__barColorerCache;
         }
         this._private__barColorerCache = new SeriesBarColorer(this);
         return this._private__barColorerCache;
     };
-    Series.prototype._internal_options = function () {
+    Series.prototype.options = function () {
         return this._private__options;
     };
-    Series.prototype._internal_applyOptions = function (options) {
+    Series.prototype.applyOptions = function (options) {
         var _a;
         var targetPriceScaleId = options.priceScaleId;
         if (targetPriceScaleId !== undefined && targetPriceScaleId !== this._private__options.priceScaleId) {
             // series cannot do it itself, ask model
-            this._internal_model()._internal_moveSeriesToScale(this, targetPriceScaleId);
+            this.model().moveSeriesToScale(this, targetPriceScaleId);
         }
         var previousPaneIndex = (_a = this._private__options.pane) !== null && _a !== void 0 ? _a : 0;
         merge(this._private__options, options);
         // eslint-disable-next-line deprecation/deprecation
-        if (this._internal__priceScale !== null && options.scaleMargins !== undefined) {
-            this._internal__priceScale._internal_applyOptions({
+        if (this._priceScale !== null && options.scaleMargins !== undefined) {
+            this._priceScale.applyOptions({
                 // eslint-disable-next-line deprecation/deprecation
                 scaleMargins: options.scaleMargins,
             });
@@ -9931,128 +9931,128 @@ var Series = /** @class */ (function (_super) {
             // thus we need to force the chart to do a full update to apply changes correctly
             // full update is quite heavy operation in terms of performance
             // but updating formatter looks like quite rare so forcing a full update here shouldn't affect the performance a lot
-            this._internal_model()._internal_fullUpdate();
+            this.model().fullUpdate();
         }
         if (options.pane && previousPaneIndex !== options.pane) {
-            this._internal_model()._internal_moveSeriesToPane(this, previousPaneIndex, options.pane);
+            this.model().moveSeriesToPane(this, previousPaneIndex, options.pane);
         }
-        this._internal_model()._internal_updateSource(this);
+        this.model().updateSource(this);
         // a series might affect crosshair by some options (like crosshair markers)
         // that's why we need to update crosshair as well
-        this._internal_model()._internal_updateCrosshair();
-        this._private__paneView._internal_update('options');
+        this.model().updateCrosshair();
+        this._private__paneView.update('options');
     };
-    Series.prototype._internal_setData = function (data, updateInfo) {
-        this._private__data._internal_setData(data);
+    Series.prototype.setData = function (data, updateInfo) {
+        this._private__data.setData(data);
         this._private__recalculateMarkers();
-        this._private__paneView._internal_update('data');
-        this._private__markersPaneView._internal_update('data');
+        this._private__paneView.update('data');
+        this._private__markersPaneView.update('data');
         if (this._private__lastPriceAnimationPaneView !== null) {
-            if (updateInfo && updateInfo._internal_lastBarUpdatedOrNewBarsAddedToTheRight) {
+            if (updateInfo && updateInfo.lastBarUpdatedOrNewBarsAddedToTheRight) {
                 this._private__lastPriceAnimationPaneView._internal_onNewRealtimeDataReceived();
             }
             else if (data.length === 0) {
                 this._private__lastPriceAnimationPaneView._internal_onDataCleared();
             }
         }
-        var sourcePane = this._internal_model()._internal_paneForSource(this);
-        this._internal_model()._internal_recalculatePane(sourcePane);
-        this._internal_model()._internal_updateSource(this);
-        this._internal_model()._internal_updateCrosshair();
-        this._internal_model()._internal_lightUpdate();
+        var sourcePane = this.model().paneForSource(this);
+        this.model().recalculatePane(sourcePane);
+        this.model().updateSource(this);
+        this.model().updateCrosshair();
+        this.model().lightUpdate();
     };
-    Series.prototype._internal_setMarkers = function (data) {
+    Series.prototype.setMarkers = function (data) {
         this._private__markers = data.map(function (item) { return (__assign({}, item)); });
         this._private__recalculateMarkers();
-        var sourcePane = this._internal_model()._internal_paneForSource(this);
-        this._private__markersPaneView._internal_update('data');
-        this._internal_model()._internal_recalculatePane(sourcePane);
-        this._internal_model()._internal_updateSource(this);
-        this._internal_model()._internal_updateCrosshair();
-        this._internal_model()._internal_lightUpdate();
+        var sourcePane = this.model().paneForSource(this);
+        this._private__markersPaneView.update('data');
+        this.model().recalculatePane(sourcePane);
+        this.model().updateSource(this);
+        this.model().updateCrosshair();
+        this.model().lightUpdate();
     };
-    Series.prototype._internal_indexedMarkers = function () {
+    Series.prototype.indexedMarkers = function () {
         return this._private__indexedMarkers;
     };
-    Series.prototype._internal_createPriceLine = function (options) {
+    Series.prototype.createPriceLine = function (options) {
         var result = new CustomPriceLine(this, options);
         this._private__customPriceLines.push(result);
-        this._internal_model()._internal_updateSource(this);
+        this.model().updateSource(this);
         return result;
     };
-    Series.prototype._internal_removePriceLine = function (line) {
+    Series.prototype.removePriceLine = function (line) {
         var index = this._private__customPriceLines.indexOf(line);
         if (index !== -1) {
             this._private__customPriceLines.splice(index, 1);
         }
-        this._internal_model()._internal_updateSource(this);
+        this.model().updateSource(this);
     };
-    Series.prototype._internal_getPriceLine = function (cursorPrice, cursorIndex) {
-        var priceScale = this._internal_priceScale();
-        var priceRange = priceScale._internal_priceRange();
-        if (priceScale._internal_isLog()) {
-            priceRange = convertPriceRangeFromLog(priceRange, priceScale._internal_logFormula());
+    Series.prototype.getPriceLine = function (cursorPrice, cursorIndex) {
+        var priceScale = this.priceScale();
+        var priceRange = priceScale.priceRange();
+        if (priceScale.isLog()) {
+            priceRange = convertPriceRangeFromLog(priceRange, priceScale.logFormula());
         }
         var magnetPercent = 0.0001;
         if (priceRange) {
-            var lookAroundPercent = 16 / priceScale._internal_height();
-            var percentRange = Math.abs(priceRange._internal_length()) / cursorPrice;
+            var lookAroundPercent = 16 / priceScale.height();
+            var percentRange = Math.abs(priceRange.length()) / cursorPrice;
             magnetPercent = lookAroundPercent * percentRange;
         }
         for (var i = 0; i < this._private__customPriceLines.length; i++) {
             var customPriceLine = this._private__customPriceLines[i];
-            var _a = this._private__customPriceLines[i]._internal_options(), price = _a.price, index = _a.index;
+            var _a = this._private__customPriceLines[i].options(), price = _a.price, index = _a.index;
             if ((typeof cursorIndex === 'undefined' || typeof index === 'undefined' || cursorIndex >= index) && Math.abs(Math.abs(price - cursorPrice) / cursorPrice) < Math.abs(magnetPercent)) {
                 return customPriceLine;
             }
         }
         return null;
     };
-    Series.prototype._internal_removeAllPriceLines = function () {
+    Series.prototype.removeAllPriceLines = function () {
         this._private__customPriceLines.splice(0, this._private__customPriceLines.length);
     };
-    Series.prototype._internal_seriesType = function () {
+    Series.prototype.seriesType = function () {
         return this._private__seriesType;
     };
-    Series.prototype._internal_firstValue = function () {
-        var bar = this._internal_firstBar();
+    Series.prototype.firstValue = function () {
+        var bar = this.firstBar();
         if (bar === null) {
             return null;
         }
         return {
-            _internal_value: bar._internal_value[3 /* Close */],
-            _internal_timePoint: bar._internal_time,
+            value: bar.value[3 /* Close */],
+            timePoint: bar.time,
         };
     };
-    Series.prototype._internal_firstBar = function () {
-        var visibleBars = this._internal_model()._internal_timeScale()._internal_visibleStrictRange();
+    Series.prototype.firstBar = function () {
+        var visibleBars = this.model().timeScale().visibleStrictRange();
         if (visibleBars === null) {
             return null;
         }
-        var startTimePoint = visibleBars._internal_left();
-        return this._private__data._internal_search(startTimePoint, 1 /* NearestRight */);
+        var startTimePoint = visibleBars.left();
+        return this._private__data.search(startTimePoint, 1 /* NearestRight */);
     };
-    Series.prototype._internal_bars = function () {
+    Series.prototype.bars = function () {
         return this._private__data;
     };
-    Series.prototype._internal_dataAt = function (time) {
-        var prices = this._private__data._internal_valueAt(time);
+    Series.prototype.dataAt = function (time) {
+        var prices = this._private__data.valueAt(time);
         if (prices === null) {
             return null;
         }
         if (this._private__seriesType === 'Bar' || this._private__seriesType === 'Candlestick') {
             return {
-                open: prices._internal_value[0 /* Open */],
-                high: prices._internal_value[1 /* High */],
-                low: prices._internal_value[2 /* Low */],
-                close: prices._internal_value[3 /* Close */],
+                open: prices.value[0 /* Open */],
+                high: prices.value[1 /* High */],
+                low: prices.value[2 /* Low */],
+                close: prices.value[3 /* Close */],
             };
         }
         else {
-            return prices._internal_value[3 /* Close */];
+            return prices.value[3 /* Close */];
         }
     };
-    Series.prototype._internal_topPaneViews = function (pane) {
+    Series.prototype.topPaneViews = function (pane) {
         var _this = this;
         var animationPaneView = this._private__lastPriceAnimationPaneView;
         if (animationPaneView === null || !animationPaneView._internal_visible()) {
@@ -10061,103 +10061,103 @@ var Series = /** @class */ (function (_super) {
         if (this._private__animationTimeoutId === null && animationPaneView._internal_animationActive()) {
             this._private__animationTimeoutId = setTimeout(function () {
                 _this._private__animationTimeoutId = null;
-                _this._internal_model()._internal_cursorUpdate();
+                _this.model().cursorUpdate();
                 // eslint-disable-next-line @typescript-eslint/tslint/config
             }, 0);
         }
         animationPaneView._internal_invalidateStage();
         return [animationPaneView];
     };
-    Series.prototype._internal_paneViews = function () {
+    Series.prototype.paneViews = function () {
         var res = [];
         if (!this._private__isOverlay()) {
             res.push(this._private__baseHorizontalLineView);
         }
         for (var _i = 0, _a = this._private__customPriceLines; _i < _a.length; _i++) {
             var customPriceLine = _a[_i];
-            res.push.apply(res, customPriceLine._internal_paneViews());
+            res.push.apply(res, customPriceLine.paneViews());
         }
         res.push(this._private__paneView, this._private__priceLineView, this._private__panePriceAxisLabelView, this._private__markersPaneView);
         return res;
     };
-    Series.prototype._internal_priceAxisViews = function (pane, priceScale) {
-        if (priceScale !== this._internal__priceScale && !this._private__isOverlay()) {
+    Series.prototype.priceAxisViews = function (pane, priceScale) {
+        if (priceScale !== this._priceScale && !this._private__isOverlay()) {
             return [];
         }
         var result = __spreadArray([], this._private__priceAxisViews, true);
         for (var _i = 0, _a = this._private__customPriceLines; _i < _a.length; _i++) {
             var customPriceLine = _a[_i];
-            result.push(customPriceLine._internal_priceAxisView());
+            result.push(customPriceLine.priceAxisView());
         }
         return result;
     };
-    Series.prototype._internal_autoscaleInfo = function (startTimePoint, endTimePoint) {
+    Series.prototype.autoscaleInfo = function (startTimePoint, endTimePoint) {
         var _this = this;
         if (this._private__options.autoscaleInfoProvider !== undefined) {
             var autoscaleInfo = this._private__options.autoscaleInfoProvider(function () {
                 var res = _this._private__autoscaleInfoImpl(startTimePoint, endTimePoint);
-                return res === null ? null : res._internal_toRaw();
+                return res === null ? null : res.toRaw();
             });
-            return AutoscaleInfoImpl._internal_fromRaw(autoscaleInfo);
+            return AutoscaleInfoImpl.fromRaw(autoscaleInfo);
         }
         return this._private__autoscaleInfoImpl(startTimePoint, endTimePoint);
     };
-    Series.prototype._internal_minMove = function () {
+    Series.prototype.minMove = function () {
         return this._private__options.priceFormat.minMove;
     };
-    Series.prototype._internal_formatter = function () {
+    Series.prototype.formatter = function () {
         return this._private__formatter;
     };
-    Series.prototype._internal_updateAllViews = function () {
+    Series.prototype.updateAllViews = function () {
         var _a;
-        this._private__paneView._internal_update();
-        this._private__markersPaneView._internal_update();
+        this._private__paneView.update();
+        this._private__markersPaneView.update();
         for (var _i = 0, _b = this._private__priceAxisViews; _i < _b.length; _i++) {
             var priceAxisView = _b[_i];
-            priceAxisView._internal_update();
+            priceAxisView.update();
         }
         for (var _c = 0, _d = this._private__customPriceLines; _c < _d.length; _c++) {
             var customPriceLine = _d[_c];
-            customPriceLine._internal_update();
+            customPriceLine.update();
         }
         this._private__priceLineView._internal_update();
         this._private__baseHorizontalLineView._internal_update();
-        (_a = this._private__lastPriceAnimationPaneView) === null || _a === void 0 ? void 0 : _a._internal_update();
+        (_a = this._private__lastPriceAnimationPaneView) === null || _a === void 0 ? void 0 : _a.update();
     };
-    Series.prototype._internal_priceScale = function () {
-        return ensureNotNull(_super.prototype._internal_priceScale.call(this));
+    Series.prototype.priceScale = function () {
+        return ensureNotNull(_super.prototype.priceScale.call(this));
     };
-    Series.prototype._internal_markerDataAtIndex = function (index) {
+    Series.prototype.markerDataAtIndex = function (index) {
         var getValue = (this._private__seriesType === 'Line' || this._private__seriesType === 'Area' || this._private__seriesType === 'Baseline') &&
             this._private__options.crosshairMarkerVisible;
         if (!getValue) {
             return null;
         }
-        var bar = this._private__data._internal_valueAt(index);
+        var bar = this._private__data.valueAt(index);
         if (bar === null) {
             return null;
         }
-        var price = bar._internal_value[3 /* Close */];
+        var price = bar.value[3 /* Close */];
         var radius = this._private__markerRadius();
         var borderColor = this._private__markerBorderColor();
         var backgroundColor = this._private__markerBackgroundColor(index);
-        return { _internal_price: price, _internal_radius: radius, _internal_borderColor: borderColor, _internal_backgroundColor: backgroundColor };
+        return { price: price, radius: radius, borderColor: borderColor, backgroundColor: backgroundColor };
     };
-    Series.prototype._internal_title = function () {
+    Series.prototype.title = function () {
         return this._private__options.title;
     };
-    Series.prototype._internal_visible = function () {
+    Series.prototype.visible = function () {
         return this._private__options.visible;
     };
-    Series.prototype._internal_setExtensionsBoundaries = function (extensionsBoundaries) {
+    Series.prototype.setExtensionsBoundaries = function (extensionsBoundaries) {
         this._private__paneView._internal_setExtensionsBoundaries(extensionsBoundaries);
     };
     Series.prototype._private__isOverlay = function () {
-        var priceScale = this._internal_priceScale();
-        return !isDefaultPriceScale(priceScale._internal_id());
+        var priceScale = this.priceScale();
+        return !isDefaultPriceScale(priceScale.id());
     };
     Series.prototype._private__autoscaleInfoImpl = function (startTimePoint, endTimePoint) {
-        if (!isInteger(startTimePoint) || !isInteger(endTimePoint) || this._private__data._internal_isEmpty()) {
+        if (!isInteger(startTimePoint) || !isInteger(endTimePoint) || this._private__data.isEmpty()) {
             return null;
         }
         // TODO: refactor this
@@ -10165,12 +10165,12 @@ var Series = /** @class */ (function (_super) {
         var plots = this._private__seriesType === 'Line' || this._private__seriesType === 'Area' || this._private__seriesType === 'Baseline' || this._private__seriesType === 'Histogram'
             ? [3 /* Close */]
             : [2 /* Low */, 1 /* High */];
-        var barsMinMax = this._private__data._internal_minMaxOnRangeCached(startTimePoint, endTimePoint, plots);
-        var range = barsMinMax !== null ? new PriceRangeImpl(barsMinMax._internal_min, barsMinMax._internal_max) : null;
-        if (this._internal_seriesType() === 'Histogram') {
+        var barsMinMax = this._private__data.minMaxOnRangeCached(startTimePoint, endTimePoint, plots);
+        var range = barsMinMax !== null ? new PriceRangeImpl(barsMinMax.min, barsMinMax.max) : null;
+        if (this.seriesType() === 'Histogram') {
             var base = this._private__options.base;
             var rangeWithBase = new PriceRangeImpl(base, base);
-            range = range !== null ? range._internal_merge(rangeWithBase) : rangeWithBase;
+            range = range !== null ? range.merge(rangeWithBase) : rangeWithBase;
         }
         return new AutoscaleInfoImpl(range, this._private__markersPaneView._internal_autoScaleMargins());
     };
@@ -10209,7 +10209,7 @@ var Series = /** @class */ (function (_super) {
                 }
             }
         }
-        return this._internal_barColorer()._internal_barStyle(index)._internal_barColor;
+        return this.barColorer().barStyle(index).barColor;
     };
     Series.prototype._private__recreateFormatter = function () {
         switch (this._private__options.priceFormat.type) {
@@ -10230,24 +10230,24 @@ var Series = /** @class */ (function (_super) {
                 this._private__formatter = new PriceFormatter(priceScale, this._private__options.priceFormat.minMove * priceScale);
             }
         }
-        if (this._internal__priceScale !== null) {
-            this._internal__priceScale._internal_updateFormatter();
+        if (this._priceScale !== null) {
+            this._priceScale.updateFormatter();
         }
     };
     Series.prototype._private__recalculateMarkers = function () {
         var _this = this;
-        var timeScale = this._internal_model()._internal_timeScale();
-        if (timeScale._internal_isEmpty() || this._private__data._internal_size() === 0) {
+        var timeScale = this.model().timeScale();
+        if (timeScale.isEmpty() || this._private__data.size() === 0) {
             this._private__indexedMarkers = [];
             return;
         }
-        var firstDataIndex = ensureNotNull(this._private__data._internal_firstIndex());
+        var firstDataIndex = ensureNotNull(this._private__data.firstIndex());
         this._private__indexedMarkers = this._private__markers.map(function (marker, index) {
             // the first find index on the time scale (across all series)
-            var timePointIndex = ensureNotNull(timeScale._internal_timeToIndex(marker.time, true));
+            var timePointIndex = ensureNotNull(timeScale.timeToIndex(marker.time, true));
             // and then search that index inside the series data
             var searchMode = timePointIndex < firstDataIndex ? 1 /* NearestRight */ : -1 /* NearestLeft */;
-            var seriesDataIndex = ensureNotNull(_this._private__data._internal_search(timePointIndex, searchMode))._internal_index;
+            var seriesDataIndex = ensureNotNull(_this._private__data.search(timePointIndex, searchMode)).index;
             return {
                 time: seriesDataIndex,
                 position: marker.position,
@@ -10258,45 +10258,45 @@ var Series = /** @class */ (function (_super) {
                 anchor: marker.anchor,
                 price: marker.price,
                 id: marker.id,
-                _internal_internalId: index,
+                internalId: index,
                 text: marker.text,
                 size: marker.size,
             };
         });
     };
     Series.prototype._private__recreatePaneViews = function () {
-        this._private__markersPaneView = new SeriesMarkersPaneView(this, this._internal_model());
+        this._private__markersPaneView = new SeriesMarkersPaneView(this, this.model());
         switch (this._private__seriesType) {
             case 'Bar': {
-                this._private__paneView = new SeriesBarsPaneView(this, this._internal_model());
+                this._private__paneView = new SeriesBarsPaneView(this, this.model());
                 break;
             }
             case 'Candlestick': {
-                this._private__paneView = new SeriesCandlesticksPaneView(this, this._internal_model());
+                this._private__paneView = new SeriesCandlesticksPaneView(this, this.model());
                 break;
             }
             case 'Line': {
-                this._private__paneView = new SeriesLinePaneView(this, this._internal_model());
+                this._private__paneView = new SeriesLinePaneView(this, this.model());
                 break;
             }
             case 'Area': {
-                this._private__paneView = new SeriesAreaPaneView(this, this._internal_model());
+                this._private__paneView = new SeriesAreaPaneView(this, this.model());
                 break;
             }
             case 'CloudArea': {
-                this._private__paneView = new SeriesCloudAreaPaneView(this, this._internal_model());
+                this._private__paneView = new SeriesCloudAreaPaneView(this, this.model());
                 break;
             }
             case 'BrokenArea': {
-                this._private__paneView = new SeriesBrokenAreaPaneView(this, this._internal_model());
+                this._private__paneView = new SeriesBrokenAreaPaneView(this, this.model());
                 break;
             }
             case 'Baseline': {
-                this._private__paneView = new SeriesBaselinePaneView(this, this._internal_model());
+                this._private__paneView = new SeriesBaselinePaneView(this, this.model());
                 break;
             }
             case 'Histogram': {
-                this._private__paneView = new SeriesHistogramPaneView(this, this._internal_model());
+                this._private__paneView = new SeriesHistogramPaneView(this, this.model());
                 break;
             }
             default:
@@ -10311,41 +10311,41 @@ var Magnet = /** @class */ (function () {
         this._private__enabled = false;
         this._private__threashold = threashold;
     }
-    Magnet.prototype._internal_enable = function () {
+    Magnet.prototype.enable = function () {
         this._private__enabled = true;
     };
-    Magnet.prototype._internal_disable = function () {
+    Magnet.prototype.disable = function () {
         this._private__enabled = false;
     };
-    Magnet.prototype._internal_align = function (price, index, pane) {
+    Magnet.prototype.align = function (price, index, pane) {
         if (!this._private__enabled) {
             return price;
         }
         var res = price;
-        var defaultPriceScale = pane._internal_defaultPriceScale();
-        var firstValue = defaultPriceScale._internal_firstValue();
+        var defaultPriceScale = pane.defaultPriceScale();
+        var firstValue = defaultPriceScale.firstValue();
         if (firstValue === null) {
             return res;
         }
-        var y = defaultPriceScale._internal_priceToCoordinate(price, firstValue);
+        var y = defaultPriceScale.priceToCoordinate(price, firstValue);
         // get all serieses from the pane
-        var serieses = pane._internal_dataSources().filter((function (ds) { return (ds instanceof Series); }));
+        var serieses = pane.dataSources().filter((function (ds) { return (ds instanceof Series); }));
         var candidates = serieses.reduce(function (acc, series) {
-            if (pane._internal_isOverlay(series) || !series._internal_visible()) {
+            if (pane.isOverlay(series) || !series.visible()) {
                 return acc;
             }
-            var ps = series._internal_priceScale();
-            var bars = series._internal_bars();
-            if (ps._internal_isEmpty() || !bars._internal_contains(index)) {
+            var ps = series.priceScale();
+            var bars = series.bars();
+            if (ps.isEmpty() || !bars.contains(index)) {
                 return acc;
             }
-            var bar = bars._internal_valueAt(index);
+            var bar = bars.valueAt(index);
             if (bar === null) {
                 return acc;
             }
             // convert bar to pixels
-            var firstPrice = ensure(series._internal_firstValue());
-            acc.push(ps._internal_priceToCoordinate(bar._internal_value[3 /* Close */], firstPrice._internal_value), ps._internal_priceToCoordinate(bar._internal_value[2 /* Low */], firstPrice._internal_value), ps._internal_priceToCoordinate(bar._internal_value[1 /* High */], firstPrice._internal_value), ps._internal_priceToCoordinate(bar._internal_value[0 /* Open */], firstPrice._internal_value));
+            var firstPrice = ensure(series.firstValue());
+            acc.push(ps.priceToCoordinate(bar.value[3 /* Close */], firstPrice.value), ps.priceToCoordinate(bar.value[2 /* Low */], firstPrice.value), ps.priceToCoordinate(bar.value[1 /* High */], firstPrice.value), ps.priceToCoordinate(bar.value[0 /* Open */], firstPrice.value));
             return acc;
         }, []);
         if (candidates.length === 0) {
@@ -10354,7 +10354,7 @@ var Magnet = /** @class */ (function () {
         candidates.sort(function (y1, y2) { return Math.abs(y1 - y) - Math.abs(y2 - y); });
         var nearest = candidates[0];
         if (Math.abs(nearest - y) < this._private__threashold) {
-            res = defaultPriceScale._internal_coordinateToPrice(nearest, firstValue);
+            res = defaultPriceScale.coordinateToPrice(nearest, firstValue);
         }
         return res;
     };
@@ -10451,9 +10451,9 @@ function defaultTickMarkFormatter(timePoint, tickMarkType, locale) {
             formatOptions.second = '2-digit';
             break;
     }
-    var date = timePoint._internal_businessDay === undefined
-        ? new Date(timePoint._internal_timestamp * 1000)
-        : new Date(Date.UTC(timePoint._internal_businessDay.year, timePoint._internal_businessDay.month - 1, timePoint._internal_businessDay.day));
+    var date = timePoint.businessDay === undefined
+        ? new Date(timePoint.timestamp * 1000)
+        : new Date(Date.UTC(timePoint.businessDay.year, timePoint.businessDay.month - 1, timePoint.businessDay.day));
     // from given date we should use only as UTC date or timestamp
     // but to format as locale date we can convert UTC date to local date
     var localDateFromUtc = new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), date.getUTCHours(), date.getUTCMinutes(), date.getUTCSeconds(), date.getUTCMilliseconds());
@@ -10472,9 +10472,9 @@ var FormattedLabelsCache = /** @class */ (function () {
         this._private__maxSize = size;
     }
     FormattedLabelsCache.prototype._internal_format = function (value) {
-        var cacheKey = value._internal_businessDay === undefined
-            ? new Date(value._internal_timestamp * 1000).getTime()
-            : new Date(Date.UTC(value._internal_businessDay.year, value._internal_businessDay.month - 1, value._internal_businessDay.day)).getTime();
+        var cacheKey = value.businessDay === undefined
+            ? new Date(value.timestamp * 1000).getTime()
+            : new Date(Date.UTC(value.businessDay.year, value.businessDay.month - 1, value.businessDay.day)).getTime();
         var tick = this._private__cache.get(cacheKey);
         if (tick !== undefined) {
             return tick._internal_string;
@@ -10502,23 +10502,23 @@ var RangeImpl = /** @class */ (function () {
         this._private__left = left;
         this._private__right = right;
     }
-    RangeImpl.prototype._internal_left = function () {
+    RangeImpl.prototype.left = function () {
         return this._private__left;
     };
-    RangeImpl.prototype._internal_right = function () {
+    RangeImpl.prototype.right = function () {
         return this._private__right;
     };
-    RangeImpl.prototype._internal_valueAt = function (position) {
+    RangeImpl.prototype.valueAt = function (position) {
         return (this._private__left + (this._private__right - this._private__left) * position);
     };
-    RangeImpl.prototype._internal_count = function () {
+    RangeImpl.prototype.count = function () {
         return this._private__right - this._private__left + 1;
     };
-    RangeImpl.prototype._internal_contains = function (index) {
+    RangeImpl.prototype.contains = function (index) {
         return this._private__left <= index && index <= this._private__right;
     };
-    RangeImpl.prototype._internal_equals = function (other) {
-        return this._private__left === other._internal_left() && this._private__right === other._internal_right();
+    RangeImpl.prototype.equals = function (other) {
+        return this._private__left === other.left() && this._private__right === other.right();
     };
     return RangeImpl;
 }());
@@ -10526,7 +10526,7 @@ function areRangesEqual(first, second) {
     if (first === null || second === null) {
         return first === second;
     }
-    return first._internal_equals(second);
+    return first.equals(second);
 }
 
 var TickMarks = /** @class */ (function () {
@@ -10539,15 +10539,15 @@ var TickMarks = /** @class */ (function () {
         this._private__cache = null;
         for (var index = firstChangedPointIndex; index < newPoints.length; ++index) {
             var point = newPoints[index];
-            var marksForWeight = this._private__marksByWeight.get(point._internal_timeWeight);
+            var marksForWeight = this._private__marksByWeight.get(point.timeWeight);
             if (marksForWeight === undefined) {
                 marksForWeight = [];
-                this._private__marksByWeight.set(point._internal_timeWeight, marksForWeight);
+                this._private__marksByWeight.set(point.timeWeight, marksForWeight);
             }
             marksForWeight.push({
                 _internal_index: index,
-                _internal_time: point._internal_time,
-                _internal_weight: point._internal_timeWeight,
+                _internal_time: point.time,
+                _internal_weight: point.timeWeight,
             });
         }
     };
@@ -10639,7 +10639,7 @@ var TimeScaleVisibleRange = /** @class */ (function () {
         if (this._private__logicalRange === null) {
             return null;
         }
-        return new RangeImpl(Math.floor(this._private__logicalRange._internal_left()), Math.ceil(this._private__logicalRange._internal_right()));
+        return new RangeImpl(Math.floor(this._private__logicalRange.left()), Math.ceil(this._private__logicalRange.right()));
     };
     TimeScaleVisibleRange.prototype._internal_logicalRange = function () {
         return this._private__logicalRange;
@@ -10715,15 +10715,15 @@ var TimeScale = /** @class */ (function () {
         this._private__model = model;
         this._private__updateDateTimeFormatter();
     }
-    TimeScale.prototype._internal_options = function () {
+    TimeScale.prototype.options = function () {
         return this._private__options;
     };
-    TimeScale.prototype._internal_applyLocalizationOptions = function (localizationOptions) {
+    TimeScale.prototype.applyLocalizationOptions = function (localizationOptions) {
         merge(this._private__localizationOptions, localizationOptions);
         this._private__invalidateTickMarks();
         this._private__updateDateTimeFormatter();
     };
-    TimeScale.prototype._internal_applyOptions = function (options, localizationOptions) {
+    TimeScale.prototype.applyOptions = function (options, localizationOptions) {
         var _a;
         merge(this._private__options, options);
         if (this._private__options.fixLeftEdge) {
@@ -10735,38 +10735,38 @@ var TimeScale = /** @class */ (function () {
         // note that bar spacing should be applied before right offset
         // because right offset depends on bar spacing
         if (options.barSpacing !== undefined) {
-            this._private__model._internal_setBarSpacing(options.barSpacing);
+            this._private__model.setBarSpacing(options.barSpacing);
         }
         if (options.rightOffset !== undefined) {
-            this._private__model._internal_setRightOffset(options.rightOffset);
+            this._private__model.setRightOffset(options.rightOffset);
         }
         if (options.minBarSpacing !== undefined) {
             // yes, if we apply min bar spacing then we need to correct bar spacing
             // the easiest way is to apply it once again
-            this._private__model._internal_setBarSpacing((_a = options.barSpacing) !== null && _a !== void 0 ? _a : this._private__barSpacing);
+            this._private__model.setBarSpacing((_a = options.barSpacing) !== null && _a !== void 0 ? _a : this._private__barSpacing);
         }
         this._private__invalidateTickMarks();
         this._private__updateDateTimeFormatter();
-        this._private__optionsApplied._internal_fire();
+        this._private__optionsApplied.fire();
     };
-    TimeScale.prototype._internal_indexToTime = function (index) {
+    TimeScale.prototype.indexToTime = function (index) {
         var _a;
-        return ((_a = this._private__points[index]) === null || _a === void 0 ? void 0 : _a._internal_time) || null;
+        return ((_a = this._private__points[index]) === null || _a === void 0 ? void 0 : _a.time) || null;
     };
-    TimeScale.prototype._internal_floatIndexToTime = function (index) {
+    TimeScale.prototype.floatIndexToTime = function (index) {
         var _a, _b, _c, _d;
         var index1 = Math.floor(index);
         var index2 = Math.ceil(index);
-        var time1 = (_a = this._private__points[index1]) === null || _a === void 0 ? void 0 : _a._internal_time._internal_timestamp;
-        var time2 = (_b = this._private__points[index2]) === null || _b === void 0 ? void 0 : _b._internal_time._internal_timestamp;
-        var firstTime = (_c = this._private__points[0]) === null || _c === void 0 ? void 0 : _c._internal_time._internal_timestamp;
-        var lastTime = (_d = this._private__points[this._private__points.length - 1]) === null || _d === void 0 ? void 0 : _d._internal_time._internal_timestamp;
+        var time1 = (_a = this._private__points[index1]) === null || _a === void 0 ? void 0 : _a.time.timestamp;
+        var time2 = (_b = this._private__points[index2]) === null || _b === void 0 ? void 0 : _b.time.timestamp;
+        var firstTime = (_c = this._private__points[0]) === null || _c === void 0 ? void 0 : _c.time.timestamp;
+        var lastTime = (_d = this._private__points[this._private__points.length - 1]) === null || _d === void 0 ? void 0 : _d.time.timestamp;
         var interval = 0;
         if (this._private__points.length >= 2) {
-            interval = this._private__points[1]._internal_time._internal_timestamp - this._private__points[0]._internal_time._internal_timestamp;
+            interval = this._private__points[1].time.timestamp - this._private__points[0].time.timestamp;
         }
         else {
-            interval = 0 - this._private__points[0]._internal_time._internal_timestamp;
+            interval = 0 - this._private__points[0].time.timestamp;
         }
         if (index >= this._private__points.length - 1) {
             return lastTime + interval * (index - this._private__points.length + 1);
@@ -10781,74 +10781,74 @@ var TimeScale = /** @class */ (function () {
             return null;
         }
     };
-    TimeScale.prototype._internal_timeToIndex = function (time, findNearest) {
+    TimeScale.prototype.timeToIndex = function (time, findNearest) {
         if (this._private__points.length < 1) {
             // no time points available
             return null;
         }
-        if (time._internal_timestamp > this._private__points[this._private__points.length - 1]._internal_time._internal_timestamp) {
+        if (time.timestamp > this._private__points[this._private__points.length - 1].time.timestamp) {
             // special case
             return findNearest ? this._private__points.length - 1 : null;
         }
-        var index = lowerbound(this._private__points, time._internal_timestamp, function (a, b) { return a._internal_time._internal_timestamp < b; });
-        if (time._internal_timestamp < this._private__points[index]._internal_time._internal_timestamp) {
+        var index = lowerbound(this._private__points, time.timestamp, function (a, b) { return a.time.timestamp < b; });
+        if (time.timestamp < this._private__points[index].time.timestamp) {
             return findNearest ? index : null;
         }
         return index;
     };
-    TimeScale.prototype._internal_timeToFloatIndex = function (time, findNearest) {
-        var toIndex = this._internal_timeToIndex(time, findNearest);
+    TimeScale.prototype.timeToFloatIndex = function (time, findNearest) {
+        var toIndex = this.timeToIndex(time, findNearest);
         if (toIndex === null) {
             return null;
         }
         var fromIndex = Math.max(toIndex - 1, 0);
-        var fromValue = this._private__points[fromIndex]._internal_time._internal_timestamp;
-        var toValue = this._private__points[toIndex]._internal_time._internal_timestamp;
-        return (fromIndex + (1 - (toValue - time._internal_timestamp) / (toValue - fromValue)));
+        var fromValue = this._private__points[fromIndex].time.timestamp;
+        var toValue = this._private__points[toIndex].time.timestamp;
+        return (fromIndex + (1 - (toValue - time.timestamp) / (toValue - fromValue)));
     };
-    TimeScale.prototype._internal_isEmpty = function () {
+    TimeScale.prototype.isEmpty = function () {
         return this._private__width === 0 || this._private__points.length === 0 || this._private__baseIndexOrNull === null;
     };
     // strict range: integer indices of the bars in the visible range rounded in more wide direction
-    TimeScale.prototype._internal_visibleStrictRange = function () {
+    TimeScale.prototype.visibleStrictRange = function () {
         this._private__updateVisibleRange();
         return this._private__visibleRange._internal_strictRange();
     };
-    TimeScale.prototype._internal_visibleLogicalRange = function () {
+    TimeScale.prototype.visibleLogicalRange = function () {
         this._private__updateVisibleRange();
         return this._private__visibleRange._internal_logicalRange();
     };
-    TimeScale.prototype._internal_visibleTimeRange = function () {
-        var visibleBars = this._internal_visibleStrictRange();
+    TimeScale.prototype.visibleTimeRange = function () {
+        var visibleBars = this.visibleStrictRange();
         if (visibleBars === null) {
             return null;
         }
         var range = {
-            from: visibleBars._internal_left(),
-            to: visibleBars._internal_right(),
+            from: visibleBars.left(),
+            to: visibleBars.right(),
         };
-        return this._internal_timeRangeForLogicalRange(range);
+        return this.timeRangeForLogicalRange(range);
     };
-    TimeScale.prototype._internal_timeRangeForLogicalRange = function (range) {
+    TimeScale.prototype.timeRangeForLogicalRange = function (range) {
         var from = Math.round(range.from);
         var to = Math.round(range.to);
         var firstIndex = ensureNotNull(this._private__firstIndex());
         var lastIndex = ensureNotNull(this._private__lastIndex());
         return {
-            from: ensureNotNull(this._internal_indexToTime(Math.max(firstIndex, from))),
-            to: ensureNotNull(this._internal_indexToTime(Math.min(lastIndex, to))),
+            from: ensureNotNull(this.indexToTime(Math.max(firstIndex, from))),
+            to: ensureNotNull(this.indexToTime(Math.min(lastIndex, to))),
         };
     };
-    TimeScale.prototype._internal_logicalRangeForTimeRange = function (range) {
+    TimeScale.prototype.logicalRangeForTimeRange = function (range) {
         return {
-            from: ensureNotNull(this._internal_timeToFloatIndex(range.from, true)),
-            to: ensureNotNull(this._internal_timeToFloatIndex(range.to, true)),
+            from: ensureNotNull(this.timeToFloatIndex(range.from, true)),
+            to: ensureNotNull(this.timeToFloatIndex(range.to, true)),
         };
     };
-    TimeScale.prototype._internal_width = function () {
+    TimeScale.prototype.width = function () {
         return this._private__width;
     };
-    TimeScale.prototype._internal_setWidth = function (width) {
+    TimeScale.prototype.setWidth = function (width) {
         if (!isFinite(width) || width <= 0) {
             return;
         }
@@ -10864,9 +10864,9 @@ var TimeScale = /** @class */ (function () {
         // keep left edge instead of right
         // we need it to avoid "shaking" if the last bar visibility affects time scale width
         if (this._private__options.fixLeftEdge) {
-            var visibleRange = this._internal_visibleStrictRange();
+            var visibleRange = this.visibleStrictRange();
             if (visibleRange !== null) {
-                var firstVisibleBar = visibleRange._internal_left();
+                var firstVisibleBar = visibleRange.left();
                 // firstVisibleBar could be less than 0
                 // since index is a center of bar
                 if (firstVisibleBar <= 0) {
@@ -10883,152 +10883,152 @@ var TimeScale = /** @class */ (function () {
         this._private__correctBarSpacing();
         this._private__correctOffset();
     };
-    TimeScale.prototype._internal_indexToCoordinate = function (index) {
-        if (this._internal_isEmpty()) {
+    TimeScale.prototype.indexToCoordinate = function (index) {
+        if (this.isEmpty()) {
             return 0;
         }
         if (this._private__options.mode === 1 /* Euclidean */) {
-            var time = this._internal_indexToTime(index);
+            var time = this.indexToTime(index);
             if (!time) {
                 return 0;
             }
-            return this._internal_timeToCoordinate(time);
+            return this.timeToCoordinate(time);
         }
         else {
             if (!isInteger(index)) {
                 return 0;
             }
-            var baseIndex = this._internal_baseIndex();
+            var baseIndex = this.baseIndex();
             var deltaFromRight = baseIndex + this._private__rightOffset - index;
             var coordinate = this._private__width - (deltaFromRight + 0.5) * this._private__barSpacing - 1;
             return coordinate;
         }
     };
-    TimeScale.prototype._internal_indexesToCoordinates = function (points, visibleRange) {
+    TimeScale.prototype.indexesToCoordinates = function (points, visibleRange) {
         var _a;
         if (this._private__options.mode === 1 /* Euclidean */) {
             var intervalRange = this._private__visibleValueRange._internal_logicalRange();
-            var start = (intervalRange === null || intervalRange === void 0 ? void 0 : intervalRange._internal_left()) || 0;
-            var end = (intervalRange === null || intervalRange === void 0 ? void 0 : intervalRange._internal_right()) || 0;
+            var start = (intervalRange === null || intervalRange === void 0 ? void 0 : intervalRange.left()) || 0;
+            var end = (intervalRange === null || intervalRange === void 0 ? void 0 : intervalRange.right()) || 0;
             for (var i = 0; i < points.length; i++) {
-                var utc = (((_a = this._internal_indexToTime(points[i]._internal_time)) === null || _a === void 0 ? void 0 : _a._internal_timestamp) || 0);
-                points[i]._internal_x = this._private__width * ((utc - start) / (end - start));
+                var utc = (((_a = this.indexToTime(points[i].time)) === null || _a === void 0 ? void 0 : _a.timestamp) || 0);
+                points[i].x = this._private__width * ((utc - start) / (end - start));
             }
         }
         else {
-            var baseIndex = this._internal_baseIndex();
+            var baseIndex = this.baseIndex();
             var indexFrom = (visibleRange === undefined) ? 0 : visibleRange.from;
             var indexTo = (visibleRange === undefined) ? points.length : visibleRange.to;
             for (var i = indexFrom; i < indexTo; i++) {
-                var index = points[i]._internal_time;
+                var index = points[i].time;
                 var deltaFromRight = baseIndex + this._private__rightOffset - index;
                 var coordinate = this._private__width - (deltaFromRight + 0.5) * this._private__barSpacing - 1;
-                points[i]._internal_x = coordinate;
+                points[i].x = coordinate;
             }
         }
     };
-    TimeScale.prototype._internal_timeToCoordinate = function (timePoint) {
+    TimeScale.prototype.timeToCoordinate = function (timePoint) {
         if (this._private__options.mode === 1 /* Euclidean */) {
             var intervalRange = this._private__visibleValueRange._internal_logicalRange();
-            var start = (intervalRange === null || intervalRange === void 0 ? void 0 : intervalRange._internal_left()) || 0;
-            var end = (intervalRange === null || intervalRange === void 0 ? void 0 : intervalRange._internal_right()) || 0;
-            var utc = timePoint._internal_timestamp;
+            var start = (intervalRange === null || intervalRange === void 0 ? void 0 : intervalRange.left()) || 0;
+            var end = (intervalRange === null || intervalRange === void 0 ? void 0 : intervalRange.right()) || 0;
+            var utc = timePoint.timestamp;
             return this._private__width * ((utc - start) / (end - start));
         }
         else {
-            var index = this._internal_timeToIndex(timePoint, true);
-            var timestamp = this._private__points[index]._internal_time._internal_timestamp;
-            var x = this._internal_indexToCoordinate(index);
-            if (timestamp === timePoint._internal_timestamp) {
+            var index = this.timeToIndex(timePoint, true);
+            var timestamp = this._private__points[index].time.timestamp;
+            var x = this.indexToCoordinate(index);
+            if (timestamp === timePoint.timestamp) {
                 return x;
             }
             else if (index === 0 || index === this._private__points.length - 1) {
-                var interval = 0 - this._private__points[0]._internal_time._internal_timestamp;
+                var interval = 0 - this._private__points[0].time.timestamp;
                 if (this._private__points.length === 2) {
-                    interval = this._private__points[1]._internal_time._internal_timestamp - this._private__points[0]._internal_time._internal_timestamp;
+                    interval = this._private__points[1].time.timestamp - this._private__points[0].time.timestamp;
                 }
-                var timeDiff = timePoint._internal_timestamp - timestamp;
+                var timeDiff = timePoint.timestamp - timestamp;
                 var bars = timeDiff / interval;
-                return x + (bars * this._internal_barSpacing());
+                return x + (bars * this.barSpacing());
             }
             else {
                 return x;
             }
         }
     };
-    TimeScale.prototype._internal_indexesToCoordinatesExtensions = function (points, extensionsBoundaries, visibleRange) {
-        var baseIndex = this._internal_baseIndex();
+    TimeScale.prototype.indexesToCoordinatesExtensions = function (points, extensionsBoundaries, visibleRange) {
+        var baseIndex = this.baseIndex();
         var indexFrom = (visibleRange === undefined) ? 0 : visibleRange.from;
         var indexTo = (visibleRange === undefined) ? points.length : visibleRange.to;
         for (var i = indexFrom; i < indexTo; i++) {
-            var index = points[i]._internal_time;
+            var index = points[i].time;
             var deltaFromRight = baseIndex + this._private__rightOffset - index;
             var coordinate = this._private__width - (deltaFromRight + 0.5) * this._private__barSpacing - 1;
-            points[i]._internal_x = coordinate;
-            if (typeof points[i]._internal_id !== 'undefined' && extensionsBoundaries[points[i]._internal_id]) {
-                deltaFromRight = baseIndex + this._private__rightOffset - extensionsBoundaries[points[i]._internal_id];
+            points[i].x = coordinate;
+            if (typeof points[i].id !== 'undefined' && extensionsBoundaries[points[i].id]) {
+                deltaFromRight = baseIndex + this._private__rightOffset - extensionsBoundaries[points[i].id];
                 coordinate = this._private__width - (deltaFromRight + 0.5) * this._private__barSpacing - 1;
-                points[i]._internal_end = coordinate;
+                points[i].end = coordinate;
             }
             else {
-                points[i]._internal_end = this._private__width;
+                points[i].end = this._private__width;
             }
         }
     };
-    TimeScale.prototype._internal_coordinateToIndex = function (x) {
+    TimeScale.prototype.coordinateToIndex = function (x) {
         return Math.ceil(this._private__coordinateToFloatIndex(x));
     };
-    TimeScale.prototype._internal_coordinateToTime = function (x) {
-        var interval = 0 - this._private__points[0]._internal_time._internal_timestamp;
+    TimeScale.prototype.coordinateToTime = function (x) {
+        var interval = 0 - this._private__points[0].time.timestamp;
         if (this._private__points.length >= 2) {
-            interval = this._private__points[1]._internal_time._internal_timestamp - this._private__points[0]._internal_time._internal_timestamp;
+            interval = this._private__points[1].time.timestamp - this._private__points[0].time.timestamp;
         }
-        var index = this._internal_coordinateToIndex(x);
+        var index = this.coordinateToIndex(x);
         if (index >= this._private__points.length) {
             var extraTime = interval * (index - this._private__points.length + 1);
-            return { _internal_timestamp: this._private__points[this._private__points.length - 1]._internal_time._internal_timestamp + extraTime };
+            return { timestamp: this._private__points[this._private__points.length - 1].time.timestamp + extraTime };
         }
         else if (index < 0) {
             var extraTime = interval * -index;
-            return { _internal_timestamp: this._private__points[0]._internal_time._internal_timestamp - extraTime };
+            return { timestamp: this._private__points[0].time.timestamp - extraTime };
         }
-        return this._private__points[index]._internal_time;
+        return this._private__points[index].time;
     };
-    TimeScale.prototype._internal_setRightOffset = function (offset) {
+    TimeScale.prototype.setRightOffset = function (offset) {
         this._private__visibleRangeInvalidated = true;
         this._private__rightOffset = offset;
         this._private__correctOffset();
-        this._private__model._internal_recalculateAllPanes();
-        this._private__model._internal_lightUpdate();
+        this._private__model.recalculateAllPanes();
+        this._private__model.lightUpdate();
     };
-    TimeScale.prototype._internal_barSpacing = function () {
+    TimeScale.prototype.barSpacing = function () {
         return this._private__barSpacing;
     };
-    TimeScale.prototype._internal_setBarSpacing = function (newBarSpacing) {
+    TimeScale.prototype.setBarSpacing = function (newBarSpacing) {
         this._private__setBarSpacing(newBarSpacing);
         // do not allow scroll out of visible bars
         this._private__correctOffset();
-        this._private__model._internal_recalculateAllPanes();
-        this._private__model._internal_lightUpdate();
+        this._private__model.recalculateAllPanes();
+        this._private__model.lightUpdate();
     };
-    TimeScale.prototype._internal_rightOffset = function () {
+    TimeScale.prototype.rightOffset = function () {
         return this._private__rightOffset;
     };
     // eslint-disable-next-line complexity
-    TimeScale.prototype._internal_marks = function () {
-        if (this._internal_isEmpty()) {
+    TimeScale.prototype.marks = function () {
+        if (this.isEmpty()) {
             return null;
         }
         if (this._private__timeMarksCache !== null) {
             return this._private__timeMarksCache;
         }
         var spacing = this._private__barSpacing;
-        var fontSize = this._private__model._internal_options().layout.fontSize;
+        var fontSize = this._private__model.options().layout.fontSize;
         var maxLabelWidth = (fontSize + 4) * (this._private__options.mode === 1 /* Euclidean */ ? 12 : 5);
         var indexPerLabel = Math.round(maxLabelWidth / spacing);
-        var visibleBars = ensureNotNull(this._internal_visibleStrictRange());
-        var firstBar = Math.max(visibleBars._internal_left(), visibleBars._internal_left() - indexPerLabel);
-        var lastBar = Math.max(visibleBars._internal_right(), visibleBars._internal_right() - indexPerLabel);
+        var visibleBars = ensureNotNull(this.visibleStrictRange());
+        var firstBar = Math.max(visibleBars.left(), visibleBars.left() - indexPerLabel);
+        var lastBar = Math.max(visibleBars.right(), visibleBars.right() - indexPerLabel);
         var items = this._private__tickMarks._internal_build(spacing, maxLabelWidth);
         // according to indexPerLabel value this value means "earliest index which _might be_ used as the second label on time scale"
         var earliestIndexOfSecondLabel = this._private__firstIndex() + indexPerLabel;
@@ -11041,7 +11041,7 @@ var TimeScale = /** @class */ (function () {
         for (var _i = 0, items_1 = items; _i < items_1.length; _i++) {
             var tm = items_1[_i];
             var index = this._private__options.mode === 1 /* Euclidean */
-                ? this._internal_timeToFloatIndex(tm._internal_time, true)
+                ? this.timeToFloatIndex(tm._internal_time, true)
                 : tm._internal_index;
             if (!(firstBar <= index && index <= lastBar)) {
                 continue;
@@ -11049,31 +11049,31 @@ var TimeScale = /** @class */ (function () {
             var label = void 0;
             if (targetIndex < this._private__labels.length) {
                 label = this._private__labels[targetIndex];
-                label._internal_label = this._private__formatLabel(tm._internal_time, tm._internal_weight);
-                label._internal_weight = tm._internal_weight;
-                label._internal_coord = this._private__options.mode === 1 /* Euclidean */
-                    ? this._internal_timeToCoordinate(tm._internal_time)
-                    : this._internal_indexToCoordinate(index);
+                label.label = this._private__formatLabel(tm._internal_time, tm._internal_weight);
+                label.weight = tm._internal_weight;
+                label.coord = this._private__options.mode === 1 /* Euclidean */
+                    ? this.timeToCoordinate(tm._internal_time)
+                    : this.indexToCoordinate(index);
             }
             else {
                 label = {
-                    _internal_needAlignCoordinate: false,
-                    _internal_label: this._private__formatLabel(tm._internal_time, tm._internal_weight),
-                    _internal_weight: tm._internal_weight,
-                    _internal_coord: this._private__options.mode === 1 /* Euclidean */
-                        ? this._internal_timeToCoordinate(tm._internal_time)
-                        : this._internal_indexToCoordinate(index),
+                    needAlignCoordinate: false,
+                    label: this._private__formatLabel(tm._internal_time, tm._internal_weight),
+                    weight: tm._internal_weight,
+                    coord: this._private__options.mode === 1 /* Euclidean */
+                        ? this.timeToCoordinate(tm._internal_time)
+                        : this.indexToCoordinate(index),
                 };
                 this._private__labels.push(label);
             }
             if (this._private__barSpacing > (maxLabelWidth / 2) && !isAllScalingAndScrollingDisabled) {
                 // if there is enough space then let's show all tick marks as usual
-                label._internal_needAlignCoordinate = false;
+                label.needAlignCoordinate = false;
             }
             else {
                 // if a user is able to scroll after a tick mark then show it as usual, otherwise the coordinate might be aligned
                 // if the index is for the second (last) label or later (earlier) then most likely this label might be displayed without correcting the coordinate
-                label._internal_needAlignCoordinate = (isLeftEdgeFixed && tm._internal_index <= earliestIndexOfSecondLabel) || (isRightEdgeFixed && tm._internal_index >= indexOfSecondLastLabel);
+                label.needAlignCoordinate = (isLeftEdgeFixed && tm._internal_index <= earliestIndexOfSecondLabel) || (isRightEdgeFixed && tm._internal_index >= indexOfSecondLastLabel);
             }
             targetIndex++;
         }
@@ -11081,12 +11081,12 @@ var TimeScale = /** @class */ (function () {
         this._private__timeMarksCache = this._private__labels;
         return this._private__labels;
     };
-    TimeScale.prototype._internal_restoreDefault = function () {
+    TimeScale.prototype.restoreDefault = function () {
         this._private__visibleRangeInvalidated = true;
-        this._internal_setBarSpacing(this._private__options.barSpacing);
-        this._internal_setRightOffset(this._private__options.rightOffset);
+        this.setBarSpacing(this._private__options.barSpacing);
+        this.setRightOffset(this._private__options.rightOffset);
     };
-    TimeScale.prototype._internal_setBaseIndex = function (baseIndex) {
+    TimeScale.prototype.setBaseIndex = function (baseIndex) {
         this._private__visibleRangeInvalidated = true;
         this._private__baseIndexOrNull = baseIndex;
         this._private__correctOffset();
@@ -11100,31 +11100,31 @@ var TimeScale = /** @class */ (function () {
      * @param scale - Zoom value (in 1/10 parts of current bar spacing).
      * Negative value means zoom out, positive - zoom in.
      */
-    TimeScale.prototype._internal_zoom = function (zoomPoint, scale) {
+    TimeScale.prototype.zoom = function (zoomPoint, scale) {
         var floatIndexAtZoomPoint = this._private__coordinateToFloatIndex(zoomPoint);
-        var barSpacing = this._internal_barSpacing();
+        var barSpacing = this.barSpacing();
         var newBarSpacing = barSpacing + scale * (barSpacing / 10);
         // zoom in/out bar spacing
-        this._internal_setBarSpacing(newBarSpacing);
+        this.setBarSpacing(newBarSpacing);
         if (!this._private__options.rightBarStaysOnScroll) {
             // and then correct right offset to move index under zoomPoint back to its coordinate
-            this._internal_setRightOffset(this._internal_rightOffset() + (floatIndexAtZoomPoint - this._private__coordinateToFloatIndex(zoomPoint)));
+            this.setRightOffset(this.rightOffset() + (floatIndexAtZoomPoint - this._private__coordinateToFloatIndex(zoomPoint)));
         }
     };
-    TimeScale.prototype._internal_startScale = function (x) {
+    TimeScale.prototype.startScale = function (x) {
         if (this._private__scrollStartPoint) {
-            this._internal_endScroll();
+            this.endScroll();
         }
         if (this._private__scaleStartPoint !== null || this._private__commonTransitionStartState !== null) {
             return;
         }
-        if (this._internal_isEmpty()) {
+        if (this.isEmpty()) {
             return;
         }
         this._private__scaleStartPoint = x;
         this._private__saveCommonTransitionsStartState();
     };
-    TimeScale.prototype._internal_scaleTo = function (x) {
+    TimeScale.prototype.scaleTo = function (x) {
         if (this._private__commonTransitionStartState === null) {
             return;
         }
@@ -11133,46 +11133,46 @@ var TimeScale = /** @class */ (function () {
         if (startLengthFromRight === 0 || currentLengthFromRight === 0) {
             return;
         }
-        this._internal_setBarSpacing(this._private__commonTransitionStartState._internal_barSpacing * startLengthFromRight / currentLengthFromRight);
+        this.setBarSpacing(this._private__commonTransitionStartState._internal_barSpacing * startLengthFromRight / currentLengthFromRight);
     };
-    TimeScale.prototype._internal_endScale = function () {
+    TimeScale.prototype.endScale = function () {
         if (this._private__scaleStartPoint === null) {
             return;
         }
         this._private__scaleStartPoint = null;
         this._private__clearCommonTransitionsStartState();
     };
-    TimeScale.prototype._internal_startScroll = function (x) {
+    TimeScale.prototype.startScroll = function (x) {
         if (this._private__scrollStartPoint !== null || this._private__commonTransitionStartState !== null) {
             return;
         }
-        if (this._internal_isEmpty()) {
+        if (this.isEmpty()) {
             return;
         }
         this._private__scrollStartPoint = x;
         this._private__saveCommonTransitionsStartState();
     };
-    TimeScale.prototype._internal_scrollTo = function (x) {
+    TimeScale.prototype.scrollTo = function (x) {
         if (this._private__scrollStartPoint === null) {
             return;
         }
-        var shiftInLogical = (this._private__scrollStartPoint - x) / this._internal_barSpacing();
+        var shiftInLogical = (this._private__scrollStartPoint - x) / this.barSpacing();
         this._private__rightOffset = ensureNotNull(this._private__commonTransitionStartState)._internal_rightOffset + shiftInLogical;
         this._private__visibleRangeInvalidated = true;
         // do not allow scroll out of visible bars
         this._private__correctOffset();
     };
-    TimeScale.prototype._internal_endScroll = function () {
+    TimeScale.prototype.endScroll = function () {
         if (this._private__scrollStartPoint === null) {
             return;
         }
         this._private__scrollStartPoint = null;
         this._private__clearCommonTransitionsStartState();
     };
-    TimeScale.prototype._internal_scrollToRealTime = function () {
-        this._internal_scrollToOffsetAnimated(this._private__options.rightOffset);
+    TimeScale.prototype.scrollToRealTime = function () {
+        this.scrollToOffsetAnimated(this._private__options.rightOffset);
     };
-    TimeScale.prototype._internal_scrollToOffsetAnimated = function (offset, animationDuration) {
+    TimeScale.prototype.scrollToOffsetAnimated = function (offset, animationDuration) {
         var _this = this;
         if (animationDuration === void 0) { animationDuration = 400 /* DefaultAnimationDuration */; }
         if (!isFinite(offset)) {
@@ -11187,26 +11187,26 @@ var TimeScale = /** @class */ (function () {
             var animationProgress = (performance.now() - animationStart) / animationDuration;
             var finishAnimation = animationProgress >= 1;
             var rightOffset = finishAnimation ? offset : source + (offset - source) * animationProgress;
-            _this._internal_setRightOffset(rightOffset);
+            _this.setRightOffset(rightOffset);
             if (!finishAnimation) {
                 setTimeout(animationFn, 20);
             }
         };
         animationFn();
     };
-    TimeScale.prototype._internal_update = function (newPoints, firstChangedPointIndex) {
+    TimeScale.prototype.update = function (newPoints, firstChangedPointIndex) {
         this._private__visibleRangeInvalidated = true;
         this._private__points = newPoints;
         if (this._private__options.mode === 1 /* Euclidean */) {
-            var to = newPoints[newPoints.length - 1]._internal_time._internal_timestamp;
-            var from = newPoints[0]._internal_time._internal_timestamp;
+            var to = newPoints[newPoints.length - 1].time.timestamp;
+            var from = newPoints[0].time.timestamp;
             var tickSize = (to - from) / newPoints.length;
             var interval = Math.pow(10, Math.floor(Math.log10(tickSize)));
             var start = Math.floor(from / interval) * interval;
             var end = Math.ceil(to / interval) * interval;
             var points = [];
             for (var index = start; index < end; index += interval) {
-                points.push({ _internal_time: { _internal_timestamp: index }, _internal_timeWeight: 50 /* Day */ });
+                points.push({ time: { timestamp: index }, timeWeight: 50 /* Day */ });
             }
             this._private__tickMarks._internal_setTimeScalePoints(points, 0);
         }
@@ -11215,70 +11215,70 @@ var TimeScale = /** @class */ (function () {
         }
         this._private__correctOffset();
     };
-    TimeScale.prototype._internal_visibleBarsChanged = function () {
+    TimeScale.prototype.visibleBarsChanged = function () {
         return this._private__visibleBarsChanged;
     };
-    TimeScale.prototype._internal_logicalRangeChanged = function () {
+    TimeScale.prototype.logicalRangeChanged = function () {
         return this._private__logicalRangeChanged;
     };
-    TimeScale.prototype._internal_optionsApplied = function () {
+    TimeScale.prototype.optionsApplied = function () {
         return this._private__optionsApplied;
     };
-    TimeScale.prototype._internal_baseIndex = function () {
+    TimeScale.prototype.baseIndex = function () {
         // null is used to known that baseIndex is not set yet
         // so in methods which should known whether it is set or not
         // we should check field `_baseIndexOrNull` instead of getter `baseIndex()`
         // see minRightOffset for example
         return this._private__baseIndexOrNull || 0;
     };
-    TimeScale.prototype._internal_setVisibleRange = function (range) {
+    TimeScale.prototype.setVisibleRange = function (range) {
         if (this._private__options.mode === 1 /* Euclidean */) {
-            var leftValue = this._internal_floatIndexToTime(range._internal_left());
-            var rightValue = this._internal_floatIndexToTime(range._internal_right());
+            var leftValue = this.floatIndexToTime(range.left());
+            var rightValue = this.floatIndexToTime(range.right());
             if (!leftValue || !rightValue) {
                 return;
             }
-            var lastValue = this._private__points[this._private__points.length - 1]._internal_time._internal_timestamp;
-            var firstValue = this._private__points[0]._internal_time._internal_timestamp;
+            var lastValue = this._private__points[this._private__points.length - 1].time.timestamp;
+            var firstValue = this._private__points[0].time.timestamp;
             var avg = (lastValue - firstValue) / this._private__points.length;
             var right = (rightValue - firstValue) / avg;
             var left = (leftValue - firstValue) / avg;
-            var offset = right - this._internal_baseIndex();
+            var offset = right - this.baseIndex();
             var barsLength = right - left + 1;
             var space = this._private__width / barsLength;
             this._private__setBarSpacing(space);
             this._private__rightOffset = (offset);
         }
         else {
-            var length_1 = range._internal_count();
+            var length_1 = range.count();
             this._private__setBarSpacing(this._private__width / length_1);
-            this._private__rightOffset = range._internal_right() - this._internal_baseIndex();
+            this._private__rightOffset = range.right() - this.baseIndex();
         }
         this._private__correctOffset();
         this._private__visibleRangeInvalidated = true;
-        this._private__model._internal_recalculateAllPanes();
-        this._private__model._internal_lightUpdate();
+        this._private__model.recalculateAllPanes();
+        this._private__model.lightUpdate();
     };
-    TimeScale.prototype._internal_fitContent = function () {
+    TimeScale.prototype.fitContent = function () {
         var first = this._private__firstIndex();
         var last = this._private__lastIndex();
         if (first === null || last === null) {
             return;
         }
-        this._internal_setVisibleRange(new RangeImpl(first, last + this._private__options.rightOffset));
+        this.setVisibleRange(new RangeImpl(first, last + this._private__options.rightOffset));
     };
-    TimeScale.prototype._internal_setLogicalRange = function (range) {
+    TimeScale.prototype.setLogicalRange = function (range) {
         var barRange = new RangeImpl(range.from, range.to);
-        this._internal_setVisibleRange(barRange);
+        this.setVisibleRange(barRange);
     };
-    TimeScale.prototype._internal_formatDateTime = function (time) {
+    TimeScale.prototype.formatDateTime = function (time) {
         if (this._private__localizationOptions.timeFormatter !== undefined) {
-            return this._private__localizationOptions.timeFormatter(time._internal_businessDay || time._internal_timestamp);
+            return this._private__localizationOptions.timeFormatter(time.businessDay || time.timestamp);
         }
-        return this._private__dateTimeFormatter._internal_format(new Date(time._internal_timestamp * 1000));
+        return this._private__dateTimeFormatter._internal_format(new Date(time.timestamp * 1000));
     };
     TimeScale.prototype._private__isAllScalingAndScrollingDisabled = function () {
-        var _a = this._private__model._internal_options(), handleScroll = _a.handleScroll, handleScale = _a.handleScale;
+        var _a = this._private__model.options(), handleScroll = _a.handleScroll, handleScale = _a.handleScale;
         return !handleScroll.horzTouchDrag
             && !handleScroll.mouseWheel
             && !handleScroll.pressedMouseMove
@@ -11300,12 +11300,12 @@ var TimeScale = /** @class */ (function () {
     TimeScale.prototype._private__coordinateToFloatIndex = function (x) {
         var valueRange = this._private__visibleValueRange._internal_logicalRange();
         if (this._private__options.mode === 1 /* Euclidean */ && valueRange) {
-            var value = valueRange._internal_valueAt(x / this._private__width);
-            return this._internal_timeToFloatIndex({ _internal_timestamp: value }, true) || 0;
+            var value = valueRange.valueAt(x / this._private__width);
+            return this.timeToFloatIndex({ timestamp: value }, true) || 0;
         }
         else {
             var deltaFromRight = this._private__rightOffsetForCoordinate(x);
-            var baseIndex = this._internal_baseIndex();
+            var baseIndex = this.baseIndex();
             var index = baseIndex + this._private__rightOffset - deltaFromRight;
             // JavaScript uses very strange rounding
             // we need rounding to avoid problems with calculation errors
@@ -11328,27 +11328,27 @@ var TimeScale = /** @class */ (function () {
             return;
         }
         this._private__visibleRangeInvalidated = false;
-        if (this._internal_isEmpty()) {
+        if (this.isEmpty()) {
             this._private__setVisibleRange(TimeScaleVisibleRange._internal_invalid());
             return;
         }
-        var baseIndex = this._internal_baseIndex();
+        var baseIndex = this.baseIndex();
         var newBarsLength = this._private__width / this._private__barSpacing;
         var rightBorder = this._private__rightOffset + baseIndex;
         var leftBorder = rightBorder - newBarsLength + 1;
         if (this._private__options.mode === 1 /* Euclidean */ && this._private__points.length) {
-            var lastValue = this._private__points[this._private__points.length - 1]._internal_time._internal_timestamp;
-            var firstValue = this._private__points[0]._internal_time._internal_timestamp;
+            var lastValue = this._private__points[this._private__points.length - 1].time.timestamp;
+            var firstValue = this._private__points[0].time.timestamp;
             var avg = (lastValue - firstValue) / this._private__points.length;
             var leftValue_1 = firstValue + leftBorder * avg;
             var rightValue_1 = firstValue + rightBorder * avg;
             this._private__visibleValueRange = new TimeScaleVisibleRange(new RangeImpl(leftValue_1, rightValue_1));
             leftBorder = leftValue_1 < firstValue
                 ? (leftValue_1 - firstValue) / avg
-                : this._private__points.findIndex(function (e, i) { return _this._private__points[i + 1]._internal_time._internal_timestamp >= leftValue_1; });
+                : this._private__points.findIndex(function (e, i) { return _this._private__points[i + 1].time.timestamp >= leftValue_1; });
             rightBorder = rightValue_1 > lastValue
                 ? this._private__points.length - 1 + (rightValue_1 - lastValue) / avg
-                : findLastIndex(this._private__points, function (e) { return e._internal_time._internal_timestamp <= rightValue_1; });
+                : findLastIndex(this._private__points, function (e) { return e.time.timestamp <= rightValue_1; });
         }
         var logicalRange = new RangeImpl(leftBorder, rightBorder);
         this._private__setVisibleRange(new TimeScaleVisibleRange(logicalRange));
@@ -11408,8 +11408,8 @@ var TimeScale = /** @class */ (function () {
     };
     TimeScale.prototype._private__saveCommonTransitionsStartState = function () {
         this._private__commonTransitionStartState = {
-            _internal_barSpacing: this._internal_barSpacing(),
-            _internal_rightOffset: this._internal_rightOffset(),
+            _internal_barSpacing: this.barSpacing(),
+            _internal_rightOffset: this.rightOffset(),
         };
     };
     TimeScale.prototype._private__clearCommonTransitionsStartState = function () {
@@ -11437,7 +11437,7 @@ var TimeScale = /** @class */ (function () {
             // in other hand, type guards couldn't be declared on model level so far
             // because they are know about string representation of business day ¯\_(ツ)_/¯
             // let's fix in for all cases for the whole API
-            return this._private__options.tickMarkFormatter((_a = timePoint._internal_businessDay) !== null && _a !== void 0 ? _a : timePoint._internal_timestamp, tickMarkType, this._private__localizationOptions.locale);
+            return this._private__options.tickMarkFormatter((_a = timePoint.businessDay) !== null && _a !== void 0 ? _a : timePoint.timestamp, tickMarkType, this._private__localizationOptions.locale);
         }
         return defaultTickMarkFormatter(timePoint, tickMarkType, this._private__localizationOptions.locale);
     };
@@ -11445,10 +11445,10 @@ var TimeScale = /** @class */ (function () {
         var oldVisibleRange = this._private__visibleRange;
         this._private__visibleRange = newVisibleRange;
         if (!areRangesEqual(oldVisibleRange._internal_strictRange(), this._private__visibleRange._internal_strictRange())) {
-            this._private__visibleBarsChanged._internal_fire();
+            this._private__visibleBarsChanged.fire();
         }
         if (!areRangesEqual(oldVisibleRange._internal_logicalRange(), this._private__visibleRange._internal_logicalRange())) {
-            this._private__logicalRangeChanged._internal_fire();
+            this._private__logicalRangeChanged.fire();
         }
         // TODO: reset only coords in case when this._visibleBars has not been changed
         this._private__resetTimeMarksCache();
@@ -11482,14 +11482,14 @@ var TimeScale = /** @class */ (function () {
         if (firstIndex === null) {
             return;
         }
-        var visibleRange = this._internal_visibleStrictRange();
+        var visibleRange = this.visibleStrictRange();
         if (visibleRange === null) {
             return;
         }
-        var delta = visibleRange._internal_left() - firstIndex;
+        var delta = visibleRange.left() - firstIndex;
         if (delta < 0) {
             var leftEdgeOffset = this._private__rightOffset - delta - 1;
-            this._internal_setRightOffset(leftEdgeOffset);
+            this.setRightOffset(leftEdgeOffset);
         }
         this._private__correctBarSpacing();
     };
@@ -11630,10 +11630,10 @@ var WatermarkPaneView = /** @class */ (function () {
         this._private__renderer = new WatermarkRenderer(this._private__rendererData);
         this._private__source = source;
     }
-    WatermarkPaneView.prototype._internal_update = function () {
+    WatermarkPaneView.prototype.update = function () {
         this._private__invalidated = true;
     };
-    WatermarkPaneView.prototype._internal_renderer = function (height, width) {
+    WatermarkPaneView.prototype.renderer = function (height, width) {
         if (this._private__invalidated) {
             this._private__updateImpl(height, width);
             this._private__invalidated = false;
@@ -11641,7 +11641,7 @@ var WatermarkPaneView = /** @class */ (function () {
         return this._private__renderer;
     };
     WatermarkPaneView.prototype._private__updateImpl = function (height, width) {
-        var options = this._private__source._internal_options();
+        var options = this._private__source.options();
         var data = this._private__rendererData;
         data._internal_visible = options.visible;
         if (!data._internal_visible) {
@@ -11673,17 +11673,17 @@ var Watermark = /** @class */ (function (_super) {
         _this._private__paneView = new WatermarkPaneView(_this);
         return _this;
     }
-    Watermark.prototype._internal_priceAxisViews = function () {
+    Watermark.prototype.priceAxisViews = function () {
         return [];
     };
-    Watermark.prototype._internal_paneViews = function () {
+    Watermark.prototype.paneViews = function () {
         return [this._private__paneView];
     };
-    Watermark.prototype._internal_options = function () {
+    Watermark.prototype.options = function () {
         return this._private__options;
     };
-    Watermark.prototype._internal_updateAllViews = function () {
-        this._private__paneView._internal_update();
+    Watermark.prototype.updateAllViews = function () {
+        this._private__paneView.update();
     };
     return Watermark;
 }(DataSource));
@@ -11726,138 +11726,138 @@ var ChartModel = /** @class */ (function () {
         this._private__watermark = new Watermark(this, options.watermark);
         this._private__magnet = new Magnet(options.crosshair.magnetThreshold);
         this._private__lineToolCreator = new LineToolCreator(this);
-        this._internal_createPane();
-        this._private__panes[0]._internal_setStretchFactor(DEFAULT_STRETCH_FACTOR * 2);
+        this.createPane();
+        this._private__panes[0].setStretchFactor(DEFAULT_STRETCH_FACTOR * 2);
         this._private__backgroundTopColor = this._private__getBackgroundColor(0 /* Top */);
         this._private__backgroundBottomColor = this._private__getBackgroundColor(1 /* Bottom */);
     }
-    ChartModel.prototype._internal_fullUpdate = function () {
+    ChartModel.prototype.fullUpdate = function () {
         this._private__invalidate(new InvalidateMask(3 /* Full */));
     };
-    ChartModel.prototype._internal_lightUpdate = function () {
+    ChartModel.prototype.lightUpdate = function () {
         this._private__invalidate(new InvalidateMask(2 /* Light */));
     };
-    ChartModel.prototype._internal_cursorUpdate = function () {
+    ChartModel.prototype.cursorUpdate = function () {
         this._private__invalidate(new InvalidateMask(1 /* Cursor */));
     };
-    ChartModel.prototype._internal_updateSource = function (source) {
+    ChartModel.prototype.updateSource = function (source) {
         var inv = this._private__invalidationMaskForSource(source);
         this._private__invalidate(inv);
     };
-    ChartModel.prototype._internal_hoveredSource = function () {
+    ChartModel.prototype.hoveredSource = function () {
         return this._private__hoveredSource;
     };
-    ChartModel.prototype._internal_dataSources = function () {
+    ChartModel.prototype.dataSources = function () {
         var sources = [];
         for (var _i = 0, _a = this._private__panes; _i < _a.length; _i++) {
             var pane = _a[_i];
-            for (var _b = 0, _c = pane._internal_dataSources(); _b < _c.length; _b++) {
+            for (var _b = 0, _c = pane.dataSources(); _b < _c.length; _b++) {
                 var paneSource = _c[_b];
                 sources.push(paneSource);
             }
         }
         return sources;
     };
-    ChartModel.prototype._internal_setHoveredSource = function (source) {
+    ChartModel.prototype.setHoveredSource = function (source) {
         var prevSource = this._private__hoveredSource;
         this._private__hoveredSource = source;
         if (prevSource !== null) {
-            this._internal_updateSource(prevSource._internal_source);
+            this.updateSource(prevSource.source);
         }
         if (source !== null) {
-            this._internal_updateSource(source._internal_source);
+            this.updateSource(source.source);
         }
     };
-    ChartModel.prototype._internal_options = function () {
+    ChartModel.prototype.options = function () {
         return this._private__options;
     };
-    ChartModel.prototype._internal_applyOptions = function (options) {
+    ChartModel.prototype.applyOptions = function (options) {
         merge(this._private__options, options);
-        this._private__panes.forEach(function (p) { return p._internal_applyScaleOptions(options); });
+        this._private__panes.forEach(function (p) { return p.applyScaleOptions(options); });
         if (options.timeScale !== undefined) {
-            this._private__timeScale._internal_applyOptions(options.timeScale);
+            this._private__timeScale.applyOptions(options.timeScale);
         }
         if (options.localization !== undefined) {
-            this._private__timeScale._internal_applyLocalizationOptions(options.localization);
+            this._private__timeScale.applyLocalizationOptions(options.localization);
         }
         if (options.leftPriceScale || options.rightPriceScale) {
-            this._private__priceScalesOptionsChanged._internal_fire();
+            this._private__priceScalesOptionsChanged.fire();
         }
         this._private__backgroundTopColor = this._private__getBackgroundColor(0 /* Top */);
         this._private__backgroundBottomColor = this._private__getBackgroundColor(1 /* Bottom */);
-        this._internal_fullUpdate();
+        this.fullUpdate();
     };
-    ChartModel.prototype._internal_applyPriceScaleOptions = function (priceScaleId, options) {
+    ChartModel.prototype.applyPriceScaleOptions = function (priceScaleId, options) {
         if (priceScaleId === "left" /* Left */) {
-            this._internal_applyOptions({
+            this.applyOptions({
                 leftPriceScale: options,
             });
             return;
         }
         else if (priceScaleId === "right" /* Right */) {
-            this._internal_applyOptions({
+            this.applyOptions({
                 rightPriceScale: options,
             });
             return;
         }
-        var res = this._internal_findPriceScale(priceScaleId);
+        var res = this.findPriceScale(priceScaleId);
         if (res === null) {
             {
                 throw new Error("Trying to apply price scale options with incorrect ID: ".concat(priceScaleId));
             }
         }
-        res._internal_priceScale._internal_applyOptions(options);
-        this._private__priceScalesOptionsChanged._internal_fire();
+        res.priceScale.applyOptions(options);
+        this._private__priceScalesOptionsChanged.fire();
     };
-    ChartModel.prototype._internal_findPriceScale = function (priceScaleId) {
+    ChartModel.prototype.findPriceScale = function (priceScaleId) {
         for (var _i = 0, _a = this._private__panes; _i < _a.length; _i++) {
             var pane = _a[_i];
-            var priceScale = pane._internal_priceScaleById(priceScaleId);
+            var priceScale = pane.priceScaleById(priceScaleId);
             if (priceScale !== null) {
                 return {
-                    _internal_pane: pane,
-                    _internal_priceScale: priceScale,
+                    pane: pane,
+                    priceScale: priceScale,
                 };
             }
         }
         return null;
     };
-    ChartModel.prototype._internal_timeScale = function () {
+    ChartModel.prototype.timeScale = function () {
         return this._private__timeScale;
     };
-    ChartModel.prototype._internal_panes = function () {
+    ChartModel.prototype.panes = function () {
         return this._private__panes;
     };
-    ChartModel.prototype._internal_watermarkSource = function () {
+    ChartModel.prototype.watermarkSource = function () {
         return this._private__watermark;
     };
-    ChartModel.prototype._internal_lineToolCreator = function () {
+    ChartModel.prototype.lineToolCreator = function () {
         return this._private__lineToolCreator;
     };
-    ChartModel.prototype._internal_crosshairSource = function () {
+    ChartModel.prototype.crosshairSource = function () {
         return this._private__crosshair;
     };
-    ChartModel.prototype._internal_magnet = function () {
+    ChartModel.prototype.magnet = function () {
         return this._private__magnet;
     };
-    ChartModel.prototype._internal_crosshairMoved = function () {
+    ChartModel.prototype.crosshairMoved = function () {
         return this._private__crosshairMoved;
     };
-    ChartModel.prototype._internal_setPaneHeight = function (pane, height) {
-        pane._internal_setHeight(height);
-        this._internal_recalculateAllPanes();
+    ChartModel.prototype.setPaneHeight = function (pane, height) {
+        pane.setHeight(height);
+        this.recalculateAllPanes();
     };
-    ChartModel.prototype._internal_setWidth = function (width) {
+    ChartModel.prototype.setWidth = function (width) {
         this._private__width = width;
-        this._private__timeScale._internal_setWidth(this._private__width);
-        this._private__panes.forEach(function (pane) { return pane._internal_setWidth(width); });
-        this._internal_recalculateAllPanes();
+        this._private__timeScale.setWidth(this._private__width);
+        this._private__panes.forEach(function (pane) { return pane.setWidth(width); });
+        this.recalculateAllPanes();
     };
-    ChartModel.prototype._internal_createPane = function (index) {
+    ChartModel.prototype.createPane = function (index) {
         if (index !== undefined) {
             if (index > this._private__panes.length) {
                 for (var i = this._private__panes.length; i < index; i++) {
-                    this._internal_createPane(i);
+                    this.createPane(i);
                 }
             }
             else if (index < this._private__panes.length) {
@@ -11879,32 +11879,32 @@ var ChartModel = /** @class */ (function () {
         // if autoscale option is false, autoscale anyway on the first draw
         // also there is a scenario when autoscale is true in constructor and false later on applyOptions
         var mask = new InvalidateMask(3 /* Full */);
-        mask._internal_invalidatePane(actualIndex, {
-            _internal_level: 0 /* None */,
-            _internal_autoScale: true,
+        mask.invalidatePane(actualIndex, {
+            level: 0 /* None */,
+            autoScale: true,
         });
         this._private__invalidate(mask);
         return pane;
     };
-    ChartModel.prototype._internal_removePane = function (index) {
+    ChartModel.prototype.removePane = function (index) {
         var _this = this;
         if (index === 0) {
             // we don't support removing the first pane.
             return;
         }
         var paneToRemove = this._private__panes[index];
-        paneToRemove._internal_orderedSources().forEach(function (source) {
+        paneToRemove.orderedSources().forEach(function (source) {
             if (source instanceof Series) {
-                _this._internal_removeSeries(source);
+                _this.removeSeries(source);
             }
         });
         this._private__suppressSeriesMoving = true;
         if (index !== this._private__panes.length - 1) {
             var _loop_1 = function (i) {
                 var pane = this_1._private__panes[i];
-                pane._internal_orderedSources().forEach(function (source) {
+                pane.orderedSources().forEach(function (source) {
                     if (source instanceof Series) {
-                        source._internal_applyOptions({ pane: i - 1 });
+                        source.applyOptions({ pane: i - 1 });
                     }
                 });
             };
@@ -11920,18 +11920,18 @@ var ChartModel = /** @class */ (function () {
         var mask = new InvalidateMask(3 /* Full */);
         this._private__invalidate(mask);
     };
-    ChartModel.prototype._internal_swapPane = function (first, second) {
+    ChartModel.prototype.swapPane = function (first, second) {
         var firstPane = this._private__panes[first];
         var secondPane = this._private__panes[second];
         this._private__suppressSeriesMoving = true;
-        firstPane._internal_orderedSources().forEach(function (source) {
+        firstPane.orderedSources().forEach(function (source) {
             if (source instanceof Series) {
-                source._internal_applyOptions({ pane: second });
+                source.applyOptions({ pane: second });
             }
         });
-        secondPane._internal_orderedSources().forEach(function (source) {
+        secondPane.orderedSources().forEach(function (source) {
             if (source instanceof Series) {
-                source._internal_applyOptions({ pane: first });
+                source.applyOptions({ pane: first });
             }
         });
         this._private__panes[first] = secondPane;
@@ -11940,45 +11940,45 @@ var ChartModel = /** @class */ (function () {
         this._private__buildPaneIndexMapping();
         this._private__invalidate(new InvalidateMask(3 /* Full */));
     };
-    ChartModel.prototype._internal_startScalePrice = function (pane, priceScale, x) {
-        pane._internal_startScalePrice(priceScale, x);
+    ChartModel.prototype.startScalePrice = function (pane, priceScale, x) {
+        pane.startScalePrice(priceScale, x);
     };
-    ChartModel.prototype._internal_scalePriceTo = function (pane, priceScale, x) {
-        pane._internal_scalePriceTo(priceScale, x);
-        this._internal_updateCrosshair();
+    ChartModel.prototype.scalePriceTo = function (pane, priceScale, x) {
+        pane.scalePriceTo(priceScale, x);
+        this.updateCrosshair();
         this._private__invalidate(this._private__paneInvalidationMask(pane, 2 /* Light */));
     };
-    ChartModel.prototype._internal_endScalePrice = function (pane, priceScale) {
-        pane._internal_endScalePrice(priceScale);
+    ChartModel.prototype.endScalePrice = function (pane, priceScale) {
+        pane.endScalePrice(priceScale);
         this._private__invalidate(this._private__paneInvalidationMask(pane, 2 /* Light */));
     };
-    ChartModel.prototype._internal_startScrollPrice = function (pane, priceScale, x) {
-        if (priceScale._internal_isAutoScale()) {
+    ChartModel.prototype.startScrollPrice = function (pane, priceScale, x) {
+        if (priceScale.isAutoScale()) {
             return;
         }
-        pane._internal_startScrollPrice(priceScale, x);
+        pane.startScrollPrice(priceScale, x);
     };
-    ChartModel.prototype._internal_scrollPriceTo = function (pane, priceScale, x) {
-        if (priceScale._internal_isAutoScale()) {
+    ChartModel.prototype.scrollPriceTo = function (pane, priceScale, x) {
+        if (priceScale.isAutoScale()) {
             return;
         }
-        pane._internal_scrollPriceTo(priceScale, x);
-        this._internal_updateCrosshair();
+        pane.scrollPriceTo(priceScale, x);
+        this.updateCrosshair();
         this._private__invalidate(this._private__paneInvalidationMask(pane, 2 /* Light */));
     };
-    ChartModel.prototype._internal_endScrollPrice = function (pane, priceScale) {
-        if (priceScale._internal_isAutoScale()) {
+    ChartModel.prototype.endScrollPrice = function (pane, priceScale) {
+        if (priceScale.isAutoScale()) {
             return;
         }
-        pane._internal_endScrollPrice(priceScale);
+        pane.endScrollPrice(priceScale);
         this._private__invalidate(this._private__paneInvalidationMask(pane, 2 /* Light */));
     };
-    ChartModel.prototype._internal_resetPriceScale = function (pane, priceScale) {
-        pane._internal_resetPriceScale(priceScale);
+    ChartModel.prototype.resetPriceScale = function (pane, priceScale) {
+        pane.resetPriceScale(priceScale);
         this._private__invalidate(this._private__paneInvalidationMask(pane, 2 /* Light */));
     };
-    ChartModel.prototype._internal_startScaleTime = function (position) {
-        this._private__timeScale._internal_startScale(position);
+    ChartModel.prototype.startScaleTime = function (position) {
+        this._private__timeScale.startScale(position);
     };
     /**
      * Zoom in/out the chart (depends on scale value).
@@ -11986,239 +11986,239 @@ var ChartModel = /** @class */ (function () {
      * @param pointX - X coordinate of the point to apply the zoom (the point which should stay on its place)
      * @param scale - Zoom value. Negative value means zoom out, positive - zoom in.
      */
-    ChartModel.prototype._internal_zoomTime = function (pointX, scale) {
-        var timeScale = this._internal_timeScale();
-        if (timeScale._internal_isEmpty() || scale === 0) {
+    ChartModel.prototype.zoomTime = function (pointX, scale) {
+        var timeScale = this.timeScale();
+        if (timeScale.isEmpty() || scale === 0) {
             return;
         }
-        var timeScaleWidth = timeScale._internal_width();
+        var timeScaleWidth = timeScale.width();
         pointX = Math.max(1, Math.min(pointX, timeScaleWidth));
-        timeScale._internal_zoom(pointX, scale);
-        this._internal_recalculateAllPanes();
+        timeScale.zoom(pointX, scale);
+        this.recalculateAllPanes();
     };
-    ChartModel.prototype._internal_scrollChart = function (x) {
-        this._internal_startScrollTime(0);
-        this._internal_scrollTimeTo(x);
-        this._internal_endScrollTime();
+    ChartModel.prototype.scrollChart = function (x) {
+        this.startScrollTime(0);
+        this.scrollTimeTo(x);
+        this.endScrollTime();
     };
-    ChartModel.prototype._internal_scaleTimeTo = function (x) {
-        this._private__timeScale._internal_scaleTo(x);
-        this._internal_recalculateAllPanes();
+    ChartModel.prototype.scaleTimeTo = function (x) {
+        this._private__timeScale.scaleTo(x);
+        this.recalculateAllPanes();
     };
-    ChartModel.prototype._internal_endScaleTime = function () {
-        this._private__timeScale._internal_endScale();
-        this._internal_lightUpdate();
+    ChartModel.prototype.endScaleTime = function () {
+        this._private__timeScale.endScale();
+        this.lightUpdate();
     };
-    ChartModel.prototype._internal_startScrollTime = function (x) {
+    ChartModel.prototype.startScrollTime = function (x) {
         this._private__initialTimeScrollPos = x;
-        this._private__timeScale._internal_startScroll(x);
+        this._private__timeScale.startScroll(x);
     };
-    ChartModel.prototype._internal_scrollTimeTo = function (x) {
+    ChartModel.prototype.scrollTimeTo = function (x) {
         var res = false;
         if (this._private__initialTimeScrollPos !== null && Math.abs(x - this._private__initialTimeScrollPos) > 20) {
             this._private__initialTimeScrollPos = null;
             res = true;
         }
-        this._private__timeScale._internal_scrollTo(x);
-        this._internal_recalculateAllPanes();
+        this._private__timeScale.scrollTo(x);
+        this.recalculateAllPanes();
         return res;
     };
-    ChartModel.prototype._internal_endScrollTime = function () {
-        this._private__timeScale._internal_endScroll();
-        this._internal_lightUpdate();
+    ChartModel.prototype.endScrollTime = function () {
+        this._private__timeScale.endScroll();
+        this.lightUpdate();
         this._private__initialTimeScrollPos = null;
     };
-    ChartModel.prototype._internal_serieses = function () {
+    ChartModel.prototype.serieses = function () {
         return this._private__serieses;
     };
-    ChartModel.prototype._internal_setAndSaveCurrentPosition = function (x, y, pane) {
-        this._private__crosshair._internal_saveOriginCoord(x, y);
+    ChartModel.prototype.setAndSaveCurrentPosition = function (x, y, pane) {
+        this._private__crosshair.saveOriginCoord(x, y);
         var price = NaN;
-        var index = this._private__timeScale._internal_coordinateToIndex(x);
-        var visibleBars = this._private__timeScale._internal_visibleStrictRange();
+        var index = this._private__timeScale.coordinateToIndex(x);
+        var visibleBars = this._private__timeScale.visibleStrictRange();
         if (visibleBars !== null) {
-            index = Math.min(Math.max(visibleBars._internal_left(), index), visibleBars._internal_right());
+            index = Math.min(Math.max(visibleBars.left(), index), visibleBars.right());
         }
-        var priceScale = pane._internal_defaultPriceScale();
-        var firstValue = priceScale._internal_firstValue();
+        var priceScale = pane.defaultPriceScale();
+        var firstValue = priceScale.firstValue();
         if (firstValue !== null) {
-            price = priceScale._internal_coordinateToPrice(y, firstValue);
+            price = priceScale.coordinateToPrice(y, firstValue);
         }
-        price = this._private__magnet._internal_align(price, index, pane);
-        this._private__crosshair._internal_setPosition(index, price, pane);
-        this._internal_cursorUpdate();
+        price = this._private__magnet.align(price, index, pane);
+        this._private__crosshair.setPosition(index, price, pane);
+        this.cursorUpdate();
         var point = new Point(x, y);
-        point._internal_paneIndex = this._internal_getPaneIndex(pane);
-        this._private__crosshairMoved._internal_fire(this._private__crosshair._internal_appliedIndex(), point);
+        point.paneIndex = this.getPaneIndex(pane);
+        this._private__crosshairMoved.fire(this._private__crosshair.appliedIndex(), point);
     };
-    ChartModel.prototype._internal_clearCurrentPosition = function () {
-        var crosshair = this._internal_crosshairSource();
-        crosshair._internal_clearPosition();
-        this._internal_cursorUpdate();
-        this._private__crosshairMoved._internal_fire(null, null);
+    ChartModel.prototype.clearCurrentPosition = function () {
+        var crosshair = this.crosshairSource();
+        crosshair.clearPosition();
+        this.cursorUpdate();
+        this._private__crosshairMoved.fire(null, null);
     };
-    ChartModel.prototype._internal_updateCrosshair = function () {
+    ChartModel.prototype.updateCrosshair = function () {
         // apply magnet
-        var pane = this._private__crosshair._internal_pane();
+        var pane = this._private__crosshair.pane();
         if (pane !== null) {
-            var x = this._private__crosshair._internal_originCoordX();
-            var y = this._private__crosshair._internal_originCoordY();
-            this._internal_setAndSaveCurrentPosition(x, y, pane);
+            var x = this._private__crosshair.originCoordX();
+            var y = this._private__crosshair.originCoordY();
+            this.setAndSaveCurrentPosition(x, y, pane);
         }
-        this._private__crosshair._internal_updateAllViews();
+        this._private__crosshair.updateAllViews();
     };
-    ChartModel.prototype._internal_updateTimeScale = function (newBaseIndex, newPoints, firstChangedPointIndex) {
-        var oldFirstTime = this._private__timeScale._internal_indexToTime(0);
+    ChartModel.prototype.updateTimeScale = function (newBaseIndex, newPoints, firstChangedPointIndex) {
+        var oldFirstTime = this._private__timeScale.indexToTime(0);
         if (newPoints !== undefined && firstChangedPointIndex !== undefined) {
-            this._private__timeScale._internal_update(newPoints, firstChangedPointIndex);
+            this._private__timeScale.update(newPoints, firstChangedPointIndex);
         }
-        var newFirstTime = this._private__timeScale._internal_indexToTime(0);
-        var currentBaseIndex = this._private__timeScale._internal_baseIndex();
-        var visibleBars = this._private__timeScale._internal_visibleStrictRange();
+        var newFirstTime = this._private__timeScale.indexToTime(0);
+        var currentBaseIndex = this._private__timeScale.baseIndex();
+        var visibleBars = this._private__timeScale.visibleStrictRange();
         // if time scale cannot return current visible bars range (e.g. time scale has zero-width)
         // then we do not need to update right offset to shift visible bars range to have the same right offset as we have before new bar
         // (and actually we cannot)
         if (visibleBars !== null && oldFirstTime !== null && newFirstTime !== null) {
-            var isLastSeriesBarVisible = visibleBars._internal_contains(currentBaseIndex);
-            var isLeftBarShiftToLeft = oldFirstTime._internal_timestamp > newFirstTime._internal_timestamp;
+            var isLastSeriesBarVisible = visibleBars.contains(currentBaseIndex);
+            var isLeftBarShiftToLeft = oldFirstTime.timestamp > newFirstTime.timestamp;
             var isSeriesPointsAdded = newBaseIndex !== null && newBaseIndex > currentBaseIndex;
             var isSeriesPointsAddedToRight = isSeriesPointsAdded && !isLeftBarShiftToLeft;
-            var needShiftVisibleRangeOnNewBar = isLastSeriesBarVisible && this._private__timeScale._internal_options().shiftVisibleRangeOnNewBar;
+            var needShiftVisibleRangeOnNewBar = isLastSeriesBarVisible && this._private__timeScale.options().shiftVisibleRangeOnNewBar;
             if (isSeriesPointsAddedToRight && !needShiftVisibleRangeOnNewBar) {
                 var compensationShift = newBaseIndex - currentBaseIndex;
-                this._private__timeScale._internal_setRightOffset(this._private__timeScale._internal_rightOffset() - compensationShift);
+                this._private__timeScale.setRightOffset(this._private__timeScale.rightOffset() - compensationShift);
             }
         }
-        this._private__timeScale._internal_setBaseIndex(newBaseIndex);
+        this._private__timeScale.setBaseIndex(newBaseIndex);
     };
-    ChartModel.prototype._internal_recalculatePane = function (pane) {
+    ChartModel.prototype.recalculatePane = function (pane) {
         if (pane !== null) {
-            pane._internal_recalculate();
+            pane.recalculate();
         }
     };
-    ChartModel.prototype._internal_paneForSource = function (source) {
-        var pane = this._private__panes.find(function (p) { return p._internal_orderedSources().includes(source); });
+    ChartModel.prototype.paneForSource = function (source) {
+        var pane = this._private__panes.find(function (p) { return p.orderedSources().includes(source); });
         return pane === undefined ? null : pane;
     };
-    ChartModel.prototype._internal_recalculateAllPanes = function () {
-        this._private__watermark._internal_updateAllViews();
-        this._private__panes.forEach(function (p) { return p._internal_recalculate(); });
-        this._internal_updateCrosshair();
+    ChartModel.prototype.recalculateAllPanes = function () {
+        this._private__watermark.updateAllViews();
+        this._private__panes.forEach(function (p) { return p.recalculate(); });
+        this.updateCrosshair();
     };
-    ChartModel.prototype._internal_destroy = function () {
-        this._private__panes.forEach(function (p) { return p._internal_destroy(); });
+    ChartModel.prototype.destroy = function () {
+        this._private__panes.forEach(function (p) { return p.destroy(); });
         this._private__panes.length = 0;
         // to avoid memleaks
         this._private__options.localization.priceFormatter = undefined;
         this._private__options.localization.timeFormatter = undefined;
     };
-    ChartModel.prototype._internal_rendererOptionsProvider = function () {
+    ChartModel.prototype.rendererOptionsProvider = function () {
         return this._private__rendererOptionsProvider;
     };
-    ChartModel.prototype._internal_priceAxisRendererOptions = function () {
-        return this._private__rendererOptionsProvider._internal_options();
+    ChartModel.prototype.priceAxisRendererOptions = function () {
+        return this._private__rendererOptionsProvider.options();
     };
-    ChartModel.prototype._internal_priceScalesOptionsChanged = function () {
+    ChartModel.prototype.priceScalesOptionsChanged = function () {
         return this._private__priceScalesOptionsChanged;
     };
-    ChartModel.prototype._internal_createSeries = function (seriesType, options) {
+    ChartModel.prototype.createSeries = function (seriesType, options) {
         var paneIndex = options.pane || 0;
         if (this._private__panes.length - 1 <= paneIndex) {
-            this._internal_createPane(paneIndex);
+            this.createPane(paneIndex);
         }
         var pane = this._private__panes[paneIndex];
         var series = this._private__createSeries(options, seriesType, pane);
         this._private__serieses.push(series);
         if (this._private__serieses.length === 1) {
             // call fullUpdate to recalculate chart's parts geometry
-            this._internal_fullUpdate();
+            this.fullUpdate();
         }
         else {
-            this._internal_lightUpdate();
+            this.lightUpdate();
         }
         return series;
     };
-    ChartModel.prototype._internal_removeSeries = function (series) {
-        var pane = this._internal_paneForSource(series);
+    ChartModel.prototype.removeSeries = function (series) {
+        var pane = this.paneForSource(series);
         var seriesIndex = this._private__serieses.indexOf(series);
         assert(seriesIndex !== -1, 'Series not found');
         this._private__serieses.splice(seriesIndex, 1);
-        ensureNotNull(pane)._internal_removeDataSource(series);
-        if (series._internal_destroy) {
-            series._internal_destroy();
+        ensureNotNull(pane).removeDataSource(series);
+        if (series.destroy) {
+            series.destroy();
         }
     };
-    ChartModel.prototype._internal_createLineTool = function (lineToolType, options, points) {
+    ChartModel.prototype.createLineTool = function (lineToolType, options, points) {
         var lineTool = new LineTools[lineToolType](this, options, points);
         // TODO: iosif add to ownerSourceId pane
-        this._private__panes[0]._internal_addDataSource(lineTool, this._internal_defaultVisiblePriceScaleId());
+        this._private__panes[0].addDataSource(lineTool, this.defaultVisiblePriceScaleId());
         return lineTool;
     };
-    ChartModel.prototype._internal_moveSeriesToScale = function (series, targetScaleId) {
-        var pane = ensureNotNull(this._internal_paneForSource(series));
-        pane._internal_removeDataSource(series);
+    ChartModel.prototype.moveSeriesToScale = function (series, targetScaleId) {
+        var pane = ensureNotNull(this.paneForSource(series));
+        pane.removeDataSource(series);
         // check if targetScaleId exists
-        var target = this._internal_findPriceScale(targetScaleId);
+        var target = this.findPriceScale(targetScaleId);
         if (target === null) {
             // new scale on the same pane
-            var zOrder = series._internal_zorder();
-            pane._internal_addDataSource(series, targetScaleId, zOrder);
+            var zOrder = series.zorder();
+            pane.addDataSource(series, targetScaleId, zOrder);
         }
         else {
             // if move to the new scale of the same pane, keep zorder
             // if move to new pane
-            var zOrder = (target._internal_pane === pane) ? series._internal_zorder() : undefined;
-            target._internal_pane._internal_addDataSource(series, targetScaleId, zOrder);
+            var zOrder = (target.pane === pane) ? series.zorder() : undefined;
+            target.pane.addDataSource(series, targetScaleId, zOrder);
         }
     };
-    ChartModel.prototype._internal_fitContent = function () {
+    ChartModel.prototype.fitContent = function () {
         var mask = new InvalidateMask(2 /* Light */);
-        mask._internal_setFitContent();
+        mask.setFitContent();
         this._private__invalidate(mask);
     };
-    ChartModel.prototype._internal_setTargetLogicalRange = function (range) {
+    ChartModel.prototype.setTargetLogicalRange = function (range) {
         var mask = new InvalidateMask(2 /* Light */);
-        mask._internal_applyRange(range);
+        mask.applyRange(range);
         this._private__invalidate(mask);
     };
-    ChartModel.prototype._internal_resetTimeScale = function () {
+    ChartModel.prototype.resetTimeScale = function () {
         var mask = new InvalidateMask(2 /* Light */);
-        mask._internal_resetTimeScale();
+        mask.resetTimeScale();
         this._private__invalidate(mask);
     };
-    ChartModel.prototype._internal_setBarSpacing = function (spacing) {
+    ChartModel.prototype.setBarSpacing = function (spacing) {
         var mask = new InvalidateMask(2 /* Light */);
-        mask._internal_setBarSpacing(spacing);
+        mask.setBarSpacing(spacing);
         this._private__invalidate(mask);
     };
-    ChartModel.prototype._internal_setRightOffset = function (offset) {
+    ChartModel.prototype.setRightOffset = function (offset) {
         var mask = new InvalidateMask(2 /* Light */);
-        mask._internal_setRightOffset(offset);
+        mask.setRightOffset(offset);
         this._private__invalidate(mask);
     };
-    ChartModel.prototype._internal_defaultVisiblePriceScaleId = function () {
+    ChartModel.prototype.defaultVisiblePriceScaleId = function () {
         return this._private__options.rightPriceScale.visible ? "right" /* Right */ : "left" /* Left */;
     };
-    ChartModel.prototype._internal_moveSeriesToPane = function (series, fromPaneIndex, newPaneIndex) {
+    ChartModel.prototype.moveSeriesToPane = function (series, fromPaneIndex, newPaneIndex) {
         if (newPaneIndex === fromPaneIndex || this._private__suppressSeriesMoving) {
             // no change
             return;
         }
-        if (series._internal_options().pane !== newPaneIndex) {
-            series._internal_applyOptions({ pane: newPaneIndex });
+        if (series.options().pane !== newPaneIndex) {
+            series.applyOptions({ pane: newPaneIndex });
         }
-        var previousPane = this._internal_paneForSource(series);
-        previousPane === null || previousPane === void 0 ? void 0 : previousPane._internal_removeDataSource(series);
-        var newPane = this._internal_createPane(newPaneIndex);
+        var previousPane = this.paneForSource(series);
+        previousPane === null || previousPane === void 0 ? void 0 : previousPane.removeDataSource(series);
+        var newPane = this.createPane(newPaneIndex);
         this._private__addSeriesToPane(series, newPane);
     };
-    ChartModel.prototype._internal_backgroundBottomColor = function () {
+    ChartModel.prototype.backgroundBottomColor = function () {
         return this._private__backgroundBottomColor;
     };
-    ChartModel.prototype._internal_backgroundTopColor = function () {
+    ChartModel.prototype.backgroundTopColor = function () {
         return this._private__backgroundTopColor;
     };
-    ChartModel.prototype._internal_backgroundColorAtYPercentFromTop = function (percent) {
+    ChartModel.prototype.backgroundColorAtYPercentFromTop = function (percent) {
         var bottomColor = this._private__backgroundBottomColor;
         var topColor = this._private__backgroundTopColor;
         if (bottomColor === topColor) {
@@ -12246,7 +12246,7 @@ var ChartModel = /** @class */ (function () {
         this._private__gradientColorsCache._internal_colors.set(percent, result);
         return result;
     };
-    ChartModel.prototype._internal_getPaneIndex = function (pane) {
+    ChartModel.prototype.getPaneIndex = function (pane) {
         var _a;
         return (_a = this._private__panesToIndex.get(pane)) !== null && _a !== void 0 ? _a : 0;
     };
@@ -12254,8 +12254,8 @@ var ChartModel = /** @class */ (function () {
         var inv = new InvalidateMask(level);
         if (pane !== null) {
             var index = this._private__panes.indexOf(pane);
-            inv._internal_invalidatePane(index, {
-                _internal_level: level,
+            inv.invalidatePane(index, {
+                level: level,
             });
         }
         return inv;
@@ -12264,13 +12264,13 @@ var ChartModel = /** @class */ (function () {
         if (invalidateType === undefined) {
             invalidateType = 2 /* Light */;
         }
-        return this._private__paneInvalidationMask(this._internal_paneForSource(source), invalidateType);
+        return this._private__paneInvalidationMask(this.paneForSource(source), invalidateType);
     };
     ChartModel.prototype._private__invalidate = function (mask) {
         if (this._private__invalidateHandler) {
             this._private__invalidateHandler(mask);
         }
-        this._private__panes.forEach(function (pane) { return pane._internal_grid()._internal_paneView()._internal_update(); });
+        this._private__panes.forEach(function (pane) { return pane.grid().paneView().update(); });
     };
     ChartModel.prototype._private__createSeries = function (options, seriesType, pane) {
         var series = new Series(this, options, seriesType);
@@ -12278,12 +12278,12 @@ var ChartModel = /** @class */ (function () {
         return series;
     };
     ChartModel.prototype._private__addSeriesToPane = function (series, pane) {
-        var priceScaleId = series._internal_options().priceScaleId;
-        var targetScaleId = priceScaleId !== undefined ? priceScaleId : this._internal_defaultVisiblePriceScaleId();
-        pane._internal_addDataSource(series, targetScaleId);
+        var priceScaleId = series.options().priceScaleId;
+        var targetScaleId = priceScaleId !== undefined ? priceScaleId : this.defaultVisiblePriceScaleId();
+        pane.addDataSource(series, targetScaleId);
         if (!isDefaultPriceScale(targetScaleId)) {
             // let's apply that options again to apply margins
-            series._internal_applyOptions(series._internal_options());
+            series.applyOptions(series.options());
         }
     };
     ChartModel.prototype._private__getBackgroundColor = function (side) {
@@ -12421,11 +12421,11 @@ function isFulfilledData(data) {
 
 var Size = /** @class */ (function () {
     function Size(w, h) {
-        this._internal_w = w;
-        this._internal_h = h;
+        this.w = w;
+        this.h = h;
     }
-    Size.prototype._internal_equals = function (size) {
-        return (this._internal_w === size._internal_w) && (this._internal_h === size._internal_h);
+    Size.prototype.equals = function (size) {
+        return (this.w === size.w) && (this.h === size.h);
     };
     return Size;
 }());
@@ -12448,11 +12448,11 @@ function createPreconfiguredCanvas(doc, size) {
     var canvas = doc.createElement('canvas');
     var pixelRatio = getCanvasDevicePixelRatio(canvas);
     // we should keep the layout size...
-    canvas.style.width = "".concat(size._internal_w, "px");
-    canvas.style.height = "".concat(size._internal_h, "px");
+    canvas.style.width = "".concat(size.w, "px");
+    canvas.style.height = "".concat(size.h, "px");
     // ...but multiply coordinate space dimensions to device pixel ratio
-    canvas.width = size._internal_w * pixelRatio;
-    canvas.height = size._internal_h * pixelRatio;
+    canvas.width = size.w * pixelRatio;
+    canvas.height = size.h * pixelRatio;
     return canvas;
 }
 function createBoundCanvas(parentElement, size) {
@@ -12461,8 +12461,8 @@ function createBoundCanvas(parentElement, size) {
     parentElement.appendChild(canvas);
     var binding = bindToDevicePixelRatio(canvas, { allowDownsampling: false });
     binding.resizeCanvas({
-        width: size._internal_w,
-        height: size._internal_h,
+        width: size.w,
+        height: size.h,
     });
     return binding;
 }
@@ -12515,7 +12515,7 @@ function preventScrollByWheelClick(el) {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function isInputEventListener(object) {
     // eslint-disable-next-line @typescript-eslint/tslint/config
-    return object._internal_onInputEvent !== undefined;
+    return object.onInputEvent !== undefined;
 }
 // TODO: get rid of a lot of boolean flags, probably we should replace it with some enum
 var MouseEventHandler = /** @class */ (function () {
@@ -12523,10 +12523,10 @@ var MouseEventHandler = /** @class */ (function () {
         var _this = this;
         this._private__clickCount = 0;
         this._private__clickTimeoutId = null;
-        this._private__clickPosition = { _internal_x: Number.NEGATIVE_INFINITY, _internal_y: Number.POSITIVE_INFINITY };
+        this._private__clickPosition = { x: Number.NEGATIVE_INFINITY, y: Number.POSITIVE_INFINITY };
         this._private__tapCount = 0;
         this._private__tapTimeoutId = null;
-        this._private__tapPosition = { _internal_x: Number.NEGATIVE_INFINITY, _internal_y: Number.POSITIVE_INFINITY };
+        this._private__tapPosition = { x: Number.NEGATIVE_INFINITY, y: Number.POSITIVE_INFINITY };
         this._private__longTapTimeoutId = null;
         this._private__longTapActive = false;
         this._private__mouseMoveStartPosition = null;
@@ -12574,7 +12574,7 @@ var MouseEventHandler = /** @class */ (function () {
                 if (_this._private__tapTimeoutId && _this._private__tapCount > 1) {
                     var manhattanDistance = _this._private__touchMouseMoveWithDownInfo(getPosition(dblClickEvent), _this._private__tapPosition)._internal_manhattanDistance;
                     if (manhattanDistance < 30 /* DoubleTapManhattanDistance */ && !_this._private__cancelTap) {
-                        _this._private__processTouchEvent(compatEvent, _this._private__handler._internal_doubleTapEvent);
+                        _this._private__processTouchEvent(compatEvent, _this._private__handler.doubleTapEvent);
                     }
                     _this._private__resetTapTimeout();
                 }
@@ -12585,7 +12585,7 @@ var MouseEventHandler = /** @class */ (function () {
                 if (_this._private__clickTimeoutId && _this._private__clickCount > 1) {
                     var manhattanDistance = _this._private__touchMouseMoveWithDownInfo(getPosition(dblClickEvent), _this._private__clickPosition)._internal_manhattanDistance;
                     if (manhattanDistance < 5 /* DoubleClickManhattanDistance */ && !_this._private__cancelClick) {
-                        _this._private__processMouseEvent(compatEvent, _this._private__handler._internal_mouseDoubleClickEvent);
+                        _this._private__processMouseEvent(compatEvent, _this._private__handler.mouseDoubleClickEvent);
                     }
                     _this._private__resetClickTimeout();
                 }
@@ -12596,7 +12596,7 @@ var MouseEventHandler = /** @class */ (function () {
         this._private__options = options;
         this._private__init();
     }
-    MouseEventHandler.prototype._internal_destroy = function () {
+    MouseEventHandler.prototype.destroy = function () {
         if (this._private__unsubscribeOutsideMouseEvents !== null) {
             this._private__unsubscribeOutsideMouseEvents();
             this._private__unsubscribeOutsideMouseEvents = null;
@@ -12638,7 +12638,7 @@ var MouseEventHandler = /** @class */ (function () {
             return;
         }
         var compatEvent = this._private__makeCompatEvent(enterEvent);
-        this._private__processMouseEvent(compatEvent, this._private__handler._internal_mouseEnterEvent);
+        this._private__processMouseEvent(compatEvent, this._private__handler.mouseEnterEvent);
         this._private__acceptMouseLeave = true;
     };
     MouseEventHandler.prototype._private__resetClickTimeout = function () {
@@ -12647,7 +12647,7 @@ var MouseEventHandler = /** @class */ (function () {
         }
         this._private__clickCount = 0;
         this._private__clickTimeoutId = null;
-        this._private__clickPosition = { _internal_x: Number.NEGATIVE_INFINITY, _internal_y: Number.POSITIVE_INFINITY };
+        this._private__clickPosition = { x: Number.NEGATIVE_INFINITY, y: Number.POSITIVE_INFINITY };
     };
     MouseEventHandler.prototype._private__resetTapTimeout = function () {
         if (this._private__tapTimeoutId !== null) {
@@ -12655,7 +12655,7 @@ var MouseEventHandler = /** @class */ (function () {
         }
         this._private__tapCount = 0;
         this._private__tapTimeoutId = null;
-        this._private__tapPosition = { _internal_x: Number.NEGATIVE_INFINITY, _internal_y: Number.POSITIVE_INFINITY };
+        this._private__tapPosition = { x: Number.NEGATIVE_INFINITY, y: Number.POSITIVE_INFINITY };
     };
     MouseEventHandler.prototype._private__mouseMoveHandler = function (moveEvent) {
         if (this._private__mousePressed || this._private__touchMoveStartPosition !== null) {
@@ -12665,7 +12665,7 @@ var MouseEventHandler = /** @class */ (function () {
             return;
         }
         var compatEvent = this._private__makeCompatEvent(moveEvent);
-        this._private__processMouseEvent(compatEvent, this._private__handler._internal_mouseMoveEvent);
+        this._private__processMouseEvent(compatEvent, this._private__handler.mouseMoveEvent);
         this._private__acceptMouseLeave = true;
     };
     MouseEventHandler.prototype._private__touchMoveHandler = function (moveEvent) {
@@ -12709,7 +12709,7 @@ var MouseEventHandler = /** @class */ (function () {
         }
         if (!this._private__preventTouchDragProcess) {
             var compatEvent = this._private__makeCompatEvent(moveEvent, touch);
-            this._private__processTouchEvent(compatEvent, this._private__handler._internal_touchMoveEvent);
+            this._private__processTouchEvent(compatEvent, this._private__handler.touchMoveEvent);
             // we should prevent default in case of touch only
             // to prevent scroll of the page
             preventDefault(moveEvent);
@@ -12729,12 +12729,12 @@ var MouseEventHandler = /** @class */ (function () {
         if (this._private__cancelClick) {
             // if this._cancelClick is true, that means that minimum manhattan distance is already exceeded
             var compatEvent = this._private__makeCompatEvent(moveEvent);
-            this._private__processMouseEvent(compatEvent, this._private__handler._internal_pressedMouseMoveEvent);
+            this._private__processMouseEvent(compatEvent, this._private__handler.pressedMouseMoveEvent);
         }
     };
     MouseEventHandler.prototype._private__touchMouseMoveWithDownInfo = function (currentPosition, startPosition) {
-        var xOffset = Math.abs(startPosition._internal_x - currentPosition._internal_x);
-        var yOffset = Math.abs(startPosition._internal_y - currentPosition._internal_y);
+        var xOffset = Math.abs(startPosition.x - currentPosition.x);
+        var yOffset = Math.abs(startPosition.y - currentPosition.y);
         var manhattanDistance = xOffset + yOffset;
         return {
             _internal_xOffset: xOffset,
@@ -12762,22 +12762,22 @@ var MouseEventHandler = /** @class */ (function () {
             this._private__unsubscribeRootTouchEvents = null;
         }
         var compatEvent = this._private__makeCompatEvent(touchEndEvent, touch);
-        this._private__processTouchEvent(compatEvent, this._private__handler._internal_touchEndEvent);
+        this._private__processTouchEvent(compatEvent, this._private__handler.touchEndEvent);
         ++this._private__tapCount;
         if (this._private__tapTimeoutId && this._private__tapCount > 1) {
             // check that both clicks are near enough
             var manhattanDistance = this._private__touchMouseMoveWithDownInfo(getPosition(touch), this._private__tapPosition)._internal_manhattanDistance;
             if (manhattanDistance < 30 /* DoubleTapManhattanDistance */ && !this._private__cancelTap) {
-                this._private__processTouchEvent(compatEvent, this._private__handler._internal_doubleTapEvent);
+                this._private__processTouchEvent(compatEvent, this._private__handler.doubleTapEvent);
             }
             this._private__resetTapTimeout();
         }
         else {
             if (!this._private__cancelTap) {
-                this._private__processTouchEvent(compatEvent, this._private__handler._internal_tapEvent);
+                this._private__processTouchEvent(compatEvent, this._private__handler.tapEvent);
                 // do not fire mouse events if tap handler was executed
                 // prevent click event on new dom element (who appeared after tap)
-                if (this._private__handler._internal_tapEvent) {
+                if (this._private__handler.tapEvent) {
                     preventDefault(touchEndEvent);
                 }
             }
@@ -12813,19 +12813,19 @@ var MouseEventHandler = /** @class */ (function () {
         if (this._private__firesTouchEvents(mouseUpEvent)) {
             return;
         }
-        this._private__processMouseEvent(compatEvent, this._private__handler._internal_mouseUpEvent);
+        this._private__processMouseEvent(compatEvent, this._private__handler.mouseUpEvent);
         ++this._private__clickCount;
         if (this._private__clickTimeoutId && this._private__clickCount > 1) {
             // check that both clicks are near enough
             var manhattanDistance = this._private__touchMouseMoveWithDownInfo(getPosition(mouseUpEvent), this._private__clickPosition)._internal_manhattanDistance;
             if (manhattanDistance < 5 /* DoubleClickManhattanDistance */ && !this._private__cancelClick) {
-                this._private__processMouseEvent(compatEvent, this._private__handler._internal_mouseDoubleClickEvent);
+                this._private__processMouseEvent(compatEvent, this._private__handler.mouseDoubleClickEvent);
             }
             this._private__resetClickTimeout();
         }
         else {
             if (!this._private__cancelClick) {
-                this._private__processMouseEvent(compatEvent, this._private__handler._internal_mouseClickEvent);
+                this._private__processMouseEvent(compatEvent, this._private__handler.mouseClickEvent);
             }
         }
     };
@@ -12865,7 +12865,7 @@ var MouseEventHandler = /** @class */ (function () {
             this._private__longTapTimeoutId = setTimeout(this._private__longTapHandler.bind(this, downEvent), 240 /* LongTap */);
         }
         var compatEvent = this._private__makeCompatEvent(downEvent, touch);
-        this._private__processTouchEvent(compatEvent, this._private__handler._internal_touchStartEvent);
+        this._private__processTouchEvent(compatEvent, this._private__handler.touchStartEvent);
         if (!this._private__tapTimeoutId) {
             this._private__tapCount = 0;
             this._private__tapTimeoutId = setTimeout(this._private__resetTapTimeout.bind(this), 500 /* ResetClick */);
@@ -12901,7 +12901,7 @@ var MouseEventHandler = /** @class */ (function () {
             return;
         }
         var compatEvent = this._private__makeCompatEvent(downEvent);
-        this._private__processMouseEvent(compatEvent, this._private__handler._internal_mouseDownEvent);
+        this._private__processMouseEvent(compatEvent, this._private__handler.mouseDownEvent);
         if (!this._private__clickTimeoutId) {
             this._private__clickCount = 0;
             this._private__clickTimeoutId = setTimeout(this._private__resetClickTimeout.bind(this), 500 /* ResetClick */);
@@ -12916,13 +12916,13 @@ var MouseEventHandler = /** @class */ (function () {
         {
             var doc_1 = this._private__target.ownerDocument;
             var outsideHandler_1 = function (event) {
-                if (!_this._private__handler._internal_mouseDownOutsideEvent) {
+                if (!_this._private__handler.mouseDownOutsideEvent) {
                     return;
                 }
                 if (event.target && _this._private__target.contains(event.target)) {
                     return;
                 }
-                _this._private__handler._internal_mouseDownOutsideEvent();
+                _this._private__handler.mouseDownOutsideEvent();
             };
             this._private__unsubscribeOutsideTouchEvents = function () {
                 doc_1.removeEventListener('touchstart', outsideHandler_1);
@@ -12953,9 +12953,9 @@ var MouseEventHandler = /** @class */ (function () {
     };
     MouseEventHandler.prototype._private__initPinch = function () {
         var _this = this;
-        if (this._private__handler._internal_pinchStartEvent === undefined &&
-            this._private__handler._internal_pinchEvent === undefined &&
-            this._private__handler._internal_pinchEndEvent === undefined) {
+        if (this._private__handler.pinchStartEvent === undefined &&
+            this._private__handler.pinchEvent === undefined &&
+            this._private__handler.pinchEndEvent === undefined) {
             return;
         }
         this._private__target.addEventListener('touchstart', function (event) { return _this._private__checkPinchState(event.touches); }, { passive: true });
@@ -12963,10 +12963,10 @@ var MouseEventHandler = /** @class */ (function () {
             if (event.touches.length !== 2 || _this._private__startPinchMiddlePoint === null) {
                 return;
             }
-            if (_this._private__handler._internal_pinchEvent !== undefined) {
+            if (_this._private__handler.pinchEvent !== undefined) {
                 var currentDistance = getDistance(event.touches[0], event.touches[1]);
                 var scale = currentDistance / _this._private__startPinchDistance;
-                _this._private__handler._internal_pinchEvent(_this._private__startPinchMiddlePoint, scale);
+                _this._private__handler.pinchEvent(_this._private__startPinchMiddlePoint, scale);
                 preventDefault(event);
             }
         }, { passive: false });
@@ -12988,12 +12988,12 @@ var MouseEventHandler = /** @class */ (function () {
     MouseEventHandler.prototype._private__startPinch = function (touches) {
         var box = getBoundingClientRect(this._private__target);
         this._private__startPinchMiddlePoint = {
-            _internal_x: ((touches[0].clientX - box.left) + (touches[1].clientX - box.left)) / 2,
-            _internal_y: ((touches[0].clientY - box.top) + (touches[1].clientY - box.top)) / 2,
+            x: ((touches[0].clientX - box.left) + (touches[1].clientX - box.left)) / 2,
+            y: ((touches[0].clientY - box.top) + (touches[1].clientY - box.top)) / 2,
         };
         this._private__startPinchDistance = getDistance(touches[0], touches[1]);
-        if (this._private__handler._internal_pinchStartEvent !== undefined) {
-            this._private__handler._internal_pinchStartEvent();
+        if (this._private__handler.pinchStartEvent !== undefined) {
+            this._private__handler.pinchStartEvent();
         }
         this._private__clearLongTapTimeout();
     };
@@ -13002,8 +13002,8 @@ var MouseEventHandler = /** @class */ (function () {
             return;
         }
         this._private__startPinchMiddlePoint = null;
-        if (this._private__handler._internal_pinchEndEvent !== undefined) {
-            this._private__handler._internal_pinchEndEvent();
+        if (this._private__handler.pinchEndEvent !== undefined) {
+            this._private__handler.pinchEndEvent();
         }
     };
     MouseEventHandler.prototype._private__mouseLeaveHandler = function (event) {
@@ -13019,7 +13019,7 @@ var MouseEventHandler = /** @class */ (function () {
             return;
         }
         var compatEvent = this._private__makeCompatEvent(event);
-        this._private__processMouseEvent(compatEvent, this._private__handler._internal_mouseLeaveEvent);
+        this._private__processMouseEvent(compatEvent, this._private__handler.mouseLeaveEvent);
         // accept all mouse leave events if it's not an iOS device
         this._private__acceptMouseLeave = !isIOS();
     };
@@ -13029,7 +13029,7 @@ var MouseEventHandler = /** @class */ (function () {
             return;
         }
         var compatEvent = this._private__makeCompatEvent(event, touch);
-        this._private__processTouchEvent(compatEvent, this._private__handler._internal_longTapEvent);
+        this._private__processTouchEvent(compatEvent, this._private__handler.longTapEvent);
         this._private__cancelTap = true;
         // long tap is active until touchend event with 0 touches occurred
         this._private__longTapActive = true;
@@ -13057,23 +13057,23 @@ var MouseEventHandler = /** @class */ (function () {
         var eventLike = touch || event;
         var box = this._private__target.getBoundingClientRect() || { left: 0, top: 0 };
         return {
-            _internal_clientX: eventLike.clientX,
-            _internal_clientY: eventLike.clientY,
-            _internal_pageX: eventLike.pageX,
-            _internal_pageY: eventLike.pageY,
-            _internal_screenX: eventLike.screenX,
-            _internal_screenY: eventLike.screenY,
-            _internal_localX: (eventLike.clientX - box.left),
-            _internal_localY: (eventLike.clientY - box.top),
-            _internal_ctrlKey: event.ctrlKey,
-            _internal_altKey: event.altKey,
-            _internal_shiftKey: event.shiftKey,
-            _internal_metaKey: event.metaKey,
-            _internal_isTouch: !event.type.startsWith('mouse') && event.type !== 'contextmenu' && event.type !== 'click',
-            _internal_srcType: event.type,
-            _internal_target: eventLike.target,
-            _internal_view: event.view,
-            _internal_preventDefault: function () {
+            clientX: eventLike.clientX,
+            clientY: eventLike.clientY,
+            pageX: eventLike.pageX,
+            pageY: eventLike.pageY,
+            screenX: eventLike.screenX,
+            screenY: eventLike.screenY,
+            localX: (eventLike.clientX - box.left),
+            localY: (eventLike.clientY - box.top),
+            ctrlKey: event.ctrlKey,
+            altKey: event.altKey,
+            shiftKey: event.shiftKey,
+            metaKey: event.metaKey,
+            isTouch: !event.type.startsWith('mouse') && event.type !== 'contextmenu' && event.type !== 'click',
+            srcType: event.type,
+            target: eventLike.target,
+            view: event.view,
+            preventDefault: function () {
                 if (event.type !== 'touchstart') {
                     // touchstart is passive and cannot be prevented
                     preventDefault(event);
@@ -13098,8 +13098,8 @@ function preventDefault(event) {
 }
 function getPosition(eventLike) {
     return {
-        _internal_x: eventLike.pageX,
-        _internal_y: eventLike.pageY,
+        x: eventLike.pageX,
+        y: eventLike.pageY,
     };
 }
 function eventTimeStamp(e) {
@@ -13127,8 +13127,8 @@ var PaneSeparator = /** @class */ (function () {
         this._private__pixelStretchFactor = 0;
         this._private__mouseActive = false;
         this._private__chartWidget = chartWidget;
-        this._private__paneA = chartWidget._internal_paneWidgets()[topPaneIndex];
-        this._private__paneB = chartWidget._internal_paneWidgets()[bottomPaneIndex];
+        this._private__paneA = chartWidget.paneWidgets()[topPaneIndex];
+        this._private__paneB = chartWidget.paneWidgets()[bottomPaneIndex];
         this._private__rowElement = document.createElement('tr');
         this._private__rowElement.style.height = SEPARATOR_HEIGHT + 'px';
         this._private__cell = document.createElement('td');
@@ -13155,14 +13155,14 @@ var PaneSeparator = /** @class */ (function () {
             this._private__handle.style.opacity = '0';
             this._private__cell.appendChild(this._private__handle);
             var handlers = {
-                _internal_mouseEnterEvent: this._private__mouseOverEvent.bind(this),
-                _internal_mouseLeaveEvent: this._private__mouseLeaveEvent.bind(this),
-                _internal_mouseDownEvent: this._private__mouseDownEvent.bind(this),
-                _internal_touchStartEvent: this._private__mouseDownEvent.bind(this),
-                _internal_pressedMouseMoveEvent: this._private__pressedMouseMoveEvent.bind(this),
-                _internal_touchMoveEvent: this._private__pressedMouseMoveEvent.bind(this),
-                _internal_mouseUpEvent: this._private__mouseUpEvent.bind(this),
-                _internal_touchEndEvent: this._private__mouseUpEvent.bind(this),
+                mouseEnterEvent: this._private__mouseOverEvent.bind(this),
+                mouseLeaveEvent: this._private__mouseLeaveEvent.bind(this),
+                mouseDownEvent: this._private__mouseDownEvent.bind(this),
+                touchStartEvent: this._private__mouseDownEvent.bind(this),
+                pressedMouseMoveEvent: this._private__pressedMouseMoveEvent.bind(this),
+                touchMoveEvent: this._private__pressedMouseMoveEvent.bind(this),
+                mouseUpEvent: this._private__mouseUpEvent.bind(this),
+                touchEndEvent: this._private__mouseUpEvent.bind(this),
             };
             this._private__mouseEventHandler = new MouseEventHandler(this._private__handle, handlers, {
                 _internal_treatVertTouchDragAsPageScroll: function () { return false; },
@@ -13170,23 +13170,23 @@ var PaneSeparator = /** @class */ (function () {
             });
         }
     }
-    PaneSeparator.prototype._internal_destroy = function () {
+    PaneSeparator.prototype.destroy = function () {
         if (this._private__mouseEventHandler !== null) {
-            this._private__mouseEventHandler._internal_destroy();
+            this._private__mouseEventHandler.destroy();
         }
     };
     PaneSeparator.prototype._internal_getElement = function () {
         return this._private__rowElement;
     };
     PaneSeparator.prototype._internal_getSize = function () {
-        return new Size(this._private__paneA._internal_getSize()._internal_w, SEPARATOR_HEIGHT);
+        return new Size(this._private__paneA.getSize().w, SEPARATOR_HEIGHT);
     };
     PaneSeparator.prototype._internal_getImage = function () {
         var size = this._internal_getSize();
         var res = createPreconfiguredCanvas(document, size);
         var ctx = getContext2D(res);
-        ctx.fillStyle = this._private__chartWidget._internal_options().timeScale.borderColor;
-        ctx.fillRect(0, 0, size._internal_w, size._internal_h);
+        ctx.fillStyle = this._private__chartWidget.options().timeScale.borderColor;
+        ctx.fillRect(0, 0, size.w, size.h);
         return res;
     };
     PaneSeparator.prototype._internal_update = function () {
@@ -13194,7 +13194,7 @@ var PaneSeparator = /** @class */ (function () {
     };
     PaneSeparator.prototype._private__updateBorderColor = function () {
         this._private__cell.style.background =
-            this._private__chartWidget._internal_options().timeScale.borderColor;
+            this._private__chartWidget.options().timeScale.borderColor;
     };
     PaneSeparator.prototype._private__mouseOverEvent = function (event) {
         if (this._private__handle !== null) {
@@ -13209,29 +13209,29 @@ var PaneSeparator = /** @class */ (function () {
         }
     };
     PaneSeparator.prototype._private__mouseDownEvent = function (event) {
-        this._private__startY = event._internal_pageY;
+        this._private__startY = event.pageY;
         this._private__deltaY = 0;
-        this._private__totalHeight = this._private__paneA._internal_getSize()._internal_h + this._private__paneB._internal_getSize()._internal_h;
+        this._private__totalHeight = this._private__paneA.getSize().h + this._private__paneB.getSize().h;
         this._private__totalStretch =
-            this._private__paneA._internal_stretchFactor() + this._private__paneB._internal_stretchFactor();
+            this._private__paneA.stretchFactor() + this._private__paneB.stretchFactor();
         this._private__minPaneHeight = 30;
         this._private__maxPaneHeight = this._private__totalHeight - this._private__minPaneHeight;
         this._private__pixelStretchFactor = this._private__totalStretch / this._private__totalHeight;
         this._private__mouseActive = true;
     };
     PaneSeparator.prototype._private__pressedMouseMoveEvent = function (event) {
-        this._private__deltaY = event._internal_pageY - this._private__startY;
-        var upperHeight = this._private__paneA._internal_getSize()._internal_h;
+        this._private__deltaY = event.pageY - this._private__startY;
+        var upperHeight = this._private__paneA.getSize().h;
         var newUpperPaneHeight = clamp(upperHeight + this._private__deltaY, this._private__minPaneHeight, this._private__maxPaneHeight);
         var newUpperPaneStretch = newUpperPaneHeight * this._private__pixelStretchFactor;
         var newLowerPaneStretch = this._private__totalStretch - newUpperPaneStretch;
-        this._private__paneA._internal_setStretchFactor(newUpperPaneStretch);
-        this._private__paneB._internal_setStretchFactor(newLowerPaneStretch);
-        this._private__chartWidget._internal_adjustSize();
-        if (this._private__paneA._internal_getSize()._internal_h !== upperHeight) {
-            this._private__startY = event._internal_pageY;
+        this._private__paneA.setStretchFactor(newUpperPaneStretch);
+        this._private__paneB.setStretchFactor(newLowerPaneStretch);
+        this._private__chartWidget.adjustSize();
+        if (this._private__paneA.getSize().h !== upperHeight) {
+            this._private__startY = event.pageY;
         }
-        this._private__chartWidget._internal_model()._internal_fullUpdate();
+        this._private__chartWidget.model().fullUpdate();
     };
     PaneSeparator.prototype._private__mouseUpEvent = function (event) {
         this._private__startY = 0;
@@ -13369,8 +13369,8 @@ var LabelsImageCache = /** @class */ (function () {
         this._private__color = color;
         this._private__font = makeFont(fontSize, fontFamily, fontStyle);
     }
-    LabelsImageCache.prototype._internal_destroy = function () {
-        this._private__textWidthCache._internal_reset();
+    LabelsImageCache.prototype.destroy = function () {
+        this._private__textWidthCache.reset();
         this._private__keys = [];
         this._private__hash.clear();
     };
@@ -13398,7 +13398,7 @@ var LabelsImageCache = /** @class */ (function () {
             var pixelRatio = getCanvasDevicePixelRatio(ctx.canvas);
             var margin_1 = Math.ceil(this._private__fontSize / 4.5);
             var baselineOffset_1 = Math.round(this._private__fontSize / 10);
-            var textWidth = Math.ceil(this._private__textWidthCache._internal_measureText(ctx, text));
+            var textWidth = Math.ceil(this._private__textWidthCache.measureText(ctx, text));
             var width = ceiledEven(Math.round(textWidth + margin_1 * 2));
             var height_1 = ceiledEven(this._private__fontSize + margin_1 * 2);
             var canvas = createPreconfiguredCanvas(document, new Size(width, height_1));
@@ -13439,16 +13439,16 @@ var PriceAxisWidget = /** @class */ (function () {
         this._private__prevOptimalWidth = 0;
         this._private__isSettingSize = false;
         this._private__canvasConfiguredHandler = function () {
-            _this._private__recreateTickMarksCache(_this._private__rendererOptionsProvider._internal_options());
+            _this._private__recreateTickMarksCache(_this._private__rendererOptionsProvider.options());
             if (!_this._private__isSettingSize) {
-                _this._private__pane._internal_chart()._internal_model()._internal_lightUpdate();
+                _this._private__pane.chart().model().lightUpdate();
             }
         };
         this._private__topCanvasConfiguredHandler = function () {
             if (_this._private__isSettingSize) {
                 return;
             }
-            _this._private__pane._internal_chart()._internal_model()._internal_lightUpdate();
+            _this._private__pane.chart().model().lightUpdate();
         };
         this._private__pane = pane;
         this._private__options = options;
@@ -13475,69 +13475,69 @@ var PriceAxisWidget = /** @class */ (function () {
         topCanvas.style.left = '0';
         topCanvas.style.top = '0';
         var handler = {
-            _internal_mouseDownEvent: this._private__mouseDownEvent.bind(this),
-            _internal_touchStartEvent: this._private__mouseDownEvent.bind(this),
-            _internal_pressedMouseMoveEvent: this._private__pressedMouseMoveEvent.bind(this),
-            _internal_touchMoveEvent: this._private__pressedMouseMoveEvent.bind(this),
-            _internal_mouseDownOutsideEvent: this._private__mouseDownOutsideEvent.bind(this),
-            _internal_mouseUpEvent: this._private__mouseUpEvent.bind(this),
-            _internal_touchEndEvent: this._private__mouseUpEvent.bind(this),
-            _internal_mouseDoubleClickEvent: this._private__mouseDoubleClickEvent.bind(this),
-            _internal_doubleTapEvent: this._private__mouseDoubleClickEvent.bind(this),
-            _internal_mouseEnterEvent: this._private__mouseEnterEvent.bind(this),
-            _internal_mouseLeaveEvent: this._private__mouseLeaveEvent.bind(this),
+            mouseDownEvent: this._private__mouseDownEvent.bind(this),
+            touchStartEvent: this._private__mouseDownEvent.bind(this),
+            pressedMouseMoveEvent: this._private__pressedMouseMoveEvent.bind(this),
+            touchMoveEvent: this._private__pressedMouseMoveEvent.bind(this),
+            mouseDownOutsideEvent: this._private__mouseDownOutsideEvent.bind(this),
+            mouseUpEvent: this._private__mouseUpEvent.bind(this),
+            touchEndEvent: this._private__mouseUpEvent.bind(this),
+            mouseDoubleClickEvent: this._private__mouseDoubleClickEvent.bind(this),
+            doubleTapEvent: this._private__mouseDoubleClickEvent.bind(this),
+            mouseEnterEvent: this._private__mouseEnterEvent.bind(this),
+            mouseLeaveEvent: this._private__mouseLeaveEvent.bind(this),
         };
         this._private__mouseEventHandler = new MouseEventHandler(this._private__topCanvasBinding.canvas, handler, {
             _internal_treatVertTouchDragAsPageScroll: function () { return false; },
             _internal_treatHorzTouchDragAsPageScroll: function () { return true; },
         });
     }
-    PriceAxisWidget.prototype._internal_destroy = function () {
-        this._private__mouseEventHandler._internal_destroy();
+    PriceAxisWidget.prototype.destroy = function () {
+        this._private__mouseEventHandler.destroy();
         this._private__topCanvasBinding.unsubscribeCanvasConfigured(this._private__topCanvasConfiguredHandler);
         this._private__topCanvasBinding.destroy();
         this._private__canvasBinding.unsubscribeCanvasConfigured(this._private__canvasConfiguredHandler);
         this._private__canvasBinding.destroy();
         if (this._private__priceScale !== null) {
-            this._private__priceScale._internal_onMarksChanged()._internal_unsubscribeAll(this);
+            this._private__priceScale.onMarksChanged().unsubscribeAll(this);
         }
         this._private__priceScale = null;
-        this._private__tickMarksCache._internal_destroy();
+        this._private__tickMarksCache.destroy();
     };
-    PriceAxisWidget.prototype._internal_getElement = function () {
+    PriceAxisWidget.prototype.getElement = function () {
         return this._private__cell;
     };
-    PriceAxisWidget.prototype._internal_floating = function () {
+    PriceAxisWidget.prototype.floating = function () {
         var _a;
-        return !!((_a = this._private__priceScale) === null || _a === void 0 ? void 0 : _a._internal_options().floating);
+        return !!((_a = this._private__priceScale) === null || _a === void 0 ? void 0 : _a.options().floating);
     };
-    PriceAxisWidget.prototype._internal_lineColor = function () {
-        return ensureNotNull(this._private__priceScale)._internal_options().borderColor;
+    PriceAxisWidget.prototype.lineColor = function () {
+        return ensureNotNull(this._private__priceScale).options().borderColor;
     };
-    PriceAxisWidget.prototype._internal_textColor = function () {
+    PriceAxisWidget.prototype.textColor = function () {
         return this._private__options.textColor;
     };
-    PriceAxisWidget.prototype._internal_fontSize = function () {
+    PriceAxisWidget.prototype.fontSize = function () {
         return this._private__options.fontSize;
     };
-    PriceAxisWidget.prototype._internal_baseFont = function () {
-        return makeFont(this._internal_fontSize(), this._private__options.fontFamily);
+    PriceAxisWidget.prototype.baseFont = function () {
+        return makeFont(this.fontSize(), this._private__options.fontFamily);
     };
-    PriceAxisWidget.prototype._internal_rendererOptions = function () {
+    PriceAxisWidget.prototype.rendererOptions = function () {
         var _a;
-        var options = this._private__rendererOptionsProvider._internal_options();
-        options._internal_align = this._private__isLeft ? 'right' : 'left';
-        var isColorChanged = this._private__color !== options._internal_color;
-        var isFontChanged = this._private__font !== options._internal_font;
+        var options = this._private__rendererOptionsProvider.options();
+        options.align = this._private__isLeft ? 'right' : 'left';
+        var isColorChanged = this._private__color !== options.color;
+        var isFontChanged = this._private__font !== options.font;
         if (isColorChanged || isFontChanged) {
             this._private__recreateTickMarksCache(options);
-            this._private__color = options._internal_color;
+            this._private__color = options.color;
         }
         if (isFontChanged) {
-            this._private__widthCache._internal_reset();
-            this._private__font = options._internal_font;
+            this._private__widthCache.reset();
+            this._private__font = options.font;
         }
-        if ((_a = this._private__priceScale) === null || _a === void 0 ? void 0 : _a._internal_options().floating) {
+        if ((_a = this._private__priceScale) === null || _a === void 0 ? void 0 : _a.options().floating) {
             if (this._private__isLeft) {
                 this._private__cell.style.bottom = '0';
                 this._private__cell.style.zIndex = '2';
@@ -13557,86 +13557,86 @@ var PriceAxisWidget = /** @class */ (function () {
         }
         return options;
     };
-    PriceAxisWidget.prototype._internal_optimalWidth = function () {
+    PriceAxisWidget.prototype.optimalWidth = function () {
         if (this._private__priceScale === null) {
             return 0;
         }
         // need some reasonable value for scale while initialization
         var tickMarkMaxWidth = 34;
-        var rendererOptions = this._internal_rendererOptions();
+        var rendererOptions = this.rendererOptions();
         var ctx = getContext2D(this._private__canvasBinding.canvas);
-        var tickMarks = this._private__priceScale._internal_marks();
-        ctx.font = this._internal_baseFont();
+        var tickMarks = this._private__priceScale.marks();
+        ctx.font = this.baseFont();
         if (tickMarks.length > 0) {
-            tickMarkMaxWidth = Math.max(this._private__widthCache._internal_measureText(ctx, tickMarks[0]._internal_label), this._private__widthCache._internal_measureText(ctx, tickMarks[tickMarks.length - 1]._internal_label));
+            tickMarkMaxWidth = Math.max(this._private__widthCache.measureText(ctx, tickMarks[0].label), this._private__widthCache.measureText(ctx, tickMarks[tickMarks.length - 1].label));
         }
         var views = this._private__dataSources().filter(function (view) { return view instanceof PriceAxisLabelView; });
         for (var j = views.length; j--;) {
-            var width = this._private__widthCache._internal_measureText(ctx, views[j]._internal_text());
+            var width = this._private__widthCache.measureText(ctx, views[j]._internal_text());
             if (width > tickMarkMaxWidth) {
                 tickMarkMaxWidth = width;
             }
         }
-        var firstValue = this._private__priceScale._internal_firstValue();
+        var firstValue = this._private__priceScale.firstValue();
         if (firstValue !== null && this._private__size !== null) {
-            var topValue = this._private__priceScale._internal_coordinateToPrice(1, firstValue);
-            var bottomValue = this._private__priceScale._internal_coordinateToPrice(this._private__size._internal_h - 2, firstValue);
-            tickMarkMaxWidth = Math.max(tickMarkMaxWidth, this._private__widthCache._internal_measureText(ctx, this._private__priceScale._internal_formatPrice(Math.floor(Math.min(topValue, bottomValue)) + 0.11111111111111, firstValue)), this._private__widthCache._internal_measureText(ctx, this._private__priceScale._internal_formatPrice(Math.ceil(Math.max(topValue, bottomValue)) - 0.11111111111111, firstValue)));
+            var topValue = this._private__priceScale.coordinateToPrice(1, firstValue);
+            var bottomValue = this._private__priceScale.coordinateToPrice(this._private__size.h - 2, firstValue);
+            tickMarkMaxWidth = Math.max(tickMarkMaxWidth, this._private__widthCache.measureText(ctx, this._private__priceScale.formatPrice(Math.floor(Math.min(topValue, bottomValue)) + 0.11111111111111, firstValue)), this._private__widthCache.measureText(ctx, this._private__priceScale.formatPrice(Math.ceil(Math.max(topValue, bottomValue)) - 0.11111111111111, firstValue)));
         }
         var resultTickMarksMaxWidth = tickMarkMaxWidth || 34 /* DefaultOptimalWidth */;
-        var res = Math.ceil(rendererOptions._internal_borderSize +
-            rendererOptions._internal_tickLength +
-            rendererOptions._internal_paddingInner +
-            rendererOptions._internal_paddingOuter +
+        var res = Math.ceil(rendererOptions.borderSize +
+            rendererOptions.tickLength +
+            rendererOptions.paddingInner +
+            rendererOptions.paddingOuter +
             resultTickMarksMaxWidth);
         // make it even
         res += res % 2;
         return res;
     };
-    PriceAxisWidget.prototype._internal_setSize = function (size) {
-        if (size._internal_w < 0 || size._internal_h < 0) {
+    PriceAxisWidget.prototype.setSize = function (size) {
+        if (size.w < 0 || size.h < 0) {
             throw new Error('Try to set invalid size to PriceAxisWidget ' + JSON.stringify(size));
         }
-        if (this._private__size === null || !this._private__size._internal_equals(size)) {
+        if (this._private__size === null || !this._private__size.equals(size)) {
             this._private__size = size;
             this._private__isSettingSize = true;
-            this._private__canvasBinding.resizeCanvas({ width: size._internal_w, height: size._internal_h });
-            this._private__topCanvasBinding.resizeCanvas({ width: size._internal_w, height: size._internal_h });
+            this._private__canvasBinding.resizeCanvas({ width: size.w, height: size.h });
+            this._private__topCanvasBinding.resizeCanvas({ width: size.w, height: size.h });
             this._private__isSettingSize = false;
-            this._private__cell.style.width = size._internal_w + 'px';
+            this._private__cell.style.width = size.w + 'px';
             // need this for IE11
-            this._private__cell.style.height = size._internal_h + 'px';
-            this._private__cell.style.minWidth = size._internal_w + 'px'; // for right calculate position of .pane-legend
+            this._private__cell.style.height = size.h + 'px';
+            this._private__cell.style.minWidth = size.w + 'px'; // for right calculate position of .pane-legend
         }
     };
-    PriceAxisWidget.prototype._internal_getWidth = function () {
-        return ensureNotNull(this._private__size)._internal_w;
+    PriceAxisWidget.prototype.getWidth = function () {
+        return ensureNotNull(this._private__size).w;
     };
-    PriceAxisWidget.prototype._internal_setPriceScale = function (priceScale) {
+    PriceAxisWidget.prototype.setPriceScale = function (priceScale) {
         if (this._private__priceScale === priceScale) {
             return;
         }
         if (this._private__priceScale !== null) {
-            this._private__priceScale._internal_onMarksChanged()._internal_unsubscribeAll(this);
+            this._private__priceScale.onMarksChanged().unsubscribeAll(this);
         }
         this._private__priceScale = priceScale;
-        priceScale._internal_onMarksChanged()._internal_subscribe(this._private__onMarksChanged.bind(this), this);
+        priceScale.onMarksChanged().subscribe(this._private__onMarksChanged.bind(this), this);
     };
-    PriceAxisWidget.prototype._internal_priceScale = function () {
+    PriceAxisWidget.prototype.priceScale = function () {
         return this._private__priceScale;
     };
-    PriceAxisWidget.prototype._internal_reset = function () {
-        var pane = this._private__pane._internal_state();
-        var model = this._private__pane._internal_chart()._internal_model();
-        model._internal_resetPriceScale(pane, ensureNotNull(this._internal_priceScale()));
+    PriceAxisWidget.prototype.reset = function () {
+        var pane = this._private__pane.state();
+        var model = this._private__pane.chart().model();
+        model.resetPriceScale(pane, ensureNotNull(this.priceScale()));
     };
-    PriceAxisWidget.prototype._internal_paint = function (type) {
+    PriceAxisWidget.prototype.paint = function (type) {
         if (this._private__size === null) {
             return;
         }
         if (type !== 1 /* Cursor */) {
             var ctx = getContext2D(this._private__canvasBinding.canvas);
-            var renderParams_1 = this._private__pane._internal_canvasRenderParams(this._private__canvasBinding);
+            var renderParams_1 = this._private__pane.canvasRenderParams(this._private__canvasBinding);
             this._private__alignLabels();
             this._private__drawBackground(ctx, renderParams_1);
             this._private__drawBorder(ctx, renderParams_1);
@@ -13645,72 +13645,72 @@ var PriceAxisWidget = /** @class */ (function () {
             this._private__drawSources(ctx, renderParams_1);
         }
         var topCtx = getContext2D(this._private__topCanvasBinding.canvas);
-        var renderParams = this._private__pane._internal_canvasRenderParams(this._private__topCanvasBinding);
-        var width = this._private__size._internal_w;
-        var height = this._private__size._internal_h;
-        drawScaled(topCtx, renderParams._internal_pixelRatio, function () {
+        var renderParams = this._private__pane.canvasRenderParams(this._private__topCanvasBinding);
+        var width = this._private__size.w;
+        var height = this._private__size.h;
+        drawScaled(topCtx, renderParams.pixelRatio, function () {
             topCtx.clearRect(0, 0, width, height);
         });
         this._private__drawCrosshairLabel(topCtx, renderParams);
     };
-    PriceAxisWidget.prototype._internal_getImage = function () {
+    PriceAxisWidget.prototype.getImage = function () {
         return this._private__canvasBinding.canvas;
     };
-    PriceAxisWidget.prototype._internal_update = function () {
+    PriceAxisWidget.prototype.update = function () {
         var _a;
         // this call has side-effect - it regenerates marks on the price scale
-        (_a = this._private__priceScale) === null || _a === void 0 ? void 0 : _a._internal_marks();
+        (_a = this._private__priceScale) === null || _a === void 0 ? void 0 : _a.marks();
     };
     PriceAxisWidget.prototype._private__mouseDownEvent = function (e) {
-        if (this._private__priceScale === null || this._private__priceScale._internal_isEmpty() || !this._private__pane._internal_chart()._internal_options().handleScale.axisPressedMouseMove.price) {
+        if (this._private__priceScale === null || this._private__priceScale.isEmpty() || !this._private__pane.chart().options().handleScale.axisPressedMouseMove.price) {
             return;
         }
-        var model = this._private__pane._internal_chart()._internal_model();
-        var pane = this._private__pane._internal_state();
+        var model = this._private__pane.chart().model();
+        var pane = this._private__pane.state();
         this._private__mousedown = true;
-        model._internal_startScalePrice(pane, this._private__priceScale, e._internal_localY);
+        model.startScalePrice(pane, this._private__priceScale, e.localY);
     };
     PriceAxisWidget.prototype._private__pressedMouseMoveEvent = function (e) {
-        if (this._private__priceScale === null || !this._private__pane._internal_chart()._internal_options().handleScale.axisPressedMouseMove.price) {
+        if (this._private__priceScale === null || !this._private__pane.chart().options().handleScale.axisPressedMouseMove.price) {
             return;
         }
-        var model = this._private__pane._internal_chart()._internal_model();
-        var pane = this._private__pane._internal_state();
+        var model = this._private__pane.chart().model();
+        var pane = this._private__pane.state();
         var priceScale = this._private__priceScale;
-        model._internal_scalePriceTo(pane, priceScale, e._internal_localY);
+        model.scalePriceTo(pane, priceScale, e.localY);
     };
     PriceAxisWidget.prototype._private__mouseDownOutsideEvent = function () {
-        if (this._private__priceScale === null || !this._private__pane._internal_chart()._internal_options().handleScale.axisPressedMouseMove.price) {
+        if (this._private__priceScale === null || !this._private__pane.chart().options().handleScale.axisPressedMouseMove.price) {
             return;
         }
-        var model = this._private__pane._internal_chart()._internal_model();
-        var pane = this._private__pane._internal_state();
+        var model = this._private__pane.chart().model();
+        var pane = this._private__pane.state();
         var priceScale = this._private__priceScale;
         if (this._private__mousedown) {
             this._private__mousedown = false;
-            model._internal_endScalePrice(pane, priceScale);
+            model.endScalePrice(pane, priceScale);
         }
     };
     PriceAxisWidget.prototype._private__mouseUpEvent = function (e) {
-        if (this._private__priceScale === null || !this._private__pane._internal_chart()._internal_options().handleScale.axisPressedMouseMove.price) {
+        if (this._private__priceScale === null || !this._private__pane.chart().options().handleScale.axisPressedMouseMove.price) {
             return;
         }
-        var model = this._private__pane._internal_chart()._internal_model();
-        var pane = this._private__pane._internal_state();
+        var model = this._private__pane.chart().model();
+        var pane = this._private__pane.state();
         this._private__mousedown = false;
-        model._internal_endScalePrice(pane, this._private__priceScale);
+        model.endScalePrice(pane, this._private__priceScale);
     };
     PriceAxisWidget.prototype._private__mouseDoubleClickEvent = function (e) {
-        if (this._private__pane._internal_chart()._internal_options().handleScale.axisDoubleClickReset) {
-            this._internal_reset();
+        if (this._private__pane.chart().options().handleScale.axisDoubleClickReset) {
+            this.reset();
         }
     };
     PriceAxisWidget.prototype._private__mouseEnterEvent = function (e) {
         if (this._private__priceScale === null) {
             return;
         }
-        var model = this._private__pane._internal_chart()._internal_model();
-        if (model._internal_options().handleScale.axisPressedMouseMove.price && !this._private__priceScale._internal_isPercentage() && !this._private__priceScale._internal_isIndexedTo100()) {
+        var model = this._private__pane.chart().model();
+        if (model.options().handleScale.axisPressedMouseMove.price && !this._private__priceScale.isPercentage() && !this._private__priceScale.isIndexedTo100()) {
             this._private__setCursor(1 /* NsResize */);
         }
     };
@@ -13724,7 +13724,7 @@ var PriceAxisWidget = /** @class */ (function () {
         var addViewsForSources = function (sources) {
             for (var i = 0; i < sources.length; ++i) {
                 var source = sources[i];
-                var views = source._internal_priceAxisViews(_this._private__pane._internal_state(), priceScale);
+                var views = source.priceAxisViews(_this._private__pane.state(), priceScale);
                 for (var j = 0; j < views.length; j++) {
                     res.push(views[j]);
                 }
@@ -13732,7 +13732,7 @@ var PriceAxisWidget = /** @class */ (function () {
         };
         // calculate max and min coordinates for views on selection
         // crosshair individually
-        addViewsForSources(this._private__pane._internal_state()._internal_orderedSources());
+        addViewsForSources(this._private__pane.state().orderedSources());
         return res;
     };
     PriceAxisWidget.prototype._private__drawBackground = function (ctx, renderParams) {
@@ -13740,12 +13740,12 @@ var PriceAxisWidget = /** @class */ (function () {
         if (this._private__size === null) {
             return;
         }
-        var width = this._private__size._internal_w;
-        var height = this._private__size._internal_h;
-        drawScaled(ctx, renderParams._internal_pixelRatio, function () {
-            var model = _this._private__pane._internal_state()._internal_model();
-            var topColor = model._internal_backgroundTopColor();
-            var bottomColor = model._internal_backgroundBottomColor();
+        var width = this._private__size.w;
+        var height = this._private__size.h;
+        drawScaled(ctx, renderParams.pixelRatio, function () {
+            var model = _this._private__pane.state().model();
+            var topColor = model.backgroundTopColor();
+            var bottomColor = model.backgroundBottomColor();
             if (topColor === bottomColor) {
                 clearRect(ctx, 0, 0, width, height, topColor);
             }
@@ -13755,57 +13755,57 @@ var PriceAxisWidget = /** @class */ (function () {
         });
     };
     PriceAxisWidget.prototype._private__drawBorder = function (ctx, renderParams) {
-        if (this._private__size === null || this._private__priceScale === null || !this._private__priceScale._internal_options().borderVisible) {
+        if (this._private__size === null || this._private__priceScale === null || !this._private__priceScale.options().borderVisible) {
             return;
         }
         ctx.save();
-        ctx.fillStyle = this._internal_lineColor();
-        var pixelRatio = renderParams._internal_pixelRatio;
-        var borderSize = Math.max(1, Math.floor(this._internal_rendererOptions()._internal_borderSize * pixelRatio));
+        ctx.fillStyle = this.lineColor();
+        var pixelRatio = renderParams.pixelRatio;
+        var borderSize = Math.max(1, Math.floor(this.rendererOptions().borderSize * pixelRatio));
         var left;
         if (this._private__isLeft) {
-            left = Math.floor(this._private__size._internal_w * pixelRatio) - borderSize;
+            left = Math.floor(this._private__size.w * pixelRatio) - borderSize;
         }
         else {
             left = 0;
         }
-        ctx.fillRect(left, 0, borderSize, Math.ceil(this._private__size._internal_h * pixelRatio));
+        ctx.fillRect(left, 0, borderSize, Math.ceil(this._private__size.h * pixelRatio));
         ctx.restore();
     };
     PriceAxisWidget.prototype._private__drawTickMarks = function (ctx, renderParams) {
         if (this._private__size === null || this._private__priceScale === null) {
             return;
         }
-        var pixelRatio = renderParams._internal_pixelRatio;
-        var tickMarks = this._private__priceScale._internal_marks();
+        var pixelRatio = renderParams.pixelRatio;
+        var tickMarks = this._private__priceScale.marks();
         ctx.save();
-        ctx.strokeStyle = this._internal_lineColor();
-        ctx.font = this._internal_baseFont();
-        ctx.fillStyle = this._internal_lineColor();
-        var rendererOptions = this._internal_rendererOptions();
-        var drawTicks = this._private__priceScale._internal_options().borderVisible && this._private__priceScale._internal_options().drawTicks;
+        ctx.strokeStyle = this.lineColor();
+        ctx.font = this.baseFont();
+        ctx.fillStyle = this.lineColor();
+        var rendererOptions = this.rendererOptions();
+        var drawTicks = this._private__priceScale.options().borderVisible && this._private__priceScale.options().drawTicks;
         var tickMarkLeftX = this._private__isLeft ?
-            Math.floor((this._private__size._internal_w - rendererOptions._internal_tickLength) * pixelRatio - rendererOptions._internal_borderSize * pixelRatio) :
-            Math.floor(rendererOptions._internal_borderSize * pixelRatio);
+            Math.floor((this._private__size.w - rendererOptions.tickLength) * pixelRatio - rendererOptions.borderSize * pixelRatio) :
+            Math.floor(rendererOptions.borderSize * pixelRatio);
         var textLeftX = this._private__isLeft ?
-            Math.round(tickMarkLeftX - rendererOptions._internal_paddingInner * pixelRatio) :
-            Math.round(tickMarkLeftX + rendererOptions._internal_tickLength * pixelRatio + rendererOptions._internal_paddingInner * pixelRatio);
+            Math.round(tickMarkLeftX - rendererOptions.paddingInner * pixelRatio) :
+            Math.round(tickMarkLeftX + rendererOptions.tickLength * pixelRatio + rendererOptions.paddingInner * pixelRatio);
         var textAlign = this._private__isLeft ? 'right' : 'left';
         var tickHeight = Math.max(1, Math.floor(pixelRatio));
         var tickOffset = Math.floor(pixelRatio * 0.5);
         if (drawTicks) {
-            var tickLength = Math.round(rendererOptions._internal_tickLength * pixelRatio);
+            var tickLength = Math.round(rendererOptions.tickLength * pixelRatio);
             ctx.beginPath();
             for (var _i = 0, tickMarks_1 = tickMarks; _i < tickMarks_1.length; _i++) {
                 var tickMark = tickMarks_1[_i];
-                ctx.rect(tickMarkLeftX, Math.round(tickMark._internal_coord * pixelRatio) - tickOffset, tickLength, tickHeight);
+                ctx.rect(tickMarkLeftX, Math.round(tickMark.coord * pixelRatio) - tickOffset, tickLength, tickHeight);
             }
             ctx.fill();
         }
-        ctx.fillStyle = this._internal_textColor();
+        ctx.fillStyle = this.textColor();
         for (var _a = 0, tickMarks_2 = tickMarks; _a < tickMarks_2.length; _a++) {
             var tickMark = tickMarks_2[_a];
-            this._private__tickMarksCache._internal_paintTo(ctx, tickMark._internal_label, textLeftX, Math.round(tickMark._internal_coord * pixelRatio), textAlign);
+            this._private__tickMarksCache._internal_paintTo(ctx, tickMark.label, textLeftX, Math.round(tickMark.coord * pixelRatio), textAlign);
         }
         ctx.restore();
     };
@@ -13813,27 +13813,27 @@ var PriceAxisWidget = /** @class */ (function () {
         if (this._private__size === null || this._private__priceScale === null) {
             return;
         }
-        var center = this._private__size._internal_h / 2;
+        var center = this._private__size.h / 2;
         var views = [];
-        var orderedSources = this._private__priceScale._internal_orderedSources().slice(); // Copy of array
+        var orderedSources = this._private__priceScale.orderedSources().slice(); // Copy of array
         var pane = this._private__pane;
-        var paneState = pane._internal_state();
-        var rendererOptions = this._internal_rendererOptions();
+        var paneState = pane.state();
+        var rendererOptions = this.rendererOptions();
         // if we are default price scale, append labels from no-scale
-        var isDefault = this._private__priceScale === paneState._internal_defaultVisiblePriceScale();
+        var isDefault = this._private__priceScale === paneState.defaultVisiblePriceScale();
         if (isDefault) {
-            this._private__pane._internal_state()._internal_orderedSources().forEach(function (source) {
-                if (paneState._internal_isOverlay(source)) {
+            this._private__pane.state().orderedSources().forEach(function (source) {
+                if (paneState.isOverlay(source)) {
                     orderedSources.push(source);
                 }
             });
         }
         // we can use any, but let's use the first source as "center" one
-        var centerSource = this._private__priceScale._internal_dataSources()[0];
+        var centerSource = this._private__priceScale.dataSources()[0];
         var priceScale = this._private__priceScale;
         var updateForSources = function (sources) {
             sources.forEach(function (source) {
-                var sourceViews = source._internal_priceAxisViews(paneState, priceScale)
+                var sourceViews = source.priceAxisViews(paneState, priceScale)
                     .filter(function (view) { return view instanceof PriceAxisLabelView; });
                 // never align selected sources
                 sourceViews.forEach(function (view) {
@@ -13860,7 +13860,7 @@ var PriceAxisWidget = /** @class */ (function () {
         }
         bottom.sort(function (l, r) { return l._internal_coordinate() - r._internal_coordinate(); });
         views.forEach(function (view) { return view._internal_setFixedCoordinate(view._internal_coordinate()); });
-        var options = this._private__priceScale._internal_options();
+        var options = this._private__priceScale.options();
         if (!options.alignLabels) {
             return;
         }
@@ -13891,15 +13891,15 @@ var PriceAxisWidget = /** @class */ (function () {
         }
         ctx.save();
         var views = this._private__dataSources();
-        var rendererOptions = this._internal_rendererOptions();
+        var rendererOptions = this.rendererOptions();
         views.forEach(function (view) {
-            var renderer = view._internal_renderer();
+            var renderer = view.renderer();
             ctx.save();
-            if (background && renderer._internal_drawBackground) {
-                renderer._internal_drawBackground(ctx, rendererOptions, renderParams);
+            if (background && renderer.drawBackground) {
+                renderer.drawBackground(ctx, rendererOptions, renderParams);
             }
-            else if (renderer._internal_draw) {
-                renderer._internal_draw(ctx, rendererOptions, renderParams);
+            else if (renderer.draw) {
+                renderer.draw(ctx, rendererOptions, renderParams);
             }
             ctx.restore();
         });
@@ -13910,22 +13910,22 @@ var PriceAxisWidget = /** @class */ (function () {
             return;
         }
         ctx.save();
-        var model = this._private__pane._internal_chart()._internal_model();
+        var model = this._private__pane.chart().model();
         var views = []; // array of arrays
-        var pane = this._private__pane._internal_state();
-        var v = model._internal_crosshairSource()._internal_priceAxisViews(pane, this._private__priceScale);
+        var pane = this._private__pane.state();
+        var v = model.crosshairSource().priceAxisViews(pane, this._private__priceScale);
         if (v.length) {
             views.push(v);
         }
-        var ro = this._internal_rendererOptions();
+        var ro = this.rendererOptions();
         views.forEach(function (arr) {
             arr.forEach(function (view) {
-                var renderer = view._internal_renderer();
+                var renderer = view.renderer();
                 ctx.save();
-                if (!renderer._internal_draw) {
+                if (!renderer.draw) {
                     return;
                 }
-                renderer._internal_draw(ctx, ro, renderParams);
+                renderer.draw(ctx, ro, renderParams);
                 ctx.restore();
             });
         });
@@ -13935,17 +13935,17 @@ var PriceAxisWidget = /** @class */ (function () {
         this._private__cell.style.cursor = type === 1 /* NsResize */ ? 'ns-resize' : 'default';
     };
     PriceAxisWidget.prototype._private__onMarksChanged = function () {
-        var width = this._internal_optimalWidth();
+        var width = this.optimalWidth();
         // avoid price scale is shrunk
         // using < instead !== to avoid infinite changes
         if (this._private__prevOptimalWidth < width) {
-            this._private__pane._internal_chart()._internal_model()._internal_fullUpdate();
+            this._private__pane.chart().model().fullUpdate();
         }
         this._private__prevOptimalWidth = width;
     };
     PriceAxisWidget.prototype._private__recreateTickMarksCache = function (options) {
-        this._private__tickMarksCache._internal_destroy();
-        this._private__tickMarksCache = new LabelsImageCache(options._internal_fontSize, options._internal_color, options._internal_fontFamily);
+        this._private__tickMarksCache.destroy();
+        this._private__tickMarksCache = new LabelsImageCache(options.fontSize, options.color, options.fontFamily);
     };
     return PriceAxisWidget;
 }());
@@ -13989,18 +13989,18 @@ var isMobile = getIsMobile();
 // not check current UA to detect "mobile" device
 var trackCrosshairOnlyAfterLongTap = isMobile;
 function drawBackground(renderer, ctx, renderParams) {
-    if (renderer._internal_drawBackground) {
-        renderer._internal_drawBackground(ctx, renderParams);
+    if (renderer.drawBackground) {
+        renderer.drawBackground(ctx, renderParams);
     }
 }
 function drawForeground(renderer, ctx, renderParams) {
-    renderer._internal_draw(ctx, renderParams);
+    renderer.draw(ctx, renderParams);
 }
 function sourcePaneViews(source, pane) {
-    return source._internal_paneViews();
+    return source.paneViews();
 }
 function sourceTopPaneViews(source, pane) {
-    return source._internal_topPaneViews !== undefined ? source._internal_topPaneViews(pane) : [];
+    return source.topPaneViews !== undefined ? source.topPaneViews(pane) : [];
 }
 var PaneWidget = /** @class */ (function () {
     function PaneWidget(chart, state) {
@@ -14018,15 +14018,17 @@ var PaneWidget = /** @class */ (function () {
         this._private__initCrosshairPosition = null;
         this._private__scrollXAnimation = null;
         this._private__canvasConfiguredHandler = function () {
-            return _this._private__state && _this._private__model()._internal_lightUpdate();
+            return _this._private__state && _this._private__model().lightUpdate();
         };
         this._private__topCanvasConfiguredHandler = function () {
-            return _this._private__state && _this._private__model()._internal_lightUpdate();
+            return _this._private__state && _this._private__model().lightUpdate();
         };
         this._private__chart = chart;
         this._private__state = state;
-        this._private__state._internal_onDestroyed()._internal_subscribe(this._private__onStateDestroyed.bind(this), this, true);
-        var paneIndex = this._private__model()._internal_getPaneIndex(ensureNotNull(this._private__state));
+        this._private__state
+            .onDestroyed()
+            .subscribe(this._private__onStateDestroyed.bind(this), this, true);
+        var paneIndex = this._private__model().getPaneIndex(ensureNotNull(this._private__state));
         this._private__paneCell = document.createElement('td');
         this._private__paneCell.style.padding = '0';
         this._private__paneCell.style.position = 'relative';
@@ -14061,106 +14063,108 @@ var PaneWidget = /** @class */ (function () {
         this._private__rowElement.appendChild(this._private__leftAxisCell);
         this._private__rowElement.appendChild(this._private__paneCell);
         this._private__rowElement.appendChild(this._private__rightAxisCell);
-        this._internal_updatePriceAxisWidgetsStates();
+        this.updatePriceAxisWidgetsStates();
         this._private__mouseEventHandler = new MouseEventHandler(this._private__topCanvasBinding.canvas, this, {
-            _internal_treatVertTouchDragAsPageScroll: function () { return _this._private__startTrackPoint === null && !_this._private__chart._internal_options().handleScroll.vertTouchDrag; },
-            _internal_treatHorzTouchDragAsPageScroll: function () { return _this._private__startTrackPoint === null && !_this._private__chart._internal_options().handleScroll.horzTouchDrag; },
+            _internal_treatVertTouchDragAsPageScroll: function () { return _this._private__startTrackPoint === null && !_this._private__chart.options().handleScroll.vertTouchDrag; },
+            _internal_treatHorzTouchDragAsPageScroll: function () { return _this._private__startTrackPoint === null && !_this._private__chart.options().handleScroll.horzTouchDrag; },
         });
     }
-    PaneWidget.prototype._internal_destroy = function () {
+    PaneWidget.prototype.destroy = function () {
         if (this._private__leftPriceAxisWidget !== null) {
-            this._private__leftPriceAxisWidget._internal_destroy();
+            this._private__leftPriceAxisWidget.destroy();
         }
         if (this._private__rightPriceAxisWidget !== null) {
-            this._private__rightPriceAxisWidget._internal_destroy();
+            this._private__rightPriceAxisWidget.destroy();
         }
         this._private__topCanvasBinding.unsubscribeCanvasConfigured(this._private__topCanvasConfiguredHandler);
         this._private__topCanvasBinding.destroy();
         this._private__canvasBinding.unsubscribeCanvasConfigured(this._private__canvasConfiguredHandler);
         this._private__canvasBinding.destroy();
         if (this._private__state !== null) {
-            this._private__state._internal_onDestroyed()._internal_unsubscribeAll(this);
+            this._private__state.onDestroyed().unsubscribeAll(this);
         }
-        this._private__mouseEventHandler._internal_destroy();
+        this._private__mouseEventHandler.destroy();
     };
-    PaneWidget.prototype._internal_state = function () {
+    PaneWidget.prototype.state = function () {
         return ensureNotNull(this._private__state);
     };
-    PaneWidget.prototype._internal_setState = function (pane) {
+    PaneWidget.prototype.setState = function (pane) {
         if (this._private__state !== null) {
-            this._private__state._internal_onDestroyed()._internal_unsubscribeAll(this);
+            this._private__state.onDestroyed().unsubscribeAll(this);
         }
         this._private__state = pane;
         if (this._private__state !== null) {
-            this._private__state._internal_onDestroyed()._internal_subscribe(PaneWidget.prototype._private__onStateDestroyed.bind(this), this, true);
+            this._private__state
+                .onDestroyed()
+                .subscribe(PaneWidget.prototype._private__onStateDestroyed.bind(this), this, true);
         }
-        this._internal_updatePriceAxisWidgetsStates();
+        this.updatePriceAxisWidgetsStates();
     };
-    PaneWidget.prototype._internal_setCursor = function (type) {
+    PaneWidget.prototype.setCursor = function (type) {
         var cursor = type.toString();
         if (this._private__paneCell.style.cursor !== cursor) {
             this._private__paneCell.style.cursor = cursor;
         }
     };
-    PaneWidget.prototype._internal_chart = function () {
+    PaneWidget.prototype.chart = function () {
         return this._private__chart;
     };
-    PaneWidget.prototype._internal_getElement = function () {
+    PaneWidget.prototype.getElement = function () {
         return this._private__rowElement;
     };
-    PaneWidget.prototype._internal_updatePriceAxisWidgetsStates = function () {
+    PaneWidget.prototype.updatePriceAxisWidgetsStates = function () {
         if (this._private__state === null) {
             return;
         }
         this._private__recreatePriceAxisWidgets();
-        if (this._private__model()._internal_serieses().length === 0) {
+        if (this._private__model().serieses().length === 0) {
             return;
         }
         if (this._private__leftPriceAxisWidget !== null) {
-            var leftPriceScale = this._private__state._internal_leftPriceScale();
-            this._private__leftPriceAxisWidget._internal_setPriceScale(ensureNotNull(leftPriceScale));
+            var leftPriceScale = this._private__state.leftPriceScale();
+            this._private__leftPriceAxisWidget.setPriceScale(ensureNotNull(leftPriceScale));
         }
         if (this._private__rightPriceAxisWidget !== null) {
-            var rightPriceScale = this._private__state._internal_rightPriceScale();
-            this._private__rightPriceAxisWidget._internal_setPriceScale(ensureNotNull(rightPriceScale));
+            var rightPriceScale = this._private__state.rightPriceScale();
+            this._private__rightPriceAxisWidget.setPriceScale(ensureNotNull(rightPriceScale));
         }
     };
-    PaneWidget.prototype._internal_updatePriceAxisWidgets = function () {
+    PaneWidget.prototype.updatePriceAxisWidgets = function () {
         if (this._private__leftPriceAxisWidget !== null) {
-            this._private__leftPriceAxisWidget._internal_update();
+            this._private__leftPriceAxisWidget.update();
         }
         if (this._private__rightPriceAxisWidget !== null) {
-            this._private__rightPriceAxisWidget._internal_update();
+            this._private__rightPriceAxisWidget.update();
         }
     };
-    PaneWidget.prototype._internal_stretchFactor = function () {
-        return this._private__state !== null ? this._private__state._internal_stretchFactor() : 0;
+    PaneWidget.prototype.stretchFactor = function () {
+        return this._private__state !== null ? this._private__state.stretchFactor() : 0;
     };
-    PaneWidget.prototype._internal_setStretchFactor = function (stretchFactor) {
+    PaneWidget.prototype.setStretchFactor = function (stretchFactor) {
         if (this._private__state) {
-            this._private__state._internal_setStretchFactor(stretchFactor);
+            this._private__state.setStretchFactor(stretchFactor);
         }
     };
-    PaneWidget.prototype._internal_mouseEnterEvent = function (event) {
+    PaneWidget.prototype.mouseEnterEvent = function (event) {
         if (!this._private__state) {
             return;
         }
         this._private__onMouseEvent();
-        var x = event._internal_localX;
-        var y = event._internal_localY;
+        var x = event.localX;
+        var y = event.localY;
         this._private__setCrosshairPosition(x, y);
     };
-    PaneWidget.prototype._internal_mouseDownEvent = function (event) {
+    PaneWidget.prototype.mouseDownEvent = function (event) {
         this._private__onMouseEvent();
         this._private__mouseTouchDownEvent();
-        this._private__setCrosshairPosition(event._internal_localX, event._internal_localY);
+        this._private__setCrosshairPosition(event.localX, event.localY);
     };
-    PaneWidget.prototype._internal_mouseMoveEvent = function (event) {
+    PaneWidget.prototype.mouseMoveEvent = function (event) {
         if (!this._private__state) {
             return;
         }
-        var x = event._internal_localX;
-        var y = event._internal_localY;
+        var x = event.localX;
+        var y = event.localY;
         if (event) {
             this._private__terminateKineticAnimation();
             if (document.activeElement !== document.body &&
@@ -14176,14 +14180,14 @@ var PaneWidget = /** @class */ (function () {
                 }
             }
             var model = this._private__model();
-            var priceScale = this._private__state._internal_defaultPriceScale();
-            if (priceScale._internal_isEmpty() || model._internal_timeScale()._internal_isEmpty()) {
+            var priceScale = this._private__state.defaultPriceScale();
+            if (priceScale.isEmpty() || model.timeScale().isEmpty()) {
                 return;
             }
             if (this._private__startTrackPoint !== null) {
-                var crosshair = model._internal_crosshairSource();
-                this._private__initCrosshairPosition = new Point(crosshair._internal_appliedX(), crosshair._internal_appliedY());
-                this._private__startTrackPoint = new Point(event._internal_localX, event._internal_localY);
+                var crosshair = model.crosshairSource();
+                this._private__initCrosshairPosition = new Point(crosshair.appliedX(), crosshair.appliedY());
+                this._private__startTrackPoint = new Point(event.localX, event.localY);
             }
         }
         else {
@@ -14196,31 +14200,31 @@ var PaneWidget = /** @class */ (function () {
             this._private__propagateEvent(9 /* MouseMove */, event);
         }
     };
-    PaneWidget.prototype._internal_mouseClickEvent = function (event) {
+    PaneWidget.prototype.mouseClickEvent = function (event) {
         if (this._private__state === null) {
             return;
         }
         this._private__onMouseEvent();
         this._private__propagateEvent(3 /* MouseClick */, event);
-        var x = event._internal_localX;
-        var y = event._internal_localY;
-        if (this._private__clicked._internal_hasListeners()) {
-            var currentTime = this._private__model()._internal_crosshairSource()._internal_appliedIndex();
-            var paneIndex = this._private__model()._internal_getPaneIndex(ensureNotNull(this._private__state));
+        var x = event.localX;
+        var y = event.localY;
+        if (this._private__clicked.hasListeners()) {
+            var currentTime = this._private__model().crosshairSource().appliedIndex();
+            var paneIndex = this._private__model().getPaneIndex(ensureNotNull(this._private__state));
             var point = new Point(x, y);
-            point._internal_paneIndex = paneIndex;
-            this._private__clicked._internal_fire(currentTime, point);
+            point.paneIndex = paneIndex;
+            this._private__clicked.fire(currentTime, point);
         }
         this._private__tryExitTrackingMode();
     };
     // eslint-disable-next-line complexity
-    PaneWidget.prototype._internal_pressedMouseMoveEvent = function (event) {
+    PaneWidget.prototype.pressedMouseMoveEvent = function (event) {
         if (this._private__state === null) {
             return;
         }
         var model = this._private__model();
-        var x = event._internal_localX;
-        var y = event._internal_localY;
+        var x = event.localX;
+        var y = event.localY;
         if (this._private__startTrackPoint !== null) {
             // tracking mode: move crosshair
             this._private__exitTrackingModeOnNextTry = false;
@@ -14235,54 +14239,54 @@ var PaneWidget = /** @class */ (function () {
         if (this._private__startScrollingPos === null) {
             this._private__propagateEvent(11 /* PressedMouseMove */, event);
         }
-        if (model._internal_timeScale()._internal_isEmpty() || event._internal_consumed) {
+        if (model.timeScale().isEmpty() || event.consumed) {
             return;
         }
-        var chartOptions = this._private__chart._internal_options();
+        var chartOptions = this._private__chart.options();
         var scrollOptions = chartOptions.handleScroll;
         var kineticScrollOptions = chartOptions.kineticScroll;
-        if ((!scrollOptions.pressedMouseMove || event._internal_type === 'touch') &&
+        if ((!scrollOptions.pressedMouseMove || event.type === 'touch') &&
             ((!scrollOptions.horzTouchDrag && !scrollOptions.vertTouchDrag) ||
-                event._internal_type === 'mouse')) {
+                event.type === 'mouse')) {
             return;
         }
-        var priceScale = this._private__state._internal_defaultPriceScale();
+        var priceScale = this._private__state.defaultPriceScale();
         var now = performance.now();
         if (this._private__startScrollingPos === null && !this._private__preventScroll()) {
-            this._private__startScrollingPos = new Point(event._internal_clientX, event._internal_clientY);
+            this._private__startScrollingPos = new Point(event.clientX, event.clientY);
             this._private__startScrollingPos._internal_timestamp = now;
-            this._private__startScrollingPos._internal_localX = event._internal_localX;
-            this._private__startScrollingPos._internal_localY = event._internal_localY;
+            this._private__startScrollingPos._internal_localX = event.localX;
+            this._private__startScrollingPos._internal_localY = event.localY;
         }
         if (this._private__scrollXAnimation !== null) {
-            this._private__scrollXAnimation._internal_addPosition(event._internal_localX, now);
+            this._private__scrollXAnimation._internal_addPosition(event.localX, now);
         }
         if (this._private__startScrollingPos !== null &&
             !this._private__isScrolling &&
-            (this._private__startScrollingPos.x !== event._internal_clientX ||
-                this._private__startScrollingPos.y !== event._internal_clientY)) {
+            (this._private__startScrollingPos.x !== event.clientX ||
+                this._private__startScrollingPos.y !== event.clientY)) {
             if (this._private__scrollXAnimation === null &&
-                ((event._internal_type === 'touch' && kineticScrollOptions.touch) ||
-                    (event._internal_type === 'mouse' && kineticScrollOptions.mouse))) {
+                ((event.type === 'touch' && kineticScrollOptions.touch) ||
+                    (event.type === 'mouse' && kineticScrollOptions.mouse))) {
                 this._private__scrollXAnimation = new KineticAnimation(0.2 /* MinScrollSpeed */, 7 /* MaxScrollSpeed */, 0.997 /* DumpingCoeff */, 15 /* ScrollMinMove */);
                 this._private__scrollXAnimation._internal_addPosition(this._private__startScrollingPos._internal_localX, this._private__startScrollingPos._internal_timestamp);
-                this._private__scrollXAnimation._internal_addPosition(event._internal_localX, now);
+                this._private__scrollXAnimation._internal_addPosition(event.localX, now);
             }
-            if (!priceScale._internal_isEmpty()) {
-                model._internal_startScrollPrice(this._private__state, priceScale, event._internal_localY);
+            if (!priceScale.isEmpty()) {
+                model.startScrollPrice(this._private__state, priceScale, event.localY);
             }
-            model._internal_startScrollTime(event._internal_localX);
+            model.startScrollTime(event.localX);
             this._private__isScrolling = true;
         }
         if (this._private__isScrolling) {
             // this allows scrolling not default price scales
-            if (!priceScale._internal_isEmpty()) {
-                model._internal_scrollPriceTo(this._private__state, priceScale, event._internal_localY);
+            if (!priceScale.isEmpty()) {
+                model.scrollPriceTo(this._private__state, priceScale, event.localY);
             }
-            model._internal_scrollTimeTo(event._internal_localX);
+            model.scrollTimeTo(event.localX);
         }
     };
-    PaneWidget.prototype._internal_mouseUpEvent = function (event) {
+    PaneWidget.prototype.mouseUpEvent = function (event) {
         if (this._private__state === null) {
             return;
         }
@@ -14291,52 +14295,52 @@ var PaneWidget = /** @class */ (function () {
         this._private__longTap = false;
         this._private__endScroll(event);
     };
-    PaneWidget.prototype._internal_longTapEvent = function (event) {
+    PaneWidget.prototype.longTapEvent = function (event) {
         this._private__longTap = true;
         if (this._private__startTrackPoint === null && trackCrosshairOnlyAfterLongTap) {
-            var point = new Point(event._internal_localX, event._internal_localY);
+            var point = new Point(event.localX, event.localY);
             this._private__startTrackingMode(point, point);
         }
     };
-    PaneWidget.prototype._internal_mouseLeaveEvent = function (event) {
+    PaneWidget.prototype.mouseLeaveEvent = function (event) {
         if (this._private__state === null) {
             return;
         }
         this._private__onMouseEvent();
-        this._private__state._internal_model()._internal_setHoveredSource(null);
+        this._private__state.model().setHoveredSource(null);
         this._private__clearCrosshairPosition();
     };
-    PaneWidget.prototype._internal_clicked = function () {
+    PaneWidget.prototype.clicked = function () {
         return this._private__clicked;
     };
-    PaneWidget.prototype._internal_pinchStartEvent = function () {
+    PaneWidget.prototype.pinchStartEvent = function () {
         this._private__prevPinchScale = 1;
         this._private__terminateKineticAnimation();
     };
-    PaneWidget.prototype._internal_pinchEvent = function (middlePoint, scale) {
-        if (!this._private__chart._internal_options().handleScale.pinch) {
+    PaneWidget.prototype.pinchEvent = function (middlePoint, scale) {
+        if (!this._private__chart.options().handleScale.pinch) {
             return;
         }
         var zoomScale = (scale - this._private__prevPinchScale) * 5;
         this._private__prevPinchScale = scale;
-        this._private__model()._internal_zoomTime(middlePoint._internal_x, zoomScale);
+        this._private__model().zoomTime(middlePoint.x, zoomScale);
     };
-    PaneWidget.prototype._internal_touchStartEvent = function (event) {
+    PaneWidget.prototype.touchStartEvent = function (event) {
         this._private__longTap = false;
         this._private__exitTrackingModeOnNextTry = this._private__startTrackPoint !== null;
         this._private__mouseTouchDownEvent();
         if (this._private__startTrackPoint !== null) {
-            var crosshair = this._private__model()._internal_crosshairSource();
-            this._private__initCrosshairPosition = new Point(crosshair._internal_appliedX(), crosshair._internal_appliedY());
-            this._private__startTrackPoint = new Point(event._internal_localX, event._internal_localY);
+            var crosshair = this._private__model().crosshairSource();
+            this._private__initCrosshairPosition = new Point(crosshair.appliedX(), crosshair.appliedY());
+            this._private__startTrackPoint = new Point(event.localX, event.localY);
         }
     };
-    PaneWidget.prototype._internal_touchMoveEvent = function (event) {
+    PaneWidget.prototype.touchMoveEvent = function (event) {
         if (this._private__state === null) {
             return;
         }
-        var x = event._internal_localX;
-        var y = event._internal_localY;
+        var x = event.localX;
+        var y = event.localY;
         if (this._private__startTrackPoint !== null) {
             // tracking mode: move crosshair
             this._private__exitTrackingModeOnNextTry = false;
@@ -14348,74 +14352,74 @@ var PaneWidget = /** @class */ (function () {
         }
         this._private__pressedMouseTouchMoveEvent(event);
     };
-    PaneWidget.prototype._internal_touchEndEvent = function (event) {
-        if (this._internal_chart()._internal_options().trackingMode.exitMode === 0 /* OnTouchEnd */) {
+    PaneWidget.prototype.touchEndEvent = function (event) {
+        if (this.chart().options().trackingMode.exitMode === 0 /* OnTouchEnd */) {
             this._private__exitTrackingModeOnNextTry = true;
         }
         this._private__tryExitTrackingMode();
         this._private__endScroll(event);
     };
-    PaneWidget.prototype._internal_hitTest = function (x, y) {
-        // const state = this._state;
-        // if (state === null) {
-        // 	return null;
-        // }
-        // const sources = state.orderedSources();
-        // for (const source of sources) {
-        // 	const sourceResult = this._hitTestPaneView(source.paneViews(state), x, y);
-        // 	if (sourceResult !== null) {
-        // 		return {
-        // 			source: source,
-        // 			view: sourceResult.view,
-        // 			object: sourceResult.object,
-        // 		};
-        // 	}
-        // }
-        return null;
-    };
-    PaneWidget.prototype._internal_setPriceAxisSize = function (width, position) {
+    // public hitTest(x: Coordinate, y: Coordinate): HitTestResult | null {
+    // 	// const state = this._state;
+    // 	// if (state === null) {
+    // 	// 	return null;
+    // 	// }
+    // 	// const sources = state.orderedSources();
+    // 	// for (const source of sources) {
+    // 	// 	const sourceResult = this._hitTestPaneView(source.paneViews(state), x, y);
+    // 	// 	if (sourceResult !== null) {
+    // 	// 		return {
+    // 	// 			source: source,
+    // 	// 			view: sourceResult.view,
+    // 	// 			object: sourceResult.object,
+    // 	// 		};
+    // 	// 	}
+    // 	// }
+    // 	return null;
+    // }
+    PaneWidget.prototype.setPriceAxisSize = function (width, position) {
         var priceAxisWidget = position === 'left'
             ? this._private__leftPriceAxisWidget
             : this._private__rightPriceAxisWidget;
-        ensureNotNull(priceAxisWidget)._internal_setSize(new Size(width, this._private__size._internal_h));
+        ensureNotNull(priceAxisWidget).setSize(new Size(width, this._private__size.h));
     };
-    PaneWidget.prototype._internal_getSize = function () {
+    PaneWidget.prototype.getSize = function () {
         return this._private__size;
     };
-    PaneWidget.prototype._internal_setSize = function (size) {
-        if (size._internal_w < 0 || size._internal_h < 0) {
+    PaneWidget.prototype.setSize = function (size) {
+        if (size.w < 0 || size.h < 0) {
             throw new Error('Try to set invalid size to PaneWidget ' + JSON.stringify(size));
         }
-        if (this._private__size._internal_equals(size)) {
+        if (this._private__size.equals(size)) {
             return;
         }
         this._private__size = size;
-        this._private__canvasBinding.resizeCanvas({ width: size._internal_w, height: size._internal_h });
-        this._private__topCanvasBinding.resizeCanvas({ width: size._internal_w, height: size._internal_h });
-        this._private__paneCell.style.width = size._internal_w + 'px';
-        this._private__paneCell.style.height = size._internal_h + 'px';
+        this._private__canvasBinding.resizeCanvas({ width: size.w, height: size.h });
+        this._private__topCanvasBinding.resizeCanvas({ width: size.w, height: size.h });
+        this._private__paneCell.style.width = size.w + 'px';
+        this._private__paneCell.style.height = size.h + 'px';
     };
-    PaneWidget.prototype._internal_recalculatePriceScales = function () {
+    PaneWidget.prototype.recalculatePriceScales = function () {
         var pane = ensureNotNull(this._private__state);
-        pane._internal_recalculatePriceScale(pane._internal_leftPriceScale());
-        pane._internal_recalculatePriceScale(pane._internal_rightPriceScale());
-        for (var _i = 0, _a = pane._internal_dataSources(); _i < _a.length; _i++) {
+        pane.recalculatePriceScale(pane.leftPriceScale());
+        pane.recalculatePriceScale(pane.rightPriceScale());
+        for (var _i = 0, _a = pane.dataSources(); _i < _a.length; _i++) {
             var source = _a[_i];
-            if (pane._internal_isOverlay(source)) {
-                var priceScale = source._internal_priceScale();
+            if (pane.isOverlay(source)) {
+                var priceScale = source.priceScale();
                 if (priceScale !== null) {
-                    pane._internal_recalculatePriceScale(priceScale);
+                    pane.recalculatePriceScale(priceScale);
                 }
                 // for overlay drawings price scale is owner's price scale
                 // however owner's price scale could not contain ds
-                source._internal_updateAllViews();
+                source.updateAllViews();
             }
         }
     };
-    PaneWidget.prototype._internal_getImage = function () {
+    PaneWidget.prototype.getImage = function () {
         return this._private__canvasBinding.canvas;
     };
-    PaneWidget.prototype._internal_paint = function (type) {
+    PaneWidget.prototype.paint = function (type) {
         if (type === 0 /* None */) {
             return;
         }
@@ -14423,17 +14427,17 @@ var PaneWidget = /** @class */ (function () {
             return;
         }
         if (type > 1 /* Cursor */) {
-            this._internal_recalculatePriceScales();
+            this.recalculatePriceScales();
         }
         if (this._private__leftPriceAxisWidget !== null) {
-            this._private__leftPriceAxisWidget._internal_paint(type);
+            this._private__leftPriceAxisWidget.paint(type);
         }
         if (this._private__rightPriceAxisWidget !== null) {
-            this._private__rightPriceAxisWidget._internal_paint(type);
+            this._private__rightPriceAxisWidget.paint(type);
         }
         if (type !== 1 /* Cursor */) {
             var ctx = getContext2D(this._private__canvasBinding.canvas);
-            var renderParams_1 = this._internal_canvasRenderParams(this._private__canvasBinding);
+            var renderParams_1 = this.canvasRenderParams(this._private__canvasBinding);
             ctx.save();
             this._private__drawBackground(ctx, renderParams_1);
             if (this._private__state) {
@@ -14444,28 +14448,28 @@ var PaneWidget = /** @class */ (function () {
             ctx.restore();
         }
         var topCtx = getContext2D(this._private__topCanvasBinding.canvas);
-        var renderParams = this._internal_canvasRenderParams(this._private__topCanvasBinding);
-        topCtx.clearRect(0, 0, Math.ceil(this._private__size._internal_w * this._private__topCanvasBinding.pixelRatio), Math.ceil(this._private__size._internal_h * this._private__topCanvasBinding.pixelRatio));
+        var renderParams = this.canvasRenderParams(this._private__topCanvasBinding);
+        topCtx.clearRect(0, 0, Math.ceil(this._private__size.w * this._private__topCanvasBinding.pixelRatio), Math.ceil(this._private__size.h * this._private__topCanvasBinding.pixelRatio));
         this._private__drawSources(topCtx, renderParams, sourceTopPaneViews);
         this._private__drawCrosshair(topCtx, renderParams);
     };
-    PaneWidget.prototype._internal_leftPriceAxisWidget = function () {
+    PaneWidget.prototype.leftPriceAxisWidget = function () {
         return this._private__leftPriceAxisWidget;
     };
-    PaneWidget.prototype._internal_getPaneCell = function () {
+    PaneWidget.prototype.getPaneCell = function () {
         return this._private__paneCell;
     };
-    PaneWidget.prototype._internal_rightPriceAxisWidget = function () {
+    PaneWidget.prototype.rightPriceAxisWidget = function () {
         return this._private__rightPriceAxisWidget;
     };
-    PaneWidget.prototype._internal_canvasRenderParams = function (canvasBindings) {
+    PaneWidget.prototype.canvasRenderParams = function (canvasBindings) {
         canvasBindings || (canvasBindings = this._private__canvasBinding);
         return {
-            _internal_pixelRatio: canvasBindings.pixelRatio,
-            _internal_physicalWidth: canvasBindings.canvas.width,
-            _internal_physicalHeight: canvasBindings.canvas.height,
-            _internal_cssWidth: this._internal_chart()._internal_model()._internal_timeScale()._internal_width(),
-            _internal_cssHeight: this._internal_state()._internal_height(),
+            pixelRatio: canvasBindings.pixelRatio,
+            physicalWidth: canvasBindings.canvas.width,
+            physicalHeight: canvasBindings.canvas.height,
+            cssWidth: this.chart().model().timeScale().width(),
+            cssHeight: this.state().height(),
         };
     };
     PaneWidget.prototype._private__propagateEvent = function (type, event) {
@@ -14473,61 +14477,61 @@ var PaneWidget = /** @class */ (function () {
         if (this._private__state === null) {
             return;
         }
-        this._internal_setCursor(PaneCursorType._internal_Crosshair);
+        this.setCursor(PaneCursorType.Crosshair);
         // if (this._model().lineToolCreator().hasActiveToolLine()) {
-        this._private__model()._internal_lineToolCreator()._internal_onInputEvent(this, type, event);
+        this._private__model().lineToolCreator().onInputEvent(this, type, event);
         // }
-        var sources = this._private__state._internal_orderedSources();
+        var sources = this._private__state.orderedSources();
         for (var index = sources.length - 1; index >= 0; index--) {
-            var paneViews = sources[index]._internal_paneViews();
+            var paneViews = sources[index].paneViews();
             paneViews.forEach(function (pane) {
                 if (isInputEventListener(pane)) {
-                    pane._internal_onInputEvent(_this, type, event);
+                    pane.onInputEvent(_this, type, event);
                 }
             });
         }
     };
     PaneWidget.prototype._private__onStateDestroyed = function () {
         if (this._private__state !== null) {
-            this._private__state._internal_onDestroyed()._internal_unsubscribeAll(this);
+            this._private__state.onDestroyed().unsubscribeAll(this);
         }
         this._private__state = null;
     };
     PaneWidget.prototype._private__drawBackground = function (ctx, renderParams) {
         var _this = this;
-        drawScaled(ctx, renderParams._internal_pixelRatio, function () {
+        drawScaled(ctx, renderParams.pixelRatio, function () {
             var model = _this._private__model();
-            var topColor = model._internal_backgroundTopColor();
-            var bottomColor = model._internal_backgroundBottomColor();
+            var topColor = model.backgroundTopColor();
+            var bottomColor = model.backgroundBottomColor();
             if (topColor === bottomColor) {
-                clearRect(ctx, 0, 0, _this._private__size._internal_w, _this._private__size._internal_h, bottomColor);
+                clearRect(ctx, 0, 0, _this._private__size.w, _this._private__size.h, bottomColor);
             }
             else {
-                clearRectWithGradient(ctx, 0, 0, _this._private__size._internal_w, _this._private__size._internal_h, topColor, bottomColor);
+                clearRectWithGradient(ctx, 0, 0, _this._private__size.w, _this._private__size.h, topColor, bottomColor);
             }
         });
     };
     PaneWidget.prototype._private__drawGrid = function (ctx, renderParams) {
         var state = ensureNotNull(this._private__state);
-        var paneView = state._internal_grid()._internal_paneView();
-        var renderer = paneView._internal_renderer(state._internal_height(), state._internal_width(), state);
+        var paneView = state.grid().paneView();
+        var renderer = paneView.renderer(state.height(), state.width(), state);
         if (renderer !== null) {
             ctx.save();
-            renderer._internal_draw(ctx, renderParams);
+            renderer.draw(ctx, renderParams);
             ctx.restore();
         }
     };
     PaneWidget.prototype._private__drawWatermark = function (ctx, renderParams) {
-        var source = this._private__model()._internal_watermarkSource();
+        var source = this._private__model().watermarkSource();
         this._private__drawSourceImpl(ctx, renderParams, sourcePaneViews, drawBackground, source);
         this._private__drawSourceImpl(ctx, renderParams, sourcePaneViews, drawForeground, source);
     };
     PaneWidget.prototype._private__drawCrosshair = function (ctx, renderParams) {
-        this._private__drawSourceImpl(ctx, renderParams, sourcePaneViews, drawForeground, this._private__model()._internal_crosshairSource());
+        this._private__drawSourceImpl(ctx, renderParams, sourcePaneViews, drawForeground, this._private__model().crosshairSource());
     };
     PaneWidget.prototype._private__drawSources = function (ctx, renderParams, paneViewsGetter) {
         var state = ensureNotNull(this._private__state);
-        var sources = state._internal_orderedSources();
+        var sources = state.orderedSources();
         for (var _i = 0, sources_1 = sources; _i < sources_1.length; _i++) {
             var source = sources_1[_i];
             this._private__drawSourceImpl(ctx, renderParams, paneViewsGetter, drawBackground, source);
@@ -14540,11 +14544,11 @@ var PaneWidget = /** @class */ (function () {
     PaneWidget.prototype._private__drawSourceImpl = function (ctx, renderParams, paneViewsGetter, drawFn, source) {
         var state = ensureNotNull(this._private__state);
         var paneViews = paneViewsGetter(source, state);
-        var height = state._internal_height();
-        var width = state._internal_width();
+        var height = state.height();
+        var width = state.width();
         for (var _i = 0, paneViews_1 = paneViews; _i < paneViews_1.length; _i++) {
             var paneView = paneViews_1[_i];
-            var renderer = paneView._internal_renderer(height, width, state);
+            var renderer = paneView.renderer(height, width, state);
             if (renderer !== null) {
                 ctx.save();
                 drawFn(renderer, ctx, renderParams);
@@ -14577,26 +14581,26 @@ var PaneWidget = /** @class */ (function () {
             return;
         }
         var chart = this._private__chart;
-        var leftAxisVisible = this._private__state._internal_leftPriceScale()._internal_options().visible;
-        var rightAxisVisible = this._private__state._internal_rightPriceScale()._internal_options().visible;
+        var leftAxisVisible = this._private__state.leftPriceScale().options().visible;
+        var rightAxisVisible = this._private__state.rightPriceScale().options().visible;
         if (!leftAxisVisible && this._private__leftPriceAxisWidget !== null) {
-            this._private__leftAxisCell.removeChild(this._private__leftPriceAxisWidget._internal_getElement());
-            this._private__leftPriceAxisWidget._internal_destroy();
+            this._private__leftAxisCell.removeChild(this._private__leftPriceAxisWidget.getElement());
+            this._private__leftPriceAxisWidget.destroy();
             this._private__leftPriceAxisWidget = null;
         }
         if (!rightAxisVisible && this._private__rightPriceAxisWidget !== null) {
-            this._private__rightAxisCell.removeChild(this._private__rightPriceAxisWidget._internal_getElement());
-            this._private__rightPriceAxisWidget._internal_destroy();
+            this._private__rightAxisCell.removeChild(this._private__rightPriceAxisWidget.getElement());
+            this._private__rightPriceAxisWidget.destroy();
             this._private__rightPriceAxisWidget = null;
         }
-        var rendererOptionsProvider = chart._internal_model()._internal_rendererOptionsProvider();
+        var rendererOptionsProvider = chart.model().rendererOptionsProvider();
         if (leftAxisVisible && this._private__leftPriceAxisWidget === null) {
-            this._private__leftPriceAxisWidget = new PriceAxisWidget(this, chart._internal_options().layout, rendererOptionsProvider, 'left');
-            this._private__leftAxisCell.appendChild(this._private__leftPriceAxisWidget._internal_getElement());
+            this._private__leftPriceAxisWidget = new PriceAxisWidget(this, chart.options().layout, rendererOptionsProvider, 'left');
+            this._private__leftAxisCell.appendChild(this._private__leftPriceAxisWidget.getElement());
         }
         if (rightAxisVisible && this._private__rightPriceAxisWidget === null) {
-            this._private__rightPriceAxisWidget = new PriceAxisWidget(this, chart._internal_options().layout, rendererOptionsProvider, 'right');
-            this._private__rightAxisCell.appendChild(this._private__rightPriceAxisWidget._internal_getElement());
+            this._private__rightPriceAxisWidget = new PriceAxisWidget(this, chart.options().layout, rendererOptionsProvider, 'right');
+            this._private__rightAxisCell.appendChild(this._private__rightPriceAxisWidget.getElement());
         }
     };
     PaneWidget.prototype._private__preventCrosshairMove = function () {
@@ -14607,16 +14611,16 @@ var PaneWidget = /** @class */ (function () {
             this._private__startTrackPoint !== null);
     };
     PaneWidget.prototype._private__correctXCoord = function (x) {
-        return Math.max(0, Math.min(x, this._private__size._internal_w - 1));
+        return Math.max(0, Math.min(x, this._private__size.w - 1));
     };
     PaneWidget.prototype._private__correctYCoord = function (y) {
-        return Math.max(0, Math.min(y, this._private__size._internal_h - 1));
+        return Math.max(0, Math.min(y, this._private__size.h - 1));
     };
     PaneWidget.prototype._private__setCrosshairPosition = function (x, y) {
-        this._private__model()._internal_setAndSaveCurrentPosition(this._private__correctXCoord(x), this._private__correctYCoord(y), ensureNotNull(this._private__state));
+        this._private__model().setAndSaveCurrentPosition(this._private__correctXCoord(x), this._private__correctYCoord(y), ensureNotNull(this._private__state));
     };
     PaneWidget.prototype._private__clearCrosshairPosition = function () {
-        this._private__model()._internal_clearCurrentPosition();
+        this._private__model().clearCurrentPosition();
     };
     PaneWidget.prototype._private__tryExitTrackingMode = function () {
         if (this._private__exitTrackingModeOnNextTry) {
@@ -14628,18 +14632,18 @@ var PaneWidget = /** @class */ (function () {
         this._private__startTrackPoint = startTrackPoint;
         this._private__exitTrackingModeOnNextTry = false;
         this._private__setCrosshairPosition(crossHairPosition.x, crossHairPosition.y);
-        var crosshair = this._private__model()._internal_crosshairSource();
-        this._private__initCrosshairPosition = new Point(crosshair._internal_appliedX(), crosshair._internal_appliedY());
+        var crosshair = this._private__model().crosshairSource();
+        this._private__initCrosshairPosition = new Point(crosshair.appliedX(), crosshair.appliedY());
     };
     PaneWidget.prototype._private__model = function () {
-        return this._private__chart._internal_model();
+        return this._private__chart.model();
     };
     PaneWidget.prototype._private__finishScroll = function () {
         var model = this._private__model();
-        var state = this._internal_state();
-        var priceScale = state._internal_defaultPriceScale();
-        model._internal_endScrollPrice(state, priceScale);
-        model._internal_endScrollTime();
+        var state = this.state();
+        var priceScale = state.defaultPriceScale();
+        model.endScrollPrice(state, priceScale);
+        model.endScrollTime();
         this._private__startScrollingPos = null;
         this._private__isScrolling = false;
     };
@@ -14650,7 +14654,7 @@ var PaneWidget = /** @class */ (function () {
         }
         var startAnimationTime = performance.now();
         if (this._private__scrollXAnimation !== null) {
-            this._private__scrollXAnimation._internal_start(event._internal_localX, startAnimationTime);
+            this._private__scrollXAnimation._internal_start(event.localX, startAnimationTime);
         }
         if (this._private__scrollXAnimation === null ||
             this._private__scrollXAnimation._internal_finished(startAnimationTime)) {
@@ -14659,7 +14663,7 @@ var PaneWidget = /** @class */ (function () {
             return;
         }
         var model = this._private__model();
-        var timeScale = model._internal_timeScale();
+        var timeScale = model.timeScale();
         var scrollXAnimation = this._private__scrollXAnimation;
         var animationFn = function () {
             if (scrollXAnimation._internal_terminated()) {
@@ -14669,9 +14673,9 @@ var PaneWidget = /** @class */ (function () {
             var now = performance.now();
             var xAnimationFinished = scrollXAnimation._internal_finished(now);
             if (!scrollXAnimation._internal_terminated()) {
-                var prevRightOffset = timeScale._internal_rightOffset();
-                model._internal_scrollTimeTo(scrollXAnimation._internal_getPosition(now));
-                if (prevRightOffset === timeScale._internal_rightOffset()) {
+                var prevRightOffset = timeScale.rightOffset();
+                model.scrollTimeTo(scrollXAnimation._internal_getPosition(now));
+                if (prevRightOffset === timeScale.rightOffset()) {
                     xAnimationFinished = true;
                     _this._private__scrollXAnimation = null;
                 }
@@ -14703,8 +14707,8 @@ var PaneWidget = /** @class */ (function () {
                 selection.removeAllRanges();
             }
         }
-        var priceScale = this._private__state._internal_defaultPriceScale();
-        if (priceScale._internal_isEmpty() || this._private__model()._internal_timeScale()._internal_isEmpty()) {
+        var priceScale = this._private__state.defaultPriceScale();
+        if (priceScale.isEmpty() || this._private__model().timeScale().isEmpty()) {
             return;
         }
     };
@@ -14714,48 +14718,48 @@ var PaneWidget = /** @class */ (function () {
             return;
         }
         var model = this._private__model();
-        if (model._internal_timeScale()._internal_isEmpty()) {
+        if (model.timeScale().isEmpty()) {
             return;
         }
-        var chartOptions = this._private__chart._internal_options();
+        var chartOptions = this._private__chart.options();
         var scrollOptions = chartOptions.handleScroll;
         var kineticScrollOptions = chartOptions.kineticScroll;
-        if ((!scrollOptions.pressedMouseMove || event._internal_isTouch) &&
-            (!scrollOptions.horzTouchDrag && !scrollOptions.vertTouchDrag || !event._internal_isTouch)) {
+        if ((!scrollOptions.pressedMouseMove || event.isTouch) &&
+            (!scrollOptions.horzTouchDrag && !scrollOptions.vertTouchDrag || !event.isTouch)) {
             return;
         }
-        var priceScale = this._private__state._internal_defaultPriceScale();
+        var priceScale = this._private__state.defaultPriceScale();
         var now = performance.now();
         if (this._private__startScrollingPos === null && !this._private__preventScroll()) {
-            this._private__startScrollingPos = new Point(event._internal_clientX, event._internal_clientY);
+            this._private__startScrollingPos = new Point(event.clientX, event.clientY);
             this._private__startScrollingPos._internal_timestamp = now;
-            this._private__startScrollingPos._internal_localX = event._internal_localX;
-            this._private__startScrollingPos._internal_localY = event._internal_localY;
+            this._private__startScrollingPos._internal_localX = event.localX;
+            this._private__startScrollingPos._internal_localY = event.localY;
         }
         if (this._private__scrollXAnimation !== null) {
-            this._private__scrollXAnimation._internal_addPosition(event._internal_localX, now);
+            this._private__scrollXAnimation._internal_addPosition(event.localX, now);
         }
         if (this._private__startScrollingPos !== null &&
             !this._private__isScrolling &&
-            (this._private__startScrollingPos.x !== event._internal_clientX || this._private__startScrollingPos.y !== event._internal_clientY)) {
-            if (this._private__scrollXAnimation === null && (event._internal_isTouch && kineticScrollOptions.touch ||
-                !event._internal_isTouch && kineticScrollOptions.mouse)) {
+            (this._private__startScrollingPos.x !== event.clientX || this._private__startScrollingPos.y !== event.clientY)) {
+            if (this._private__scrollXAnimation === null && (event.isTouch && kineticScrollOptions.touch ||
+                !event.isTouch && kineticScrollOptions.mouse)) {
                 this._private__scrollXAnimation = new KineticAnimation(0.2 /* MinScrollSpeed */, 7 /* MaxScrollSpeed */, 0.997 /* DumpingCoeff */, 15 /* ScrollMinMove */);
                 this._private__scrollXAnimation._internal_addPosition(this._private__startScrollingPos._internal_localX, this._private__startScrollingPos._internal_timestamp);
-                this._private__scrollXAnimation._internal_addPosition(event._internal_localX, now);
+                this._private__scrollXAnimation._internal_addPosition(event.localX, now);
             }
-            if (!priceScale._internal_isEmpty()) {
-                model._internal_startScrollPrice(this._private__state, priceScale, event._internal_localY);
+            if (!priceScale.isEmpty()) {
+                model.startScrollPrice(this._private__state, priceScale, event.localY);
             }
-            model._internal_startScrollTime(event._internal_localX);
+            model.startScrollTime(event.localX);
             this._private__isScrolling = true;
         }
         if (this._private__isScrolling) {
             // this allows scrolling not default price scales
-            if (!priceScale._internal_isEmpty()) {
-                model._internal_scrollPriceTo(this._private__state, priceScale, event._internal_localY);
+            if (!priceScale.isEmpty()) {
+                model.scrollPriceTo(this._private__state, priceScale, event.localY);
             }
-            model._internal_scrollTimeTo(event._internal_localX);
+            model.scrollTimeTo(event.localX);
         }
     };
     PaneWidget.prototype._private__terminateKineticAnimation = function () {
@@ -14779,9 +14783,9 @@ var PriceAxisStub = /** @class */ (function () {
         var _this = this;
         this._private__invalidated = true;
         this._private__size = new Size(0, 0);
-        this._private__canvasConfiguredHandler = function () { return _this._internal_paint(3 /* Full */); };
+        this._private__canvasConfiguredHandler = function () { return _this.paint(3 /* Full */); };
         this._private__isLeft = side === 'left';
-        this._private__rendererOptionsProvider = params._internal_rendererOptionsProvider;
+        this._private__rendererOptionsProvider = params.rendererOptionsProvider;
         this._private__options = options;
         this._private__borderVisible = borderVisible;
         this._private__bottomColor = bottomColor;
@@ -14792,69 +14796,69 @@ var PriceAxisStub = /** @class */ (function () {
         this._private__canvasBinding = createBoundCanvas(this._private__cell, new Size(16, 16));
         this._private__canvasBinding.subscribeCanvasConfigured(this._private__canvasConfiguredHandler);
     }
-    PriceAxisStub.prototype._internal_destroy = function () {
+    PriceAxisStub.prototype.destroy = function () {
         this._private__canvasBinding.unsubscribeCanvasConfigured(this._private__canvasConfiguredHandler);
         this._private__canvasBinding.destroy();
     };
-    PriceAxisStub.prototype._internal_getElement = function () {
+    PriceAxisStub.prototype.getElement = function () {
         return this._private__cell;
     };
-    PriceAxisStub.prototype._internal_getSize = function () {
+    PriceAxisStub.prototype.getSize = function () {
         return this._private__size;
     };
-    PriceAxisStub.prototype._internal_setSize = function (size) {
-        if (size._internal_w < 0 || size._internal_h < 0) {
+    PriceAxisStub.prototype.setSize = function (size) {
+        if (size.w < 0 || size.h < 0) {
             throw new Error('Try to set invalid size to PriceAxisStub ' + JSON.stringify(size));
         }
-        if (!this._private__size._internal_equals(size)) {
+        if (!this._private__size.equals(size)) {
             this._private__size = size;
-            this._private__canvasBinding.resizeCanvas({ width: size._internal_w, height: size._internal_h });
-            this._private__cell.style.width = "".concat(size._internal_w, "px");
-            this._private__cell.style.minWidth = "".concat(size._internal_w, "px"); // for right calculate position of .pane-legend
-            this._private__cell.style.height = "".concat(size._internal_h, "px");
+            this._private__canvasBinding.resizeCanvas({ width: size.w, height: size.h });
+            this._private__cell.style.width = "".concat(size.w, "px");
+            this._private__cell.style.minWidth = "".concat(size.w, "px"); // for right calculate position of .pane-legend
+            this._private__cell.style.height = "".concat(size.h, "px");
             this._private__invalidated = true;
         }
     };
-    PriceAxisStub.prototype._internal_paint = function (type) {
+    PriceAxisStub.prototype.paint = function (type) {
         if (type < 3 /* Full */ && !this._private__invalidated) {
             return;
         }
-        if (this._private__size._internal_w === 0 || this._private__size._internal_h === 0) {
+        if (this._private__size.w === 0 || this._private__size.h === 0) {
             return;
         }
         this._private__invalidated = false;
         var ctx = getContext2D(this._private__canvasBinding.canvas);
-        var renderParams = { _internal_pixelRatio: this._private__canvasBinding.pixelRatio };
+        var renderParams = { pixelRatio: this._private__canvasBinding.pixelRatio };
         this._private__drawBackground(ctx, renderParams);
         this._private__drawBorder(ctx, renderParams);
     };
-    PriceAxisStub.prototype._internal_getImage = function () {
+    PriceAxisStub.prototype.getImage = function () {
         return this._private__canvasBinding.canvas;
     };
     PriceAxisStub.prototype._private__drawBorder = function (ctx, renderParams) {
         if (!this._private__borderVisible()) {
             return;
         }
-        var width = this._private__size._internal_w;
-        var pixelRatio = renderParams._internal_pixelRatio;
+        var width = this._private__size.w;
+        var pixelRatio = renderParams.pixelRatio;
         ctx.save();
         ctx.fillStyle = this._private__options.timeScale.borderColor;
-        var borderSize = Math.floor(this._private__rendererOptionsProvider._internal_options()._internal_borderSize * pixelRatio);
+        var borderSize = Math.floor(this._private__rendererOptionsProvider.options().borderSize * pixelRatio);
         var left = (this._private__isLeft) ? Math.round(width * pixelRatio) - borderSize : 0;
         ctx.fillRect(left, 0, borderSize, borderSize);
         ctx.restore();
     };
     PriceAxisStub.prototype._private__drawBackground = function (ctx, renderParams) {
         var _this = this;
-        drawScaled(ctx, renderParams._internal_pixelRatio, function () {
-            clearRect(ctx, 0, 0, _this._private__size._internal_w, _this._private__size._internal_h, _this._private__bottomColor());
+        drawScaled(ctx, renderParams.pixelRatio, function () {
+            clearRect(ctx, 0, 0, _this._private__size.w, _this._private__size.h, _this._private__bottomColor());
         });
     };
     return PriceAxisStub;
 }());
 
 function markWithGreaterWeight(a, b) {
-    return a._internal_weight > b._internal_weight ? a : b;
+    return a.weight > b.weight ? a : b;
 }
 var TimeAxisWidget = /** @class */ (function () {
     function TimeAxisWidget(chartWidget) {
@@ -14869,16 +14873,16 @@ var TimeAxisWidget = /** @class */ (function () {
         this._private__isSettingSize = false;
         this._private__canvasConfiguredHandler = function () {
             if (!_this._private__isSettingSize) {
-                _this._private__chart._internal_model()._internal_lightUpdate();
+                _this._private__chart.model().lightUpdate();
             }
         };
         this._private__topCanvasConfiguredHandler = function () {
             if (!_this._private__isSettingSize) {
-                _this._private__chart._internal_model()._internal_lightUpdate();
+                _this._private__chart.model().lightUpdate();
             }
         };
         this._private__chart = chartWidget;
-        this._private__options = chartWidget._internal_options().layout;
+        this._private__options = chartWidget.options().layout;
         this._private__element = document.createElement('tr');
         this._private__leftStubCell = document.createElement('td');
         this._private__leftStubCell.style.padding = '0';
@@ -14911,185 +14915,185 @@ var TimeAxisWidget = /** @class */ (function () {
         this._private__element.appendChild(this._private__cell);
         this._private__element.appendChild(this._private__rightStubCell);
         this._private__recreateStubs();
-        this._private__chart._internal_model()._internal_priceScalesOptionsChanged()._internal_subscribe(this._private__recreateStubs.bind(this), this);
+        this._private__chart.model().priceScalesOptionsChanged().subscribe(this._private__recreateStubs.bind(this), this);
         this._private__mouseEventHandler = new MouseEventHandler(this._private__topCanvasBinding.canvas, this, {
             _internal_treatVertTouchDragAsPageScroll: function () { return true; },
             _internal_treatHorzTouchDragAsPageScroll: function () { return false; },
         });
     }
-    TimeAxisWidget.prototype._internal_destroy = function () {
-        this._private__mouseEventHandler._internal_destroy();
+    TimeAxisWidget.prototype.destroy = function () {
+        this._private__mouseEventHandler.destroy();
         if (this._private__leftStub !== null) {
-            this._private__leftStub._internal_destroy();
+            this._private__leftStub.destroy();
         }
         if (this._private__rightStub !== null) {
-            this._private__rightStub._internal_destroy();
+            this._private__rightStub.destroy();
         }
         this._private__topCanvasBinding.unsubscribeCanvasConfigured(this._private__topCanvasConfiguredHandler);
         this._private__topCanvasBinding.destroy();
         this._private__canvasBinding.unsubscribeCanvasConfigured(this._private__canvasConfiguredHandler);
         this._private__canvasBinding.destroy();
     };
-    TimeAxisWidget.prototype._internal_getElement = function () {
+    TimeAxisWidget.prototype.getElement = function () {
         return this._private__element;
     };
-    TimeAxisWidget.prototype._internal_leftStub = function () {
+    TimeAxisWidget.prototype.leftStub = function () {
         return this._private__leftStub;
     };
-    TimeAxisWidget.prototype._internal_rightStub = function () {
+    TimeAxisWidget.prototype.rightStub = function () {
         return this._private__rightStub;
     };
-    TimeAxisWidget.prototype._internal_mouseDownEvent = function (event) {
+    TimeAxisWidget.prototype.mouseDownEvent = function (event) {
         if (this._private__mouseDown) {
             return;
         }
         this._private__mouseDown = true;
-        var model = this._private__chart._internal_model();
-        if (model._internal_timeScale()._internal_isEmpty() || !this._private__chart._internal_options().handleScale.axisPressedMouseMove.time) {
+        var model = this._private__chart.model();
+        if (model.timeScale().isEmpty() || !this._private__chart.options().handleScale.axisPressedMouseMove.time) {
             return;
         }
-        model._internal_startScaleTime(event._internal_localX);
+        model.startScaleTime(event.localX);
     };
-    TimeAxisWidget.prototype._internal_touchStartEvent = function (event) {
-        this._internal_mouseDownEvent(event);
+    TimeAxisWidget.prototype.touchStartEvent = function (event) {
+        this.mouseDownEvent(event);
     };
-    TimeAxisWidget.prototype._internal_mouseDownOutsideEvent = function () {
-        var model = this._private__chart._internal_model();
-        if (!model._internal_timeScale()._internal_isEmpty() && this._private__mouseDown) {
+    TimeAxisWidget.prototype.mouseDownOutsideEvent = function () {
+        var model = this._private__chart.model();
+        if (!model.timeScale().isEmpty() && this._private__mouseDown) {
             this._private__mouseDown = false;
-            if (this._private__chart._internal_options().handleScale.axisPressedMouseMove.time) {
-                model._internal_endScaleTime();
+            if (this._private__chart.options().handleScale.axisPressedMouseMove.time) {
+                model.endScaleTime();
             }
         }
     };
-    TimeAxisWidget.prototype._internal_pressedMouseMoveEvent = function (event) {
-        var model = this._private__chart._internal_model();
-        if (model._internal_timeScale()._internal_isEmpty() || !this._private__chart._internal_options().handleScale.axisPressedMouseMove.time) {
+    TimeAxisWidget.prototype.pressedMouseMoveEvent = function (event) {
+        var model = this._private__chart.model();
+        if (model.timeScale().isEmpty() || !this._private__chart.options().handleScale.axisPressedMouseMove.time) {
             return;
         }
-        model._internal_scaleTimeTo(event._internal_localX);
+        model.scaleTimeTo(event.localX);
     };
-    TimeAxisWidget.prototype._internal_touchMoveEvent = function (event) {
-        this._internal_pressedMouseMoveEvent(event);
+    TimeAxisWidget.prototype.touchMoveEvent = function (event) {
+        this.pressedMouseMoveEvent(event);
     };
-    TimeAxisWidget.prototype._internal_mouseUpEvent = function () {
+    TimeAxisWidget.prototype.mouseUpEvent = function () {
         this._private__mouseDown = false;
-        var model = this._private__chart._internal_model();
-        if (model._internal_timeScale()._internal_isEmpty() && !this._private__chart._internal_options().handleScale.axisPressedMouseMove.time) {
+        var model = this._private__chart.model();
+        if (model.timeScale().isEmpty() && !this._private__chart.options().handleScale.axisPressedMouseMove.time) {
             return;
         }
-        model._internal_endScaleTime();
+        model.endScaleTime();
     };
-    TimeAxisWidget.prototype._internal_touchEndEvent = function () {
-        this._internal_mouseUpEvent();
+    TimeAxisWidget.prototype.touchEndEvent = function () {
+        this.mouseUpEvent();
     };
-    TimeAxisWidget.prototype._internal_mouseDoubleClickEvent = function () {
-        if (this._private__chart._internal_options().handleScale.axisDoubleClickReset) {
-            this._private__chart._internal_model()._internal_resetTimeScale();
+    TimeAxisWidget.prototype.mouseDoubleClickEvent = function () {
+        if (this._private__chart.options().handleScale.axisDoubleClickReset) {
+            this._private__chart.model().resetTimeScale();
         }
     };
-    TimeAxisWidget.prototype._internal_doubleTapEvent = function () {
-        this._internal_mouseDoubleClickEvent();
+    TimeAxisWidget.prototype.doubleTapEvent = function () {
+        this.mouseDoubleClickEvent();
     };
-    TimeAxisWidget.prototype._internal_mouseEnterEvent = function () {
-        if (this._private__chart._internal_model()._internal_options().handleScale.axisPressedMouseMove.time) {
+    TimeAxisWidget.prototype.mouseEnterEvent = function () {
+        if (this._private__chart.model().options().handleScale.axisPressedMouseMove.time) {
             this._private__setCursor(1 /* EwResize */);
         }
     };
-    TimeAxisWidget.prototype._internal_mouseLeaveEvent = function () {
+    TimeAxisWidget.prototype.mouseLeaveEvent = function () {
         this._private__setCursor(0 /* Default */);
     };
-    TimeAxisWidget.prototype._internal_getSize = function () {
+    TimeAxisWidget.prototype.getSize = function () {
         return this._private__size;
     };
-    TimeAxisWidget.prototype._internal_sizeChanged = function () {
+    TimeAxisWidget.prototype.sizeChanged = function () {
         return this._private__sizeChanged;
     };
-    TimeAxisWidget.prototype._internal_setSizes = function (timeAxisSize, leftStubWidth, rightStubWidth) {
-        if (!this._private__size || !this._private__size._internal_equals(timeAxisSize)) {
+    TimeAxisWidget.prototype.setSizes = function (timeAxisSize, leftStubWidth, rightStubWidth) {
+        if (!this._private__size || !this._private__size.equals(timeAxisSize)) {
             this._private__size = timeAxisSize;
             this._private__isSettingSize = true;
-            this._private__canvasBinding.resizeCanvas({ width: timeAxisSize._internal_w, height: timeAxisSize._internal_h });
-            this._private__topCanvasBinding.resizeCanvas({ width: timeAxisSize._internal_w, height: timeAxisSize._internal_h });
+            this._private__canvasBinding.resizeCanvas({ width: timeAxisSize.w, height: timeAxisSize.h });
+            this._private__topCanvasBinding.resizeCanvas({ width: timeAxisSize.w, height: timeAxisSize.h });
             this._private__isSettingSize = false;
-            this._private__cell.style.minWidth = timeAxisSize._internal_w + 'px';
-            this._private__cell.style.width = timeAxisSize._internal_w + 'px';
-            this._private__cell.style.height = timeAxisSize._internal_h + 'px';
-            this._private__sizeChanged._internal_fire(timeAxisSize);
+            this._private__cell.style.minWidth = timeAxisSize.w + 'px';
+            this._private__cell.style.width = timeAxisSize.w + 'px';
+            this._private__cell.style.height = timeAxisSize.h + 'px';
+            this._private__sizeChanged.fire(timeAxisSize);
         }
         if (this._private__leftStub !== null) {
-            this._private__leftStub._internal_setSize(new Size(leftStubWidth, timeAxisSize._internal_h));
+            this._private__leftStub.setSize(new Size(leftStubWidth, timeAxisSize.h));
         }
         if (this._private__rightStub !== null) {
-            this._private__rightStub._internal_setSize(new Size(rightStubWidth, timeAxisSize._internal_h));
+            this._private__rightStub.setSize(new Size(rightStubWidth, timeAxisSize.h));
         }
     };
-    TimeAxisWidget.prototype._internal_optimalHeight = function () {
+    TimeAxisWidget.prototype.optimalHeight = function () {
         var rendererOptions = this._private__getRendererOptions();
         return Math.ceil(
         // rendererOptions.offsetSize +
-        rendererOptions._internal_borderSize +
-            rendererOptions._internal_tickLength +
-            rendererOptions._internal_fontSize +
-            rendererOptions._internal_paddingTop +
-            rendererOptions._internal_paddingBottom);
+        rendererOptions.borderSize +
+            rendererOptions.tickLength +
+            rendererOptions.fontSize +
+            rendererOptions.paddingTop +
+            rendererOptions.paddingBottom);
     };
-    TimeAxisWidget.prototype._internal_update = function () {
+    TimeAxisWidget.prototype.update = function () {
         // this call has side-effect - it regenerates marks on the time scale
-        this._private__chart._internal_model()._internal_timeScale()._internal_marks();
+        this._private__chart.model().timeScale().marks();
     };
-    TimeAxisWidget.prototype._internal_getImage = function () {
+    TimeAxisWidget.prototype.getImage = function () {
         return this._private__canvasBinding.canvas;
     };
-    TimeAxisWidget.prototype._internal_paint = function (type) {
+    TimeAxisWidget.prototype.paint = function (type) {
         if (type === 0 /* None */) {
             return;
         }
         if (type !== 1 /* Cursor */) {
             var ctx = getContext2D(this._private__canvasBinding.canvas);
-            var renderParams_1 = this._private__chart._internal_paneWidgets()[0]._internal_canvasRenderParams(this._private__canvasBinding);
+            var renderParams_1 = this._private__chart.paneWidgets()[0].canvasRenderParams(this._private__canvasBinding);
             this._private__drawBackground(ctx, renderParams_1);
             this._private__drawBorder(ctx, renderParams_1);
-            this._private__drawSources(this._private__chart._internal_model()._internal_dataSources(), ctx, renderParams_1, true);
+            this._private__drawSources(this._private__chart.model().dataSources(), ctx, renderParams_1, true);
             this._private__drawTickMarks(ctx, renderParams_1);
-            this._private__drawSources(this._private__chart._internal_model()._internal_dataSources(), ctx, renderParams_1);
+            this._private__drawSources(this._private__chart.model().dataSources(), ctx, renderParams_1);
             if (this._private__leftStub !== null) {
-                this._private__leftStub._internal_paint(type);
+                this._private__leftStub.paint(type);
             }
             if (this._private__rightStub !== null) {
-                this._private__rightStub._internal_paint(type);
+                this._private__rightStub.paint(type);
             }
         }
         var topCtx = getContext2D(this._private__topCanvasBinding.canvas);
-        var renderParams = this._private__chart._internal_paneWidgets()[0]._internal_canvasRenderParams(this._private__topCanvasBinding);
+        var renderParams = this._private__chart.paneWidgets()[0].canvasRenderParams(this._private__topCanvasBinding);
         var pixelRatio = this._private__topCanvasBinding.pixelRatio;
-        topCtx.clearRect(0, 0, Math.ceil(this._private__size._internal_w * pixelRatio), Math.ceil(this._private__size._internal_h * pixelRatio));
-        this._private__drawSources([this._private__chart._internal_model()._internal_crosshairSource()], topCtx, renderParams);
+        topCtx.clearRect(0, 0, Math.ceil(this._private__size.w * pixelRatio), Math.ceil(this._private__size.h * pixelRatio));
+        this._private__drawSources([this._private__chart.model().crosshairSource()], topCtx, renderParams);
     };
     TimeAxisWidget.prototype._private__drawBackground = function (ctx, renderParams) {
         var _this = this;
-        drawScaled(ctx, renderParams._internal_pixelRatio, function () {
-            clearRect(ctx, 0, 0, _this._private__size._internal_w, _this._private__size._internal_h, _this._private__chart._internal_model()._internal_backgroundBottomColor());
+        drawScaled(ctx, renderParams.pixelRatio, function () {
+            clearRect(ctx, 0, 0, _this._private__size.w, _this._private__size.h, _this._private__chart.model().backgroundBottomColor());
         });
     };
     TimeAxisWidget.prototype._private__drawBorder = function (ctx, renderParams) {
-        if (this._private__chart._internal_options().timeScale.borderVisible) {
+        if (this._private__chart.options().timeScale.borderVisible) {
             ctx.save();
             ctx.fillStyle = this._private__lineColor();
-            var pixelRatio = renderParams._internal_pixelRatio;
-            var borderSize = Math.max(1, Math.floor(this._private__getRendererOptions()._internal_borderSize * pixelRatio));
-            ctx.fillRect(0, 0, Math.ceil(this._private__size._internal_w * pixelRatio), borderSize);
+            var pixelRatio = renderParams.pixelRatio;
+            var borderSize = Math.max(1, Math.floor(this._private__getRendererOptions().borderSize * pixelRatio));
+            ctx.fillRect(0, 0, Math.ceil(this._private__size.w * pixelRatio), borderSize);
             ctx.restore();
         }
     };
     TimeAxisWidget.prototype._private__drawTickMarks = function (ctx, renderParams) {
         var _this = this;
-        var tickMarks = this._private__chart._internal_model()._internal_timeScale()._internal_marks();
+        var tickMarks = this._private__chart.model().timeScale().marks();
         if (!tickMarks || tickMarks.length === 0) {
             return;
         }
-        var pixelRatio = renderParams._internal_pixelRatio;
-        var maxWeight = tickMarks.reduce(markWithGreaterWeight, tickMarks[0])._internal_weight;
+        var pixelRatio = renderParams.pixelRatio;
+        var maxWeight = tickMarks.reduce(markWithGreaterWeight, tickMarks[0]).weight;
         // special case: it looks strange if 15:00 is bold but 14:00 is not
         // so if maxWeight > TickMarkWeight.Hour1 and < TickMarkWeight.Day reduce it to TickMarkWeight.Hour1
         if (maxWeight > 30 /* Hour1 */ && maxWeight < 50 /* Day */) {
@@ -15098,56 +15102,56 @@ var TimeAxisWidget = /** @class */ (function () {
         ctx.save();
         ctx.strokeStyle = this._private__lineColor();
         var rendererOptions = this._private__getRendererOptions();
-        var yText = (rendererOptions._internal_borderSize +
-            rendererOptions._internal_tickLength +
-            rendererOptions._internal_paddingTop +
-            rendererOptions._internal_fontSize -
-            rendererOptions._internal_baselineOffset);
+        var yText = (rendererOptions.borderSize +
+            rendererOptions.tickLength +
+            rendererOptions.paddingTop +
+            rendererOptions.fontSize -
+            rendererOptions.baselineOffset);
         ctx.textAlign = 'center';
         ctx.fillStyle = this._private__lineColor();
-        var borderSize = Math.floor(this._private__getRendererOptions()._internal_borderSize * pixelRatio);
+        var borderSize = Math.floor(this._private__getRendererOptions().borderSize * pixelRatio);
         var tickWidth = Math.max(1, Math.floor(pixelRatio));
         var tickOffset = Math.floor(pixelRatio * 0.5);
-        if (this._private__chart._internal_model()._internal_timeScale()._internal_options().borderVisible) {
+        if (this._private__chart.model().timeScale().options().borderVisible) {
             ctx.beginPath();
-            var tickLen = Math.round(rendererOptions._internal_tickLength * pixelRatio);
+            var tickLen = Math.round(rendererOptions.tickLength * pixelRatio);
             for (var index = tickMarks.length; index--;) {
-                var x = Math.round(tickMarks[index]._internal_coord * pixelRatio);
+                var x = Math.round(tickMarks[index].coord * pixelRatio);
                 ctx.rect(x - tickOffset, borderSize, tickWidth, tickLen);
             }
             ctx.fill();
         }
         ctx.fillStyle = this._private__textColor();
-        drawScaled(ctx, renderParams._internal_pixelRatio, function () {
+        drawScaled(ctx, renderParams.pixelRatio, function () {
             // draw base marks
             ctx.font = _this._private__baseFont();
             for (var _i = 0, tickMarks_1 = tickMarks; _i < tickMarks_1.length; _i++) {
                 var tickMark = tickMarks_1[_i];
-                if (tickMark._internal_weight < maxWeight) {
-                    var coordinate = tickMark._internal_needAlignCoordinate ? _this._private__alignTickMarkLabelCoordinate(ctx, tickMark._internal_coord, tickMark._internal_label) : tickMark._internal_coord;
-                    ctx.fillText(tickMark._internal_label, coordinate, yText);
+                if (tickMark.weight < maxWeight) {
+                    var coordinate = tickMark.needAlignCoordinate ? _this._private__alignTickMarkLabelCoordinate(ctx, tickMark.coord, tickMark.label) : tickMark.coord;
+                    ctx.fillText(tickMark.label, coordinate, yText);
                 }
             }
             ctx.font = _this._private__baseBoldFont();
             for (var _a = 0, tickMarks_2 = tickMarks; _a < tickMarks_2.length; _a++) {
                 var tickMark = tickMarks_2[_a];
-                if (tickMark._internal_weight >= maxWeight) {
-                    var coordinate = tickMark._internal_needAlignCoordinate ? _this._private__alignTickMarkLabelCoordinate(ctx, tickMark._internal_coord, tickMark._internal_label) : tickMark._internal_coord;
-                    ctx.fillText(tickMark._internal_label, coordinate, yText);
+                if (tickMark.weight >= maxWeight) {
+                    var coordinate = tickMark.needAlignCoordinate ? _this._private__alignTickMarkLabelCoordinate(ctx, tickMark.coord, tickMark.label) : tickMark.coord;
+                    ctx.fillText(tickMark.label, coordinate, yText);
                 }
             }
         });
         ctx.restore();
     };
     TimeAxisWidget.prototype._private__alignTickMarkLabelCoordinate = function (ctx, coordinate, labelText) {
-        var labelWidth = this._private__widthCache._internal_measureText(ctx, labelText);
+        var labelWidth = this._private__widthCache.measureText(ctx, labelText);
         var labelWidthHalf = labelWidth / 2;
         var leftTextCoordinate = Math.floor(coordinate - labelWidthHalf) + 0.5;
         if (leftTextCoordinate < 0) {
             coordinate = coordinate + Math.abs(0 - leftTextCoordinate);
         }
-        else if (leftTextCoordinate + labelWidth > this._private__size._internal_w) {
-            coordinate = coordinate - Math.abs(this._private__size._internal_w - (leftTextCoordinate + labelWidth));
+        else if (leftTextCoordinate + labelWidth > this._private__size.w) {
+            coordinate = coordinate - Math.abs(this._private__size.w - (leftTextCoordinate + labelWidth));
         }
         return coordinate;
     };
@@ -15155,22 +15159,22 @@ var TimeAxisWidget = /** @class */ (function () {
         var rendererOptions = this._private__getRendererOptions();
         for (var _i = 0, sources_1 = sources; _i < sources_1.length; _i++) {
             var source = sources_1[_i];
-            for (var _a = 0, _b = source._internal_timeAxisViews(); _a < _b.length; _a++) {
+            for (var _a = 0, _b = source.timeAxisViews(); _a < _b.length; _a++) {
                 var view = _b[_a];
-                var renderer = view._internal_renderer();
+                var renderer = view.renderer();
                 ctx.save();
-                if (background && renderer._internal_drawBackground) {
-                    renderer._internal_drawBackground(ctx, rendererOptions, renderParams);
+                if (background && renderer.drawBackground) {
+                    renderer.drawBackground(ctx, rendererOptions, renderParams);
                 }
-                else if (renderer._internal_draw) {
-                    renderer._internal_draw(ctx, rendererOptions, renderParams);
+                else if (renderer.draw) {
+                    renderer.draw(ctx, rendererOptions, renderParams);
                 }
                 ctx.restore();
             }
         }
     };
     TimeAxisWidget.prototype._private__lineColor = function () {
-        return this._private__chart._internal_options().timeScale.borderColor;
+        return this._private__chart.options().timeScale.borderColor;
     };
     TimeAxisWidget.prototype._private__textColor = function () {
         return this._private__options.textColor;
@@ -15187,28 +15191,28 @@ var TimeAxisWidget = /** @class */ (function () {
     TimeAxisWidget.prototype._private__getRendererOptions = function () {
         if (this._private__rendererOptions === null) {
             this._private__rendererOptions = {
-                _internal_borderSize: 1 /* BorderSize */,
-                _internal_baselineOffset: NaN,
-                _internal_paddingTop: NaN,
-                _internal_paddingBottom: NaN,
-                _internal_paddingHorizontal: NaN,
-                _internal_tickLength: 3 /* TickLength */,
-                _internal_fontSize: NaN,
-                _internal_font: '',
-                _internal_widthCache: new TextWidthCache(),
+                borderSize: 1 /* BorderSize */,
+                baselineOffset: NaN,
+                paddingTop: NaN,
+                paddingBottom: NaN,
+                paddingHorizontal: NaN,
+                tickLength: 3 /* TickLength */,
+                fontSize: NaN,
+                font: '',
+                widthCache: new TextWidthCache(),
             };
         }
         var rendererOptions = this._private__rendererOptions;
         var newFont = this._private__baseFont();
-        if (rendererOptions._internal_font !== newFont) {
+        if (rendererOptions.font !== newFont) {
             var fontSize = this._private__fontSize();
-            rendererOptions._internal_fontSize = fontSize;
-            rendererOptions._internal_font = newFont;
-            rendererOptions._internal_paddingTop = Math.ceil(fontSize / 2.5);
-            rendererOptions._internal_paddingBottom = rendererOptions._internal_paddingTop;
-            rendererOptions._internal_paddingHorizontal = Math.ceil(fontSize / 2);
-            rendererOptions._internal_baselineOffset = Math.round(this._private__fontSize() / 5);
-            rendererOptions._internal_widthCache._internal_reset();
+            rendererOptions.fontSize = fontSize;
+            rendererOptions.font = newFont;
+            rendererOptions.paddingTop = Math.ceil(fontSize / 2.5);
+            rendererOptions.paddingBottom = rendererOptions.paddingTop;
+            rendererOptions.paddingHorizontal = Math.ceil(fontSize / 2);
+            rendererOptions.baselineOffset = Math.round(this._private__fontSize() / 5);
+            rendererOptions.widthCache.reset();
         }
         return this._private__rendererOptions;
     };
@@ -15216,33 +15220,33 @@ var TimeAxisWidget = /** @class */ (function () {
         this._private__cell.style.cursor = type === 1 /* EwResize */ ? 'ew-resize' : 'default';
     };
     TimeAxisWidget.prototype._private__recreateStubs = function () {
-        var model = this._private__chart._internal_model();
-        var options = model._internal_options();
+        var model = this._private__chart.model();
+        var options = model.options();
         if (!options.leftPriceScale.visible && this._private__leftStub !== null) {
-            this._private__leftStubCell.removeChild(this._private__leftStub._internal_getElement());
-            this._private__leftStub._internal_destroy();
+            this._private__leftStubCell.removeChild(this._private__leftStub.getElement());
+            this._private__leftStub.destroy();
             this._private__leftStub = null;
         }
         if (!options.rightPriceScale.visible && this._private__rightStub !== null) {
-            this._private__rightStubCell.removeChild(this._private__rightStub._internal_getElement());
-            this._private__rightStub._internal_destroy();
+            this._private__rightStubCell.removeChild(this._private__rightStub.getElement());
+            this._private__rightStub.destroy();
             this._private__rightStub = null;
         }
-        var rendererOptionsProvider = this._private__chart._internal_model()._internal_rendererOptionsProvider();
+        var rendererOptionsProvider = this._private__chart.model().rendererOptionsProvider();
         var params = {
-            _internal_rendererOptionsProvider: rendererOptionsProvider,
+            rendererOptionsProvider: rendererOptionsProvider,
         };
         var borderVisibleGetter = function () {
-            return options.leftPriceScale.borderVisible && model._internal_timeScale()._internal_options().borderVisible;
+            return options.leftPriceScale.borderVisible && model.timeScale().options().borderVisible;
         };
-        var bottomColorGetter = function () { return model._internal_backgroundBottomColor(); };
+        var bottomColorGetter = function () { return model.backgroundBottomColor(); };
         if (options.leftPriceScale.visible && this._private__leftStub === null) {
             this._private__leftStub = new PriceAxisStub('left', options, params, borderVisibleGetter, bottomColorGetter);
-            this._private__leftStubCell.appendChild(this._private__leftStub._internal_getElement());
+            this._private__leftStubCell.appendChild(this._private__leftStub.getElement());
         }
         if (options.rightPriceScale.visible && this._private__rightStub === null) {
             this._private__rightStub = new PriceAxisStub('right', options, params, borderVisibleGetter, bottomColorGetter);
-            this._private__rightStubCell.appendChild(this._private__rightStub._internal_getElement());
+            this._private__rightStubCell.appendChild(this._private__rightStub.getElement());
         }
     };
     return TimeAxisWidget;
@@ -15276,9 +15280,11 @@ var ChartWidget = /** @class */ (function () {
             passive: false,
         });
         this._private__model = new ChartModel(this._private__invalidateHandler.bind(this), this._private__options);
-        this._internal_model()._internal_crosshairMoved()._internal_subscribe(this._private__onPaneWidgetCrosshairMoved.bind(this), this);
+        this.model()
+            .crosshairMoved()
+            .subscribe(this._private__onPaneWidgetCrosshairMoved.bind(this), this);
         this._private__timeAxisWidget = new TimeAxisWidget(this);
-        this._private__tableElement.appendChild(this._private__timeAxisWidget._internal_getElement());
+        this._private__tableElement.appendChild(this._private__timeAxisWidget.getElement());
         var width = this._private__options.width;
         var height = this._private__options.height;
         if (width === 0 || height === 0) {
@@ -15298,39 +15304,44 @@ var ChartWidget = /** @class */ (function () {
         }
         // BEWARE: resize must be called BEFORE _syncGuiWithModel (in constructor only)
         // or after but with adjustSize to properly update time scale
-        this._internal_resize(width, height);
+        this.resize(width, height);
         this._private__syncGuiWithModel();
         container.appendChild(this._private__element);
         this._private__updateTimeAxisVisibility();
-        this._private__model._internal_timeScale()._internal_optionsApplied()._internal_subscribe(this._private__model._internal_fullUpdate.bind(this._private__model), this);
-        this._private__model._internal_priceScalesOptionsChanged()._internal_subscribe(this._private__model._internal_fullUpdate.bind(this._private__model), this);
+        this._private__model
+            .timeScale()
+            .optionsApplied()
+            .subscribe(this._private__model.fullUpdate.bind(this._private__model), this);
+        this._private__model
+            .priceScalesOptionsChanged()
+            .subscribe(this._private__model.fullUpdate.bind(this._private__model), this);
     }
-    ChartWidget.prototype._internal_model = function () {
+    ChartWidget.prototype.model = function () {
         return this._private__model;
     };
-    ChartWidget.prototype._internal_options = function () {
+    ChartWidget.prototype.options = function () {
         return this._private__options;
     };
-    ChartWidget.prototype._internal_paneWidgets = function () {
+    ChartWidget.prototype.paneWidgets = function () {
         return this._private__paneWidgets;
     };
-    ChartWidget.prototype._internal_timeAxisWidget = function () {
+    ChartWidget.prototype.timeAxisWidget = function () {
         return this._private__timeAxisWidget;
     };
-    ChartWidget.prototype._internal_destroy = function () {
+    ChartWidget.prototype.destroy = function () {
         this._private__element.removeEventListener('wheel', this._private__onWheelBound);
         if (this._private__drawRafId !== 0) {
             window.cancelAnimationFrame(this._private__drawRafId);
         }
-        this._private__model._internal_crosshairMoved()._internal_unsubscribeAll(this);
-        this._private__model._internal_timeScale()._internal_optionsApplied()._internal_unsubscribeAll(this);
-        this._private__model._internal_priceScalesOptionsChanged()._internal_unsubscribeAll(this);
-        this._private__model._internal_destroy();
+        this._private__model.crosshairMoved().unsubscribeAll(this);
+        this._private__model.timeScale().optionsApplied().unsubscribeAll(this);
+        this._private__model.priceScalesOptionsChanged().unsubscribeAll(this);
+        this._private__model.destroy();
         for (var _i = 0, _a = this._private__paneWidgets; _i < _a.length; _i++) {
             var paneWidget = _a[_i];
-            this._private__tableElement.removeChild(paneWidget._internal_getElement());
-            paneWidget._internal_clicked()._internal_unsubscribeAll(this);
-            paneWidget._internal_destroy();
+            this._private__tableElement.removeChild(paneWidget.getElement());
+            paneWidget.clicked().unsubscribeAll(this);
+            paneWidget.destroy();
         }
         this._private__paneWidgets = [];
         for (var _b = 0, _c = this._private__paneSeparators; _b < _c.length; _b++) {
@@ -15338,14 +15349,14 @@ var ChartWidget = /** @class */ (function () {
             this._private__destroySeparator(paneSeparator);
         }
         this._private__paneSeparators = [];
-        ensureNotNull(this._private__timeAxisWidget)._internal_destroy();
+        ensureNotNull(this._private__timeAxisWidget).destroy();
         if (this._private__element.parentElement !== null) {
             this._private__element.parentElement.removeChild(this._private__element);
         }
-        this._private__crosshairMoved._internal_destroy();
-        this._private__clicked._internal_destroy();
+        this._private__crosshairMoved.destroy();
+        this._private__clicked.destroy();
     };
-    ChartWidget.prototype._internal_resize = function (width, height, forceRepaint) {
+    ChartWidget.prototype.resize = function (width, height, forceRepaint) {
         if (forceRepaint === void 0) { forceRepaint = false; }
         if (this._private__height === height && this._private__width === width) {
             return;
@@ -15362,37 +15373,37 @@ var ChartWidget = /** @class */ (function () {
             this._private__drawImpl(new InvalidateMask(3 /* Full */));
         }
         else {
-            this._private__model._internal_fullUpdate();
+            this._private__model.fullUpdate();
         }
     };
-    ChartWidget.prototype._internal_paint = function (invalidateMask) {
+    ChartWidget.prototype.paint = function (invalidateMask) {
         if (invalidateMask === undefined) {
             invalidateMask = new InvalidateMask(3 /* Full */);
         }
         for (var i = 0; i < this._private__paneWidgets.length; i++) {
-            this._private__paneWidgets[i]._internal_paint(invalidateMask._internal_invalidateForPane(i)._internal_level);
+            this._private__paneWidgets[i].paint(invalidateMask.invalidateForPane(i).level);
         }
         if (this._private__options.timeScale.visible) {
-            this._private__timeAxisWidget._internal_paint(invalidateMask._internal_fullInvalidation());
+            this._private__timeAxisWidget.paint(invalidateMask.fullInvalidation());
         }
     };
-    ChartWidget.prototype._internal_applyOptions = function (options) {
+    ChartWidget.prototype.applyOptions = function (options) {
         // we don't need to merge options here because it's done in chart model
         // and since both model and widget share the same object it will be done automatically for widget as well
         // not ideal solution for sure, but it work's for now ¯\_(ツ)_/¯
-        this._private__model._internal_applyOptions(options);
+        this._private__model.applyOptions(options);
         this._private__updateTimeAxisVisibility();
         var width = options.width || this._private__width;
         var height = options.height || this._private__height;
-        this._internal_resize(width, height);
+        this.resize(width, height);
     };
-    ChartWidget.prototype._internal_clicked = function () {
+    ChartWidget.prototype.clicked = function () {
         return this._private__clicked;
     };
-    ChartWidget.prototype._internal_crosshairMoved = function () {
+    ChartWidget.prototype.crosshairMoved = function () {
         return this._private__crosshairMoved;
     };
-    ChartWidget.prototype._internal_takeScreenshot = function () {
+    ChartWidget.prototype.takeScreenshot = function () {
         var _this = this;
         if (this._private__invalidateMask !== null) {
             this._private__drawImpl(this._private__invalidateMask);
@@ -15409,67 +15420,67 @@ var ChartWidget = /** @class */ (function () {
             var drawPriceAxises = function (position) {
                 for (var paneIndex = 0; paneIndex < _this._private__paneWidgets.length; paneIndex++) {
                     var paneWidget = _this._private__paneWidgets[paneIndex];
-                    var paneWidgetHeight = paneWidget._internal_getSize()._internal_h;
+                    var paneWidgetHeight = paneWidget.getSize().h;
                     var priceAxisWidget = ensureNotNull(position === 'left'
-                        ? paneWidget._internal_leftPriceAxisWidget()
-                        : paneWidget._internal_rightPriceAxisWidget());
-                    var image = priceAxisWidget._internal_getImage();
-                    ctx.drawImage(image, targetX, targetY, priceAxisWidget._internal_getWidth(), paneWidgetHeight);
+                        ? paneWidget.leftPriceAxisWidget()
+                        : paneWidget.rightPriceAxisWidget());
+                    var image = priceAxisWidget.getImage();
+                    ctx.drawImage(image, targetX, targetY, priceAxisWidget.getWidth(), paneWidgetHeight);
                     targetY += paneWidgetHeight;
                     if (paneIndex < _this._private__paneWidgets.length - 1) {
                         var separator = _this._private__paneSeparators[paneIndex];
                         var separatorSize = separator._internal_getSize();
                         var separatorImage = separator._internal_getImage();
-                        ctx.drawImage(separatorImage, targetX, targetY, separatorSize._internal_w, separatorSize._internal_h);
-                        targetY += separatorSize._internal_h;
+                        ctx.drawImage(separatorImage, targetX, targetY, separatorSize.w, separatorSize.h);
+                        targetY += separatorSize.h;
                     }
                 }
             };
             // draw left price scale if exists
             if (_this._private__isLeftAxisVisible()) {
                 drawPriceAxises('left');
-                targetX = ensureNotNull(firstPane._internal_leftPriceAxisWidget())._internal_getWidth();
+                targetX = ensureNotNull(firstPane.leftPriceAxisWidget()).getWidth();
             }
             targetY = 0;
             for (var paneIndex = 0; paneIndex < _this._private__paneWidgets.length; paneIndex++) {
                 var paneWidget = _this._private__paneWidgets[paneIndex];
-                var paneWidgetSize = paneWidget._internal_getSize();
-                var image = paneWidget._internal_getImage();
-                ctx.drawImage(image, targetX, targetY, paneWidgetSize._internal_w, paneWidgetSize._internal_h);
-                targetY += paneWidgetSize._internal_h;
+                var paneWidgetSize = paneWidget.getSize();
+                var image = paneWidget.getImage();
+                ctx.drawImage(image, targetX, targetY, paneWidgetSize.w, paneWidgetSize.h);
+                targetY += paneWidgetSize.h;
                 if (paneIndex < _this._private__paneWidgets.length - 1) {
                     var separator = _this._private__paneSeparators[paneIndex];
                     var separatorSize = separator._internal_getSize();
                     var separatorImage = separator._internal_getImage();
-                    ctx.drawImage(separatorImage, targetX, targetY, separatorSize._internal_w, separatorSize._internal_h);
-                    targetY += separatorSize._internal_h;
+                    ctx.drawImage(separatorImage, targetX, targetY, separatorSize.w, separatorSize.h);
+                    targetY += separatorSize.h;
                 }
             }
-            targetX += firstPane._internal_getSize()._internal_w;
+            targetX += firstPane.getSize().w;
             if (_this._private__isRightAxisVisible()) {
                 targetY = 0;
                 drawPriceAxises('right');
             }
             var drawStub = function (position) {
                 var stub = ensureNotNull(position === 'left'
-                    ? _this._private__timeAxisWidget._internal_leftStub()
-                    : _this._private__timeAxisWidget._internal_rightStub());
-                var size = stub._internal_getSize();
-                var image = stub._internal_getImage();
-                ctx.drawImage(image, targetX, targetY, size._internal_w, size._internal_h);
+                    ? _this._private__timeAxisWidget.leftStub()
+                    : _this._private__timeAxisWidget.rightStub());
+                var size = stub.getSize();
+                var image = stub.getImage();
+                ctx.drawImage(image, targetX, targetY, size.w, size.h);
             };
             // draw time scale
             if (_this._private__options.timeScale.visible) {
                 targetX = 0;
                 if (_this._private__isLeftAxisVisible()) {
                     drawStub('left');
-                    targetX = ensureNotNull(firstPane._internal_leftPriceAxisWidget())._internal_getWidth();
+                    targetX = ensureNotNull(firstPane.leftPriceAxisWidget()).getWidth();
                 }
-                var size = _this._private__timeAxisWidget._internal_getSize();
-                var image = _this._private__timeAxisWidget._internal_getImage();
-                ctx.drawImage(image, targetX, targetY, size._internal_w, size._internal_h);
+                var size = _this._private__timeAxisWidget.getSize();
+                var image = _this._private__timeAxisWidget.getImage();
+                ctx.drawImage(image, targetX, targetY, size.w, size.h);
                 if (_this._private__isRightAxisVisible()) {
-                    targetX += firstPane._internal_getSize()._internal_w;
+                    targetX += firstPane.getSize().w;
                     drawStub('right');
                     ctx.restore();
                 }
@@ -15477,7 +15488,7 @@ var ChartWidget = /** @class */ (function () {
         });
         return targetCanvas;
     };
-    ChartWidget.prototype._internal_getPriceAxisWidth = function (position) {
+    ChartWidget.prototype.getPriceAxisWidth = function (position) {
         if (position === 'none') {
             return 0;
         }
@@ -15494,11 +15505,11 @@ var ChartWidget = /** @class */ (function () {
         // because all pane widgets have the same width of price axis widget
         // see _adjustSizeImpl
         var priceAxisWidget = position === 'left'
-            ? this._private__paneWidgets[0]._internal_leftPriceAxisWidget()
-            : this._private__paneWidgets[0]._internal_rightPriceAxisWidget();
-        return ensureNotNull(priceAxisWidget)._internal_getWidth();
+            ? this._private__paneWidgets[0].leftPriceAxisWidget()
+            : this._private__paneWidgets[0].rightPriceAxisWidget();
+        return ensureNotNull(priceAxisWidget).getWidth();
     };
-    ChartWidget.prototype._internal_adjustSize = function () {
+    ChartWidget.prototype.adjustSize = function () {
         this._private__adjustSizeImpl();
     };
     // eslint-disable-next-line complexity
@@ -15512,14 +15523,14 @@ var ChartWidget = /** @class */ (function () {
         for (var _i = 0, _b = this._private__paneWidgets; _i < _b.length; _i++) {
             var paneWidget = _b[_i];
             if (this._private__isLeftAxisVisible()) {
-                leftPriceAxisWidth = Math.max(leftPriceAxisWidth, ensureNotNull(paneWidget._internal_leftPriceAxisWidget())._internal_optimalWidth());
-                leftPriceAxisFloating = ensureNotNull(paneWidget._internal_leftPriceAxisWidget())._internal_floating();
+                leftPriceAxisWidth = Math.max(leftPriceAxisWidth, ensureNotNull(paneWidget.leftPriceAxisWidget()).optimalWidth());
+                leftPriceAxisFloating = ensureNotNull(paneWidget.leftPriceAxisWidget()).floating();
             }
             if (this._private__isRightAxisVisible()) {
-                rightPriceAxisWidth = Math.max(rightPriceAxisWidth, ensureNotNull(paneWidget._internal_rightPriceAxisWidget())._internal_optimalWidth());
-                rightPriceAxisFloating = ensureNotNull(paneWidget._internal_rightPriceAxisWidget())._internal_floating();
+                rightPriceAxisWidth = Math.max(rightPriceAxisWidth, ensureNotNull(paneWidget.rightPriceAxisWidget()).optimalWidth());
+                rightPriceAxisFloating = ensureNotNull(paneWidget.rightPriceAxisWidget()).floating();
             }
-            totalStretch += paneWidget._internal_stretchFactor();
+            totalStretch += paneWidget.stretchFactor();
         }
         var width = this._private__width;
         var height = this._private__height;
@@ -15529,7 +15540,7 @@ var ChartWidget = /** @class */ (function () {
         var separatorsHeight = separatorHeight * separatorCount;
         var timeAxisVisible = this._private__options.timeScale.visible;
         var timeAxisHeight = this._private__options.timeScale.visible
-            ? this._private__timeAxisWidget._internal_optimalHeight()
+            ? this._private__timeAxisWidget.optimalHeight()
             : 0;
         // TODO: Fix it better
         // on Hi-DPI CSS size * Device Pixel Ratio should be integer to avoid smoothing
@@ -15543,7 +15554,7 @@ var ChartWidget = /** @class */ (function () {
         var pixelRatio = ((_a = document.body.ownerDocument.defaultView) === null || _a === void 0 ? void 0 : _a.devicePixelRatio) || 1;
         for (var paneIndex = 0; paneIndex < this._private__paneWidgets.length; ++paneIndex) {
             var paneWidget = this._private__paneWidgets[paneIndex];
-            paneWidget._internal_setState(this._private__model._internal_panes()[paneIndex]);
+            paneWidget.setState(this._private__model.panes()[paneIndex]);
             var paneHeight = 0;
             var calculatePaneHeight = 0;
             if (paneIndex === this._private__paneWidgets.length - 1) {
@@ -15553,24 +15564,24 @@ var ChartWidget = /** @class */ (function () {
             }
             else {
                 calculatePaneHeight =
-                    Math.round(paneWidget._internal_stretchFactor() * stretchPixels * pixelRatio) /
+                    Math.round(paneWidget.stretchFactor() * stretchPixels * pixelRatio) /
                         pixelRatio;
             }
             paneHeight = Math.max(calculatePaneHeight, 2);
             accumulatedHeight += paneHeight;
-            paneWidget._internal_setSize(new Size(paneWidth, paneHeight));
+            paneWidget.setSize(new Size(paneWidth, paneHeight));
             if (this._private__isLeftAxisVisible()) {
-                paneWidget._internal_setPriceAxisSize(leftPriceAxisWidth, 'left');
+                paneWidget.setPriceAxisSize(leftPriceAxisWidth, 'left');
             }
             if (this._private__isRightAxisVisible()) {
-                paneWidget._internal_setPriceAxisSize(rightPriceAxisWidth, 'right');
+                paneWidget.setPriceAxisSize(rightPriceAxisWidth, 'right');
             }
-            if (paneWidget._internal_state()) {
-                this._private__model._internal_setPaneHeight(paneWidget._internal_state(), paneHeight);
+            if (paneWidget.state()) {
+                this._private__model.setPaneHeight(paneWidget.state(), paneHeight);
             }
         }
-        this._private__timeAxisWidget._internal_setSizes(new Size(timeAxisVisible ? paneWidth : 0, timeAxisHeight), timeAxisVisible && !leftPriceAxisFloating ? leftPriceAxisWidth : 0, timeAxisVisible && !rightPriceAxisFloating ? rightPriceAxisWidth : 0);
-        this._private__model._internal_setWidth(paneWidth);
+        this._private__timeAxisWidget.setSizes(new Size(timeAxisVisible ? paneWidth : 0, timeAxisHeight), timeAxisVisible && !leftPriceAxisFloating ? leftPriceAxisWidth : 0, timeAxisVisible && !rightPriceAxisFloating ? rightPriceAxisWidth : 0);
+        this._private__model.setWidth(paneWidth);
         if (this._private__leftPriceAxisWidth !== leftPriceAxisWidth) {
             this._private__leftPriceAxisWidth = leftPriceAxisWidth;
         }
@@ -15603,15 +15614,15 @@ var ChartWidget = /** @class */ (function () {
         if (deltaY !== 0 && this._private__options.handleScale.mouseWheel) {
             var zoomScale = Math.sign(deltaY) * Math.min(1, Math.abs(deltaY));
             var scrollPosition = event.clientX - this._private__element.getBoundingClientRect().left;
-            this._internal_model()._internal_zoomTime(scrollPosition, zoomScale);
+            this.model().zoomTime(scrollPosition, zoomScale);
         }
         if (deltaX !== 0 && this._private__options.handleScroll.mouseWheel) {
-            this._internal_model()._internal_scrollChart((deltaX * -80)); // 80 is a made up coefficient, and minus is for the "natural" scroll
+            this.model().scrollChart((deltaX * -80)); // 80 is a made up coefficient, and minus is for the "natural" scroll
         }
     };
     ChartWidget.prototype._private__drawImpl = function (invalidateMask) {
         var _a;
-        var invalidationType = invalidateMask._internal_fullInvalidation();
+        var invalidationType = invalidateMask.fullInvalidation();
         // actions for full invalidation ONLY (not shared with light)
         if (invalidationType === 3 /* Full */) {
             this._private__updateGui();
@@ -15621,16 +15632,16 @@ var ChartWidget = /** @class */ (function () {
             invalidationType === 2 /* Light */) {
             this._private__applyMomentaryAutoScale(invalidateMask);
             this._private__applyTimeScaleInvalidations(invalidateMask);
-            this._private__timeAxisWidget._internal_update();
+            this._private__timeAxisWidget.update();
             this._private__paneWidgets.forEach(function (pane) {
-                pane._internal_updatePriceAxisWidgets();
+                pane.updatePriceAxisWidgets();
             });
             // In the case a full invalidation has been postponed during the draw, reapply
             // the timescale invalidations. A full invalidation would mean there is a change
             // in the timescale width (caused by price scale changes) that needs to be drawn
             // right away to avoid flickering.
-            if (((_a = this._private__invalidateMask) === null || _a === void 0 ? void 0 : _a._internal_fullInvalidation()) === 3 /* Full */) {
-                this._private__invalidateMask._internal_merge(invalidateMask);
+            if (((_a = this._private__invalidateMask) === null || _a === void 0 ? void 0 : _a.fullInvalidation()) === 3 /* Full */) {
+                this._private__invalidateMask.merge(invalidateMask);
                 this._private__updateGui();
                 this._private__applyMomentaryAutoScale(this._private__invalidateMask);
                 this._private__applyTimeScaleInvalidations(this._private__invalidateMask);
@@ -15638,47 +15649,47 @@ var ChartWidget = /** @class */ (function () {
                 this._private__invalidateMask = null;
             }
         }
-        this._internal_paint(invalidateMask);
+        this.paint(invalidateMask);
     };
     ChartWidget.prototype._private__applyTimeScaleInvalidations = function (invalidateMask) {
-        var timeScaleInvalidations = invalidateMask._internal_timeScaleInvalidations();
+        var timeScaleInvalidations = invalidateMask.timeScaleInvalidations();
         for (var _i = 0, timeScaleInvalidations_1 = timeScaleInvalidations; _i < timeScaleInvalidations_1.length; _i++) {
             var tsInvalidation = timeScaleInvalidations_1[_i];
             this._private__applyTimeScaleInvalidation(tsInvalidation);
         }
     };
     ChartWidget.prototype._private__applyMomentaryAutoScale = function (invalidateMask) {
-        var panes = this._private__model._internal_panes();
+        var panes = this._private__model.panes();
         for (var i = 0; i < panes.length; i++) {
-            if (invalidateMask._internal_invalidateForPane(i)._internal_autoScale) {
-                panes[i]._internal_momentaryAutoScale();
+            if (invalidateMask.invalidateForPane(i).autoScale) {
+                panes[i].momentaryAutoScale();
             }
         }
     };
     ChartWidget.prototype._private__applyTimeScaleInvalidation = function (invalidation) {
-        var timeScale = this._private__model._internal_timeScale();
-        switch (invalidation._internal_type) {
+        var timeScale = this._private__model.timeScale();
+        switch (invalidation.type) {
             case 0 /* FitContent */:
-                timeScale._internal_fitContent();
+                timeScale.fitContent();
                 break;
             case 1 /* ApplyRange */:
-                timeScale._internal_setLogicalRange(invalidation._internal_value);
+                timeScale.setLogicalRange(invalidation.value);
                 break;
             case 2 /* ApplyBarSpacing */:
-                timeScale._internal_setBarSpacing(invalidation._internal_value);
+                timeScale.setBarSpacing(invalidation.value);
                 break;
             case 3 /* ApplyRightOffset */:
-                timeScale._internal_setRightOffset(invalidation._internal_value);
+                timeScale.setRightOffset(invalidation.value);
                 break;
             case 4 /* Reset */:
-                timeScale._internal_restoreDefault();
+                timeScale.restoreDefault();
                 break;
         }
     };
     ChartWidget.prototype._private__invalidateHandler = function (invalidateMask) {
         var _this = this;
         if (this._private__invalidateMask !== null) {
-            this._private__invalidateMask._internal_merge(invalidateMask);
+            this._private__invalidateMask.merge(invalidateMask);
         }
         else {
             this._private__invalidateMask = invalidateMask;
@@ -15701,18 +15712,18 @@ var ChartWidget = /** @class */ (function () {
     };
     ChartWidget.prototype._private__destroySeparator = function (separator) {
         this._private__tableElement.removeChild(separator._internal_getElement());
-        separator._internal_destroy();
+        separator.destroy();
     };
     ChartWidget.prototype._private__syncGuiWithModel = function () {
-        var panes = this._private__model._internal_panes();
+        var panes = this._private__model.panes();
         var targetPaneWidgetsCount = panes.length;
         var actualPaneWidgetsCount = this._private__paneWidgets.length;
         // Remove (if needed) pane widgets and separators
         for (var i = targetPaneWidgetsCount; i < actualPaneWidgetsCount; i++) {
             var paneWidget = ensureDefined(this._private__paneWidgets.pop());
-            this._private__tableElement.removeChild(paneWidget._internal_getElement());
-            paneWidget._internal_clicked()._internal_unsubscribeAll(this);
-            paneWidget._internal_destroy();
+            this._private__tableElement.removeChild(paneWidget.getElement());
+            paneWidget.clicked().unsubscribeAll(this);
+            paneWidget.destroy();
             var paneSeparator = this._private__paneSeparators.pop();
             if (paneSeparator !== undefined) {
                 this._private__destroySeparator(paneSeparator);
@@ -15721,25 +15732,27 @@ var ChartWidget = /** @class */ (function () {
         // Create (if needed) new pane widgets and separators
         for (var i = actualPaneWidgetsCount; i < targetPaneWidgetsCount; i++) {
             var paneWidget = new PaneWidget(this, panes[i]);
-            paneWidget._internal_clicked()._internal_subscribe(this._private__onPaneWidgetClicked.bind(this), this);
+            paneWidget
+                .clicked()
+                .subscribe(this._private__onPaneWidgetClicked.bind(this), this);
             this._private__paneWidgets.push(paneWidget);
             // create and insert separator
             if (i > 0) {
                 var paneSeparator = new PaneSeparator(this, i - 1, i, false);
                 this._private__paneSeparators.push(paneSeparator);
-                this._private__tableElement.insertBefore(paneSeparator._internal_getElement(), this._private__timeAxisWidget._internal_getElement());
+                this._private__tableElement.insertBefore(paneSeparator._internal_getElement(), this._private__timeAxisWidget.getElement());
             }
             // insert paneWidget
-            this._private__tableElement.insertBefore(paneWidget._internal_getElement(), this._private__timeAxisWidget._internal_getElement());
+            this._private__tableElement.insertBefore(paneWidget.getElement(), this._private__timeAxisWidget.getElement());
         }
         for (var i = 0; i < targetPaneWidgetsCount; i++) {
             var state = panes[i];
             var paneWidget = this._private__paneWidgets[i];
-            if (paneWidget._internal_state() !== state) {
-                paneWidget._internal_setState(state);
+            if (paneWidget.state() !== state) {
+                paneWidget.setState(state);
             }
             else {
-                paneWidget._internal_updatePriceAxisWidgetsStates();
+                paneWidget.updatePriceAxisWidgetsStates();
             }
         }
         this._private__updateTimeAxisVisibility();
@@ -15748,10 +15761,10 @@ var ChartWidget = /** @class */ (function () {
     ChartWidget.prototype._private__getMouseEventParamsImpl = function (index, details) {
         var seriesPrices = new Map();
         if (index !== null) {
-            var serieses = this._private__model._internal_serieses();
+            var serieses = this._private__model.serieses();
             serieses.forEach(function (s) {
                 // TODO: replace with search left
-                var prices = s._internal_dataAt(index);
+                var prices = s.dataAt(index);
                 if (prices !== null) {
                     seriesPrices.set(s, prices);
                 }
@@ -15759,46 +15772,46 @@ var ChartWidget = /** @class */ (function () {
         }
         var clientTime;
         if (index !== null) {
-            var timePoint = this._private__model._internal_timeScale()._internal_indexToTime(index);
+            var timePoint = this._private__model.timeScale().indexToTime(index);
             if (timePoint !== null) {
                 clientTime = timePoint;
             }
         }
-        var hoveredSource = this._internal_model()._internal_hoveredSource();
-        var hoveredSeries = hoveredSource !== null && hoveredSource._internal_source instanceof Series
-            ? hoveredSource._internal_source
+        var hoveredSource = this.model().hoveredSource();
+        var hoveredSeries = hoveredSource !== null && hoveredSource.source instanceof Series
+            ? hoveredSource.source
             : undefined;
-        var hoveredObject = hoveredSource !== null && hoveredSource._internal_object !== undefined
-            ? hoveredSource._internal_object._internal_externalId
+        var hoveredObject = hoveredSource !== null && hoveredSource.object !== undefined
+            ? hoveredSource.object.externalId
             : undefined;
         return {
-            _internal_time: clientTime,
-            _internal_point: (details && new Point(details.x, details.y)) || undefined,
-            _internal_paneIndex: details === null || details === void 0 ? void 0 : details._internal_paneIndex,
-            _internal_hoveredSeries: hoveredSeries,
-            _internal_seriesPrices: seriesPrices,
-            _internal_hoveredObject: hoveredObject,
+            time: clientTime,
+            point: (details && new Point(details.x, details.y)) || undefined,
+            paneIndex: details === null || details === void 0 ? void 0 : details.paneIndex,
+            hoveredSeries: hoveredSeries,
+            seriesPrices: seriesPrices,
+            hoveredObject: hoveredObject,
         };
     };
     ChartWidget.prototype._private__onPaneWidgetClicked = function (time, details) {
         var _this = this;
-        this._private__clicked._internal_fire(function () { return _this._private__getMouseEventParamsImpl(time, details); });
+        this._private__clicked.fire(function () { return _this._private__getMouseEventParamsImpl(time, details); });
     };
     ChartWidget.prototype._private__onPaneWidgetCrosshairMoved = function (time, details) {
         var _this = this;
-        this._private__crosshairMoved._internal_fire(function () {
+        this._private__crosshairMoved.fire(function () {
             return _this._private__getMouseEventParamsImpl(time, details);
         });
     };
     ChartWidget.prototype._private__updateTimeAxisVisibility = function () {
         var display = this._private__options.timeScale.visible ? '' : 'none';
-        this._private__timeAxisWidget._internal_getElement().style.display = display;
+        this._private__timeAxisWidget.getElement().style.display = display;
     };
     ChartWidget.prototype._private__isLeftAxisVisible = function () {
-        return this._private__paneWidgets[0]._internal_state()._internal_leftPriceScale()._internal_options().visible;
+        return this._private__paneWidgets[0].state().leftPriceScale().options().visible;
     };
     ChartWidget.prototype._private__isRightAxisVisible = function () {
-        return this._private__paneWidgets[0]._internal_state()._internal_rightPriceScale()._internal_options().visible;
+        return this._private__paneWidgets[0].state().rightPriceScale().options().visible;
     };
     return ChartWidget;
 }());
@@ -15824,72 +15837,72 @@ function warn(msg) {
 
 function getLineBasedSeriesPlotRow(time, index, item) {
     var val = item.value;
-    return { _internal_index: index, _internal_time: time, _internal_value: [val, val, val, val] };
+    return { index: index, time: time, value: [val, val, val, val] };
 }
 function getColoredLineBasedSeriesPlotRow(time, index, item) {
     var val = item.value;
-    var res = { _internal_index: index, _internal_time: time, _internal_value: [val, val, val, val] };
+    var res = { index: index, time: time, value: [val, val, val, val] };
     // 'color' here is public property (from API) so we can use `in` here safely
     // eslint-disable-next-line no-restricted-syntax
     if ('color' in item && item.color !== undefined) {
-        res._internal_color = item.color;
+        res.color = item.color;
     }
     return res;
 }
 function getBarSeriesPlotRow(time, index, item) {
-    var res = { _internal_index: index, _internal_time: time, _internal_value: [item.open, item.high, item.low, item.close] };
+    var res = { index: index, time: time, value: [item.open, item.high, item.low, item.close] };
     // 'color' here is public property (from API) so we can use `in` here safely
     // eslint-disable-next-line no-restricted-syntax
     if ('color' in item && item.color !== undefined) {
-        res._internal_color = item.color;
+        res.color = item.color;
     }
     return res;
 }
 function getCandlestickSeriesPlotRow(time, index, item) {
-    var res = { _internal_index: index, _internal_time: time, _internal_value: [item.open, item.high, item.low, item.close] };
+    var res = { index: index, time: time, value: [item.open, item.high, item.low, item.close] };
     // 'color' here is public property (from API) so we can use `in` here safely
     // eslint-disable-next-line no-restricted-syntax
     if ('color' in item && item.color !== undefined) {
-        res._internal_color = item.color;
+        res.color = item.color;
     }
     // 'borderColor' here is public property (from API) so we can use `in` here safely
     // eslint-disable-next-line no-restricted-syntax
     if ('borderColor' in item && item.borderColor !== undefined) {
-        res._internal_borderColor = item.borderColor;
+        res.borderColor = item.borderColor;
     }
     // 'wickColor' here is public property (from API) so we can use `in` here safely
     // eslint-disable-next-line no-restricted-syntax
     if ('wickColor' in item && item.wickColor !== undefined) {
-        res._internal_wickColor = item.wickColor;
+        res.wickColor = item.wickColor;
     }
     return res;
 }
 function getCloudAreaBasedSeriesPlotRow(time, index, item) {
-    return { _internal_index: index, _internal_time: time, _internal_value: [item.higherValue, item.higherValue, item.lowerValue, item.lowerValue] };
+    return { index: index, time: time, value: [item.higherValue, item.higherValue, item.lowerValue, item.lowerValue] };
 }
 function getBrokenAreaBasedSeriesPlotRow(time, index, item) {
-    var res = { _internal_index: index, _internal_time: time, _internal_value: [item.higherValue, item.higherValue, item.lowerValue, item.lowerValue] };
+    var res = { index: index, time: time, value: [item.higherValue, item.higherValue, item.lowerValue, item.lowerValue] };
     if (typeof item.color !== 'undefined') {
-        res._internal_color = item.color;
+        res.color = item.color;
     }
     if (typeof item.label !== 'undefined') {
-        res._internal_label = item.label;
+        res.label = item.label;
     }
     if (typeof item.extendRight !== 'undefined') {
-        res._internal_extendRight = item.extendRight;
+        res.extendRight = item.extendRight;
     }
     if (typeof item.id !== 'undefined') {
-        res._internal_id = item.id;
+        res.id = item.id;
     }
     return res;
 }
 function isSeriesPlotRow(row) {
-    return row._internal_value !== undefined;
+    return row.value !== undefined;
 }
 function wrapWhitespaceData(createPlotRowFn) {
     return function (time, index, bar) {
         if (isWhitespaceData(bar)) {
-            return { _internal_time: time, _internal_index: index };
+            return { time: time, index: index };
         }
         return createPlotRowFn(time, index, bar);
     };
@@ -15949,25 +15962,25 @@ function fillWeightsForPoints(sortedTimePoints, startIndex) {
     if (sortedTimePoints.length === 0) {
         return;
     }
-    var prevTime = startIndex === 0 ? null : sortedTimePoints[startIndex - 1]._internal_time._internal_timestamp;
+    var prevTime = startIndex === 0 ? null : sortedTimePoints[startIndex - 1].time.timestamp;
     var prevDate = prevTime !== null ? new Date(prevTime * 1000) : null;
     var totalTimeDiff = 0;
     for (var index = startIndex; index < sortedTimePoints.length; ++index) {
         var currentPoint = sortedTimePoints[index];
-        var currentDate = new Date(currentPoint._internal_time._internal_timestamp * 1000);
+        var currentDate = new Date(currentPoint.time.timestamp * 1000);
         if (prevDate !== null) {
-            currentPoint._internal_timeWeight = weightByTime(currentDate, prevDate);
+            currentPoint.timeWeight = weightByTime(currentDate, prevDate);
         }
-        totalTimeDiff += currentPoint._internal_time._internal_timestamp - (prevTime || currentPoint._internal_time._internal_timestamp);
-        prevTime = currentPoint._internal_time._internal_timestamp;
+        totalTimeDiff += currentPoint.time.timestamp - (prevTime || currentPoint.time.timestamp);
+        prevTime = currentPoint.time.timestamp;
         prevDate = currentDate;
     }
     if (startIndex === 0 && sortedTimePoints.length > 1) {
         // let's guess a weight for the first point
         // let's say the previous point was average time back in the history
         var averageTimeDiff = Math.ceil(totalTimeDiff / (sortedTimePoints.length - 1));
-        var approxPrevDate = new Date((sortedTimePoints[0]._internal_time._internal_timestamp - averageTimeDiff) * 1000);
-        sortedTimePoints[0]._internal_timeWeight = weightByTime(new Date(sortedTimePoints[0]._internal_time._internal_timestamp * 1000), approxPrevDate);
+        var approxPrevDate = new Date((sortedTimePoints[0].time.timestamp - averageTimeDiff) * 1000);
+        sortedTimePoints[0].timeWeight = weightByTime(new Date(sortedTimePoints[0].time.timestamp * 1000), approxPrevDate);
     }
 }
 
@@ -15978,8 +15991,8 @@ function businessDayConverter(time) {
     }
     var date = new Date(Date.UTC(time.year, time.month - 1, time.day, 0, 0, 0, 0));
     return {
-        _internal_timestamp: Math.round(date.getTime() / 1000),
-        _internal_businessDay: time,
+        timestamp: Math.round(date.getTime() / 1000),
+        businessDay: time,
     };
 }
 function timestampConverter(time) {
@@ -15987,7 +16000,7 @@ function timestampConverter(time) {
         throw new Error('time must be of type isUTCTimestamp');
     }
     return {
-        _internal_timestamp: time,
+        timestamp: time,
     };
 }
 function selectTimeConverter(data) {
@@ -16047,8 +16060,8 @@ function seriesRowsFirsAndLastTime(seriesRows) {
         return undefined;
     }
     return {
-        _internal_firstTime: seriesRows[0]._internal_time._internal_timestamp,
-        _internal_lastTime: seriesRows[seriesRows.length - 1]._internal_time._internal_timestamp,
+        _internal_firstTime: seriesRows[0].time.timestamp,
+        _internal_lastTime: seriesRows[seriesRows.length - 1].time.timestamp,
     };
 }
 function seriesUpdateInfo(seriesRows, prevSeriesRows) {
@@ -16056,7 +16069,7 @@ function seriesUpdateInfo(seriesRows, prevSeriesRows) {
     var prevFirstAndLastTime = seriesRowsFirsAndLastTime(prevSeriesRows);
     if (firstAndLastTime !== undefined && prevFirstAndLastTime !== undefined) {
         return {
-            _internal_lastBarUpdatedOrNewBarsAddedToTheRight: firstAndLastTime._internal_lastTime >= prevFirstAndLastTime._internal_lastTime &&
+            lastBarUpdatedOrNewBarsAddedToTheRight: firstAndLastTime._internal_lastTime >= prevFirstAndLastTime._internal_lastTime &&
                 firstAndLastTime._internal_firstTime >= prevFirstAndLastTime._internal_firstTime,
         };
     }
@@ -16106,14 +16119,14 @@ var DataLayer = /** @class */ (function () {
         if (data.length !== 0) {
             convertStringsToBusinessDays(data);
             var timeConverter_1 = ensureNotNull(selectTimeConverter(data));
-            var createPlotRow_1 = getSeriesPlotRowCreator(series._internal_seriesType());
+            var createPlotRow_1 = getSeriesPlotRowCreator(series.seriesType());
             seriesRows = data.map(function (item) {
                 var time = timeConverter_1(item.time);
-                var timePointData = _this._private__pointDataByTimePoint.get(time._internal_timestamp);
+                var timePointData = _this._private__pointDataByTimePoint.get(time.timestamp);
                 if (timePointData === undefined) {
                     // the indexes will be sync later
                     timePointData = createEmptyTimePointData(time);
-                    _this._private__pointDataByTimePoint.set(time._internal_timestamp, timePointData);
+                    _this._private__pointDataByTimePoint.set(time.timestamp, timePointData);
                     isTimeScaleAffected = true;
                 }
                 var row = createPlotRow_1(time, timePointData._internal_index, item);
@@ -16133,9 +16146,9 @@ var DataLayer = /** @class */ (function () {
             // timeWeight will be updates in _updateTimeScalePoints later
             var newTimeScalePoints_1 = [];
             this._private__pointDataByTimePoint.forEach(function (pointData) {
-                newTimeScalePoints_1.push({ _internal_timeWeight: 0, _internal_time: pointData._internal_timePoint, pointData: pointData });
+                newTimeScalePoints_1.push({ timeWeight: 0, time: pointData._internal_timePoint, pointData: pointData });
             });
-            newTimeScalePoints_1.sort(function (t1, t2) { return t1._internal_time._internal_timestamp - t2._internal_time._internal_timestamp; });
+            newTimeScalePoints_1.sort(function (t1, t2) { return t1.time.timestamp - t2.time.timestamp; });
             firstChangedPointIndex = this._private__replaceTimeScalePoints(newTimeScalePoints_1);
         }
         return this._private__getUpdateResponse(series, firstChangedPointIndex, seriesUpdateInfo(this._private__seriesRowsBySeries.get(series), prevSeriesRows));
@@ -16147,29 +16160,29 @@ var DataLayer = /** @class */ (function () {
         convertStringToBusinessDay(data);
         var time = ensureNotNull(selectTimeConverter([data]))(data.time);
         var lastSeriesTime = this._private__seriesLastTimePoint.get(series);
-        if (lastSeriesTime !== undefined && time._internal_timestamp < lastSeriesTime._internal_timestamp) {
-            throw new Error("Cannot update oldest data, last time=".concat(lastSeriesTime._internal_timestamp, ", new time=").concat(time._internal_timestamp));
+        if (lastSeriesTime !== undefined && time.timestamp < lastSeriesTime.timestamp) {
+            throw new Error("Cannot update oldest data, last time=".concat(lastSeriesTime.timestamp, ", new time=").concat(time.timestamp));
         }
-        var pointDataAtTime = this._private__pointDataByTimePoint.get(time._internal_timestamp);
+        var pointDataAtTime = this._private__pointDataByTimePoint.get(time.timestamp);
         // if no point data found for the new data item
         // that means that we need to update scale
         var affectsTimeScale = pointDataAtTime === undefined;
         if (pointDataAtTime === undefined) {
             // the indexes will be sync later
             pointDataAtTime = createEmptyTimePointData(time);
-            this._private__pointDataByTimePoint.set(time._internal_timestamp, pointDataAtTime);
+            this._private__pointDataByTimePoint.set(time.timestamp, pointDataAtTime);
         }
-        var createPlotRow = getSeriesPlotRowCreator(series._internal_seriesType());
+        var createPlotRow = getSeriesPlotRowCreator(series.seriesType());
         var plotRow = createPlotRow(time, pointDataAtTime._internal_index, data);
         pointDataAtTime._internal_mapping.set(series, plotRow);
         this._private__updateLastSeriesRow(series, plotRow);
-        var info = { _internal_lastBarUpdatedOrNewBarsAddedToTheRight: isSeriesPlotRow(plotRow) };
+        var info = { lastBarUpdatedOrNewBarsAddedToTheRight: isSeriesPlotRow(plotRow) };
         // if point already exist on the time scale - we don't need to make a full update and just make an incremental one
         if (!affectsTimeScale) {
             return this._private__getUpdateResponse(series, -1, info);
         }
-        var newPoint = { _internal_timeWeight: 0, _internal_time: pointDataAtTime._internal_timePoint, pointData: pointDataAtTime };
-        var insertIndex = lowerbound(this._private__sortedTimePoints, newPoint._internal_time._internal_timestamp, function (a, b) { return a._internal_time._internal_timestamp < b; });
+        var newPoint = { timeWeight: 0, time: pointDataAtTime._internal_timePoint, pointData: pointDataAtTime };
+        var insertIndex = lowerbound(this._private__sortedTimePoints, newPoint.time.timestamp, function (a, b) { return a.time.timestamp < b; });
         // yes, I know that this array is readonly and this change is intended to make it performative
         // we marked _sortedTimePoints array as readonly to avoid modifying this array anywhere else
         // but this place is exceptional case due performance reasons, sorry
@@ -16187,7 +16200,7 @@ var DataLayer = /** @class */ (function () {
             this._private__seriesRowsBySeries.set(series, seriesData);
         }
         var lastSeriesRow = seriesData.length !== 0 ? seriesData[seriesData.length - 1] : null;
-        if (lastSeriesRow === null || plotRow._internal_time._internal_timestamp > lastSeriesRow._internal_time._internal_timestamp) {
+        if (lastSeriesRow === null || plotRow.time.timestamp > lastSeriesRow.time.timestamp) {
             if (isSeriesPlotRow(plotRow)) {
                 seriesData.push(plotRow);
             }
@@ -16200,12 +16213,12 @@ var DataLayer = /** @class */ (function () {
                 seriesData.splice(-1, 1);
             }
         }
-        this._private__seriesLastTimePoint.set(series, plotRow._internal_time);
+        this._private__seriesLastTimePoint.set(series, plotRow.time);
     };
     DataLayer.prototype._private__setRowsToSeries = function (series, seriesRows) {
         if (seriesRows.length !== 0) {
             this._private__seriesRowsBySeries.set(series, seriesRows.filter(isSeriesPlotRow));
-            this._private__seriesLastTimePoint.set(series, seriesRows[seriesRows.length - 1]._internal_time);
+            this._private__seriesLastTimePoint.set(series, seriesRows[seriesRows.length - 1].time);
         }
         else {
             this._private__seriesRowsBySeries.delete(series);
@@ -16220,7 +16233,7 @@ var DataLayer = /** @class */ (function () {
         for (var _i = 0, _a = this._private__sortedTimePoints; _i < _a.length; _i++) {
             var point = _a[_i];
             if (point.pointData._internal_mapping.size === 0) {
-                this._private__pointDataByTimePoint.delete(point._internal_time._internal_timestamp);
+                this._private__pointDataByTimePoint.delete(point.time.timestamp);
             }
         }
     };
@@ -16235,12 +16248,12 @@ var DataLayer = /** @class */ (function () {
         for (var index = 0; index < this._private__sortedTimePoints.length && index < newTimePoints.length; ++index) {
             var oldPoint = this._private__sortedTimePoints[index];
             var newPoint = newTimePoints[index];
-            if (oldPoint._internal_time._internal_timestamp !== newPoint._internal_time._internal_timestamp) {
+            if (oldPoint.time.timestamp !== newPoint.time.timestamp) {
                 firstChangedPointIndex = index;
                 break;
             }
             // re-assign point's time weight for points if time is the same (and all prior times was the same)
-            newPoint._internal_timeWeight = oldPoint._internal_timeWeight;
+            newPoint.timeWeight = oldPoint.timeWeight;
             assignIndexToPointData(newPoint.pointData, index);
         }
         if (firstChangedPointIndex === -1 && this._private__sortedTimePoints.length !== newTimePoints.length) {
@@ -16270,7 +16283,7 @@ var DataLayer = /** @class */ (function () {
         var baseIndex = 0;
         this._private__seriesRowsBySeries.forEach(function (data) {
             if (data.length !== 0) {
-                baseIndex = Math.max(baseIndex, data[data.length - 1]._internal_index);
+                baseIndex = Math.max(baseIndex, data[data.length - 1].index);
             }
         });
         return baseIndex;
@@ -16314,7 +16327,7 @@ function assignIndexToPointData(pointData, index) {
     pointData._internal_index = index;
     // and then we need to sync indexes for all series
     pointData._internal_mapping.forEach(function (seriesRow) {
-        seriesRow._internal_index = index;
+        seriesRow.index = index;
     });
 }
 
@@ -16327,9 +16340,9 @@ function checkItemsAreOrdered(data, allowDuplicates) {
     if (data.length === 0) {
         return;
     }
-    var prevTime = convertTime(data[0].time)._internal_timestamp;
+    var prevTime = convertTime(data[0].time).timestamp;
     for (var i = 1; i < data.length; ++i) {
-        var currentTime = convertTime(data[i].time)._internal_timestamp;
+        var currentTime = convertTime(data[i].time).timestamp;
         var checkResult = allowDuplicates ? prevTime <= currentTime : prevTime < currentTime;
         assert(checkResult, "data must be asc ordered by time, index=".concat(i, ", time=").concat(currentTime, ", prev time=").concat(prevTime));
         prevTime = currentTime;
@@ -16413,10 +16426,10 @@ var PriceLine = /** @class */ (function () {
         this._private__priceLine = priceLine;
     }
     PriceLine.prototype.applyOptions = function (options) {
-        this._private__priceLine._internal_applyOptions(options);
+        this._private__priceLine.applyOptions(options);
     };
     PriceLine.prototype.options = function () {
-        return this._private__priceLine._internal_options();
+        return this._private__priceLine.options();
     };
     PriceLine.prototype._internal_priceLine = function () {
         return this._private__priceLine;
@@ -16434,26 +16447,26 @@ function migrateOptions(options) {
 }
 var SeriesApi = /** @class */ (function () {
     function SeriesApi(series, dataUpdatesConsumer, priceScaleApiProvider) {
-        this._internal__series = series;
-        this._internal__dataUpdatesConsumer = dataUpdatesConsumer;
+        this._series = series;
+        this._dataUpdatesConsumer = dataUpdatesConsumer;
         this._private__priceScaleApiProvider = priceScaleApiProvider;
     }
     SeriesApi.prototype.priceFormatter = function () {
-        return this._internal__series._internal_formatter();
+        return this._series.formatter();
     };
     SeriesApi.prototype.priceToCoordinate = function (price) {
-        var firstValue = this._internal__series._internal_firstValue();
+        var firstValue = this._series.firstValue();
         if (firstValue === null) {
             return null;
         }
-        return this._internal__series._internal_priceScale()._internal_priceToCoordinate(price, firstValue._internal_value);
+        return this._series.priceScale().priceToCoordinate(price, firstValue.value);
     };
     SeriesApi.prototype.coordinateToPrice = function (coordinate) {
-        var firstValue = this._internal__series._internal_firstValue();
+        var firstValue = this._series.firstValue();
         if (firstValue === null) {
             return null;
         }
-        return this._internal__series._internal_priceScale()._internal_coordinateToPrice(coordinate, firstValue._internal_value);
+        return this._series.priceScale().coordinateToPrice(coordinate, firstValue.value);
     };
     // eslint-disable-next-line complexity
     SeriesApi.prototype.barsInLogicalRange = function (range) {
@@ -16462,85 +16475,85 @@ var SeriesApi = /** @class */ (function () {
         }
         // we use TimeScaleVisibleRange here to convert LogicalRange to strict range properly
         var correctedRange = new TimeScaleVisibleRange(new RangeImpl(range.from, range.to))._internal_strictRange();
-        var bars = this._internal__series._internal_bars();
-        if (bars._internal_isEmpty()) {
+        var bars = this._series.bars();
+        if (bars.isEmpty()) {
             return null;
         }
-        var dataFirstBarInRange = bars._internal_search(correctedRange._internal_left(), 1 /* NearestRight */);
-        var dataLastBarInRange = bars._internal_search(correctedRange._internal_right(), -1 /* NearestLeft */);
-        var dataFirstIndex = ensureNotNull(bars._internal_firstIndex());
-        var dataLastIndex = ensureNotNull(bars._internal_lastIndex());
+        var dataFirstBarInRange = bars.search(correctedRange.left(), 1 /* NearestRight */);
+        var dataLastBarInRange = bars.search(correctedRange.right(), -1 /* NearestLeft */);
+        var dataFirstIndex = ensureNotNull(bars.firstIndex());
+        var dataLastIndex = ensureNotNull(bars.lastIndex());
         // this means that we request data in the data gap
         // e.g. let's say we have series with data [0..10, 30..60]
         // and we request bars info in range [15, 25]
         // thus, dataFirstBarInRange will be with index 30 and dataLastBarInRange with 10
-        if (dataFirstBarInRange !== null && dataLastBarInRange !== null && dataFirstBarInRange._internal_index > dataLastBarInRange._internal_index) {
+        if (dataFirstBarInRange !== null && dataLastBarInRange !== null && dataFirstBarInRange.index > dataLastBarInRange.index) {
             return {
                 barsBefore: range.from - dataFirstIndex,
                 barsAfter: dataLastIndex - range.to,
             };
         }
-        var barsBefore = (dataFirstBarInRange === null || dataFirstBarInRange._internal_index === dataFirstIndex)
+        var barsBefore = (dataFirstBarInRange === null || dataFirstBarInRange.index === dataFirstIndex)
             ? range.from - dataFirstIndex
-            : dataFirstBarInRange._internal_index - dataFirstIndex;
-        var barsAfter = (dataLastBarInRange === null || dataLastBarInRange._internal_index === dataLastIndex)
+            : dataFirstBarInRange.index - dataFirstIndex;
+        var barsAfter = (dataLastBarInRange === null || dataLastBarInRange.index === dataLastIndex)
             ? dataLastIndex - range.to
-            : dataLastIndex - dataLastBarInRange._internal_index;
+            : dataLastIndex - dataLastBarInRange.index;
         var result = { barsBefore: barsBefore, barsAfter: barsAfter };
         // actually they can't exist separately
         if (dataFirstBarInRange !== null && dataLastBarInRange !== null) {
-            result.from = dataFirstBarInRange._internal_time._internal_businessDay || dataFirstBarInRange._internal_time._internal_timestamp;
-            result.to = dataLastBarInRange._internal_time._internal_businessDay || dataLastBarInRange._internal_time._internal_timestamp;
+            result.from = dataFirstBarInRange.time.businessDay || dataFirstBarInRange.time.timestamp;
+            result.to = dataLastBarInRange.time.businessDay || dataLastBarInRange.time.timestamp;
         }
         return result;
     };
     SeriesApi.prototype.setData = function (data) {
         checkItemsAreOrdered(data);
-        checkSeriesValuesType(this._internal__series._internal_seriesType(), data);
-        this._internal__dataUpdatesConsumer._internal_applyNewData(this._internal__series, data);
+        checkSeriesValuesType(this._series.seriesType(), data);
+        this._dataUpdatesConsumer.applyNewData(this._series, data);
     };
     SeriesApi.prototype.update = function (bar) {
-        checkSeriesValuesType(this._internal__series._internal_seriesType(), [bar]);
-        this._internal__dataUpdatesConsumer._internal_updateData(this._internal__series, bar);
+        checkSeriesValuesType(this._series.seriesType(), [bar]);
+        this._dataUpdatesConsumer.updateData(this._series, bar);
     };
     SeriesApi.prototype.setMarkers = function (data) {
         checkItemsAreOrdered(data, true);
         var convertedMarkers = data.map(function (marker) { return (__assign(__assign({}, marker), { time: convertTime(marker.time) })); });
-        this._internal__series._internal_setMarkers(convertedMarkers);
+        this._series.setMarkers(convertedMarkers);
     };
     SeriesApi.prototype.applyOptions = function (options) {
         var migratedOptions = migrateOptions(options);
-        this._internal__series._internal_applyOptions(migratedOptions);
+        this._series.applyOptions(migratedOptions);
     };
     SeriesApi.prototype.options = function () {
-        return clone(this._internal__series._internal_options());
+        return clone(this._series.options());
     };
     SeriesApi.prototype.priceScale = function () {
-        return this._private__priceScaleApiProvider.priceScale(this._internal__series._internal_priceScale()._internal_id());
+        return this._private__priceScaleApiProvider.priceScale(this._series.priceScale().id());
     };
     SeriesApi.prototype.createPriceLine = function (options) {
         checkPriceLineOptions(options);
         var strictOptions = merge(clone(priceLineOptionsDefaults), options);
-        var priceLine = this._internal__series._internal_createPriceLine(strictOptions);
+        var priceLine = this._series.createPriceLine(strictOptions);
         return new PriceLine(priceLine);
     };
     SeriesApi.prototype.removePriceLine = function (line) {
-        this._internal__series._internal_removePriceLine(line._internal_priceLine());
+        this._series.removePriceLine(line._internal_priceLine());
     };
     SeriesApi.prototype.removeAllPriceLines = function () {
-        this._internal__series._internal_removeAllPriceLines();
+        this._series.removeAllPriceLines();
     };
     SeriesApi.prototype.getPriceLine = function (price, index) {
-        var priceLine = this._internal__series._internal_getPriceLine(price, index);
+        var priceLine = this._series.getPriceLine(price, index);
         if (priceLine) {
             return new PriceLine(priceLine);
         }
     };
     SeriesApi.prototype.seriesType = function () {
-        return this._internal__series._internal_seriesType();
+        return this._series.seriesType();
     };
     SeriesApi.prototype.setExtensionsBoundaries = function (extensionsBoundaries) {
-        return this._internal__series._internal_setExtensionsBoundaries(extensionsBoundaries);
+        return this._series.setExtensionsBoundaries(extensionsBoundaries);
     };
     return SeriesApi;
 }());
@@ -16565,13 +16578,13 @@ var LineToolApi = /** @class */ (function () {
         throw new Error('Method not implemented.');
     };
     LineToolApi.prototype.applyOptions = function (options) {
-        this._internal__lineTool._internal_applyOptions(options);
+        this._internal__lineTool.applyOptions(options);
     };
     LineToolApi.prototype.options = function () {
-        return clone(this._internal__lineTool._internal_options());
+        return clone(this._internal__lineTool.options());
     };
     LineToolApi.prototype.toolType = function () {
-        return this._internal__lineTool._internal_toolType();
+        return this._internal__lineTool.toolType();
     };
     return LineToolApi;
 }());
@@ -16812,19 +16825,19 @@ var PriceScaleApi = /** @class */ (function () {
         this._private__priceScaleId = priceScaleId;
     }
     PriceScaleApi.prototype.applyOptions = function (options) {
-        this._private__chartWidget._internal_model()._internal_applyPriceScaleOptions(this._private__priceScaleId, options);
+        this._private__chartWidget.model().applyPriceScaleOptions(this._private__priceScaleId, options);
     };
     PriceScaleApi.prototype.options = function () {
-        return this._private__priceScale()._internal_options();
+        return this._private__priceScale().options();
     };
     PriceScaleApi.prototype.width = function () {
         if (!isDefaultPriceScale(this._private__priceScaleId)) {
             return 0;
         }
-        return this._private__chartWidget._internal_getPriceAxisWidth(this._private__priceScaleId === "left" /* Left */ ? 'left' : 'right');
+        return this._private__chartWidget.getPriceAxisWidth(this._private__priceScaleId === "left" /* Left */ ? 'left' : 'right');
     };
     PriceScaleApi.prototype._private__priceScale = function () {
-        return ensureNotNull(this._private__chartWidget._internal_model()._internal_findPriceScale(this._private__priceScaleId))._internal_priceScale;
+        return ensureNotNull(this._private__chartWidget.model().findPriceScale(this._private__priceScaleId)).priceScale;
     };
     return PriceScaleApi;
 }());
@@ -16835,42 +16848,42 @@ var TimeScaleApi = /** @class */ (function () {
         this._private__logicalRangeChanged = new Delegate();
         this._private__sizeChanged = new Delegate();
         this._private__model = model;
-        this._private__timeScale = model._internal_timeScale();
+        this._private__timeScale = model.timeScale();
         this._private__timeAxisWidget = timeAxisWidget;
-        this._private__timeScale._internal_visibleBarsChanged()._internal_subscribe(this._private__onVisibleBarsChanged.bind(this));
-        this._private__timeScale._internal_logicalRangeChanged()._internal_subscribe(this._private__onVisibleLogicalRangeChanged.bind(this));
-        this._private__timeAxisWidget._internal_sizeChanged()._internal_subscribe(this._private__onSizeChanged.bind(this));
+        this._private__timeScale.visibleBarsChanged().subscribe(this._private__onVisibleBarsChanged.bind(this));
+        this._private__timeScale.logicalRangeChanged().subscribe(this._private__onVisibleLogicalRangeChanged.bind(this));
+        this._private__timeAxisWidget.sizeChanged().subscribe(this._private__onSizeChanged.bind(this));
     }
-    TimeScaleApi.prototype._internal_destroy = function () {
-        this._private__timeScale._internal_visibleBarsChanged()._internal_unsubscribeAll(this);
-        this._private__timeScale._internal_logicalRangeChanged()._internal_unsubscribeAll(this);
-        this._private__timeAxisWidget._internal_sizeChanged()._internal_unsubscribeAll(this);
-        this._private__timeRangeChanged._internal_destroy();
-        this._private__logicalRangeChanged._internal_destroy();
-        this._private__sizeChanged._internal_destroy();
+    TimeScaleApi.prototype.destroy = function () {
+        this._private__timeScale.visibleBarsChanged().unsubscribeAll(this);
+        this._private__timeScale.logicalRangeChanged().unsubscribeAll(this);
+        this._private__timeAxisWidget.sizeChanged().unsubscribeAll(this);
+        this._private__timeRangeChanged.destroy();
+        this._private__logicalRangeChanged.destroy();
+        this._private__sizeChanged.destroy();
     };
     TimeScaleApi.prototype.scrollPosition = function () {
-        return this._private__timeScale._internal_rightOffset();
+        return this._private__timeScale.rightOffset();
     };
     TimeScaleApi.prototype.scrollToPosition = function (position, animated) {
         if (!animated) {
-            this._private__model._internal_setRightOffset(position);
+            this._private__model.setRightOffset(position);
             return;
         }
-        this._private__timeScale._internal_scrollToOffsetAnimated(position, 1000 /* AnimationDurationMs */);
+        this._private__timeScale.scrollToOffsetAnimated(position, 1000 /* AnimationDurationMs */);
     };
     TimeScaleApi.prototype.scrollToRealTime = function () {
-        this._private__timeScale._internal_scrollToRealTime();
+        this._private__timeScale.scrollToRealTime();
     };
     TimeScaleApi.prototype.getVisibleRange = function () {
         var _a, _b;
-        var timeRange = this._private__timeScale._internal_visibleTimeRange();
+        var timeRange = this._private__timeScale.visibleTimeRange();
         if (timeRange === null) {
             return null;
         }
         return {
-            from: (_a = timeRange.from._internal_businessDay) !== null && _a !== void 0 ? _a : timeRange.from._internal_timestamp,
-            to: (_b = timeRange.to._internal_businessDay) !== null && _b !== void 0 ? _b : timeRange.to._internal_timestamp,
+            from: (_a = timeRange.from.businessDay) !== null && _a !== void 0 ? _a : timeRange.from.timestamp,
+            to: (_b = timeRange.to.businessDay) !== null && _b !== void 0 ? _b : timeRange.to.timestamp,
         };
     };
     TimeScaleApi.prototype.setVisibleRange = function (range) {
@@ -16878,106 +16891,106 @@ var TimeScaleApi = /** @class */ (function () {
             from: convertTime(range.from),
             to: convertTime(range.to),
         };
-        var logicalRange = this._private__timeScale._internal_logicalRangeForTimeRange(convertedRange);
-        this._private__model._internal_setTargetLogicalRange(logicalRange);
+        var logicalRange = this._private__timeScale.logicalRangeForTimeRange(convertedRange);
+        this._private__model.setTargetLogicalRange(logicalRange);
     };
     TimeScaleApi.prototype.getVisibleLogicalRange = function () {
-        var logicalRange = this._private__timeScale._internal_visibleLogicalRange();
+        var logicalRange = this._private__timeScale.visibleLogicalRange();
         if (logicalRange === null) {
             return null;
         }
         return {
-            from: logicalRange._internal_left(),
-            to: logicalRange._internal_right(),
+            from: logicalRange.left(),
+            to: logicalRange.right(),
         };
     };
     TimeScaleApi.prototype.setVisibleLogicalRange = function (range) {
         assert(range.from <= range.to, 'The from index cannot be after the to index.');
-        this._private__model._internal_setTargetLogicalRange(range);
+        this._private__model.setTargetLogicalRange(range);
     };
     TimeScaleApi.prototype.resetTimeScale = function () {
-        this._private__model._internal_resetTimeScale();
+        this._private__model.resetTimeScale();
     };
     TimeScaleApi.prototype.fitContent = function () {
-        this._private__model._internal_fitContent();
+        this._private__model.fitContent();
     };
     TimeScaleApi.prototype.logicalToCoordinate = function (logical) {
-        var timeScale = this._private__model._internal_timeScale();
-        if (timeScale._internal_isEmpty()) {
+        var timeScale = this._private__model.timeScale();
+        if (timeScale.isEmpty()) {
             return null;
         }
         else {
-            return timeScale._internal_indexToCoordinate(logical);
+            return timeScale.indexToCoordinate(logical);
         }
     };
     TimeScaleApi.prototype.coordinateToLogical = function (x) {
-        if (this._private__timeScale._internal_isEmpty()) {
+        if (this._private__timeScale.isEmpty()) {
             return null;
         }
         else {
-            return this._private__timeScale._internal_coordinateToIndex(x);
+            return this._private__timeScale.coordinateToIndex(x);
         }
     };
     TimeScaleApi.prototype.timeToCoordinate = function (time) {
         var timePoint = convertTime(time);
-        var timePointIndex = this._private__timeScale._internal_timeToIndex(timePoint, false);
+        var timePointIndex = this._private__timeScale.timeToIndex(timePoint, false);
         if (timePointIndex === null) {
             return null;
         }
-        return this._private__timeScale._internal_indexToCoordinate(timePointIndex);
+        return this._private__timeScale.indexToCoordinate(timePointIndex);
     };
     TimeScaleApi.prototype.coordinateToTime = function (x) {
         var _a;
-        var timeScale = this._private__model._internal_timeScale();
-        var timePointIndex = timeScale._internal_coordinateToIndex(x);
-        var timePoint = timeScale._internal_indexToTime(timePointIndex);
+        var timeScale = this._private__model.timeScale();
+        var timePointIndex = timeScale.coordinateToIndex(x);
+        var timePoint = timeScale.indexToTime(timePointIndex);
         if (timePoint === null) {
             return null;
         }
-        return (_a = timePoint._internal_businessDay) !== null && _a !== void 0 ? _a : timePoint._internal_timestamp;
+        return (_a = timePoint.businessDay) !== null && _a !== void 0 ? _a : timePoint.timestamp;
     };
     TimeScaleApi.prototype.width = function () {
-        return this._private__timeAxisWidget._internal_getSize()._internal_w;
+        return this._private__timeAxisWidget.getSize().w;
     };
     TimeScaleApi.prototype.height = function () {
-        return this._private__timeAxisWidget._internal_getSize()._internal_h;
+        return this._private__timeAxisWidget.getSize().h;
     };
     TimeScaleApi.prototype.subscribeVisibleTimeRangeChange = function (handler) {
-        this._private__timeRangeChanged._internal_subscribe(handler);
+        this._private__timeRangeChanged.subscribe(handler);
     };
     TimeScaleApi.prototype.unsubscribeVisibleTimeRangeChange = function (handler) {
-        this._private__timeRangeChanged._internal_unsubscribe(handler);
+        this._private__timeRangeChanged.unsubscribe(handler);
     };
     TimeScaleApi.prototype.subscribeVisibleLogicalRangeChange = function (handler) {
-        this._private__logicalRangeChanged._internal_subscribe(handler);
+        this._private__logicalRangeChanged.subscribe(handler);
     };
     TimeScaleApi.prototype.unsubscribeVisibleLogicalRangeChange = function (handler) {
-        this._private__logicalRangeChanged._internal_unsubscribe(handler);
+        this._private__logicalRangeChanged.unsubscribe(handler);
     };
     TimeScaleApi.prototype.subscribeSizeChange = function (handler) {
-        this._private__sizeChanged._internal_subscribe(handler);
+        this._private__sizeChanged.subscribe(handler);
     };
     TimeScaleApi.prototype.unsubscribeSizeChange = function (handler) {
-        this._private__sizeChanged._internal_unsubscribe(handler);
+        this._private__sizeChanged.unsubscribe(handler);
     };
     TimeScaleApi.prototype.applyOptions = function (options) {
-        this._private__timeScale._internal_applyOptions(options);
+        this._private__timeScale.applyOptions(options);
     };
     TimeScaleApi.prototype.options = function () {
-        return clone(this._private__timeScale._internal_options());
+        return clone(this._private__timeScale.options());
     };
     TimeScaleApi.prototype._private__onVisibleBarsChanged = function () {
-        if (this._private__timeRangeChanged._internal_hasListeners()) {
-            this._private__timeRangeChanged._internal_fire(this.getVisibleRange());
+        if (this._private__timeRangeChanged.hasListeners()) {
+            this._private__timeRangeChanged.fire(this.getVisibleRange());
         }
     };
     TimeScaleApi.prototype._private__onVisibleLogicalRangeChanged = function () {
-        if (this._private__logicalRangeChanged._internal_hasListeners()) {
-            this._private__logicalRangeChanged._internal_fire(this.getVisibleLogicalRange());
+        if (this._private__logicalRangeChanged.hasListeners()) {
+            this._private__logicalRangeChanged.fire(this.getVisibleLogicalRange());
         }
     };
     TimeScaleApi.prototype._private__onSizeChanged = function (size) {
-        this._private__sizeChanged._internal_fire(size._internal_w, size._internal_h);
+        this._private__sizeChanged.fire(size.w, size.h);
     };
     return TimeScaleApi;
 }());
@@ -17082,40 +17095,43 @@ var ChartApi = /** @class */ (function () {
         var internalOptions = (options === undefined) ?
             clone(chartOptionsDefaults) :
             merge(clone(chartOptionsDefaults), toInternalOptions(options));
-        this._private__chartWidget = new ChartWidget(container, internalOptions);
-        this._private__chartWidget._internal_clicked()._internal_subscribe(function (paramSupplier) {
-            if (_this._private__clickedDelegate._internal_hasListeners()) {
-                _this._private__clickedDelegate._internal_fire(_this._private__convertMouseParams(paramSupplier()));
+        this._chartWidget = new ChartWidget(container, internalOptions);
+        this._chartWidget.clicked().subscribe(function (paramSupplier) {
+            if (_this._private__clickedDelegate.hasListeners()) {
+                _this._private__clickedDelegate.fire(_this._private__convertMouseParams(paramSupplier()));
             }
         }, this);
-        this._private__chartWidget._internal_crosshairMoved()._internal_subscribe(function (paramSupplier) {
-            if (_this._private__crosshairMovedDelegate._internal_hasListeners()) {
-                _this._private__crosshairMovedDelegate._internal_fire(_this._private__convertMouseParams(paramSupplier()));
+        this._chartWidget.crosshairMoved().subscribe(function (paramSupplier) {
+            if (_this._private__crosshairMovedDelegate.hasListeners()) {
+                _this._private__crosshairMovedDelegate.fire(_this._private__convertMouseParams(paramSupplier()));
             }
         }, this);
-        var model = this._private__chartWidget._internal_model();
-        this._private__timeScaleApi = new TimeScaleApi(model, this._private__chartWidget._internal_timeAxisWidget());
+        var model = this._chartWidget.model();
+        this._private__timeScaleApi = new TimeScaleApi(model, this._chartWidget.timeAxisWidget());
     }
+    ChartApi.prototype.get = function () {
+        return this;
+    };
     ChartApi.prototype.remove = function () {
-        this._private__chartWidget._internal_clicked()._internal_unsubscribeAll(this);
-        this._private__chartWidget._internal_crosshairMoved()._internal_unsubscribeAll(this);
-        this._private__timeScaleApi._internal_destroy();
-        this._private__chartWidget._internal_destroy();
+        this._chartWidget.clicked().unsubscribeAll(this);
+        this._chartWidget.crosshairMoved().unsubscribeAll(this);
+        this._private__timeScaleApi.destroy();
+        this._chartWidget.destroy();
         this._private__seriesMap.clear();
         this._private__seriesMapReversed.clear();
-        this._private__clickedDelegate._internal_destroy();
-        this._private__crosshairMovedDelegate._internal_destroy();
+        this._private__clickedDelegate.destroy();
+        this._private__crosshairMovedDelegate.destroy();
         this._private__dataLayer._internal_destroy();
     };
     ChartApi.prototype.resize = function (width, height, forceRepaint) {
-        this._private__chartWidget._internal_resize(width, height, forceRepaint);
+        this._chartWidget.resize(width, height, forceRepaint);
     };
     ChartApi.prototype.addAreaSeries = function (options) {
         if (options === void 0) { options = {}; }
         options = migrateOptions(options);
         patchPriceFormat(options.priceFormat);
         var strictOptions = merge(clone(seriesOptionsDefaults), areaStyleDefaults, options);
-        var series = this._private__chartWidget._internal_model()._internal_createSeries('Area', strictOptions);
+        var series = this._chartWidget.model().createSeries('Area', strictOptions);
         var res = new SeriesApi(series, this, this);
         this._private__seriesMap.set(res, series);
         this._private__seriesMapReversed.set(series, res);
@@ -17127,7 +17143,7 @@ var ChartApi = /** @class */ (function () {
         patchPriceFormat(options.priceFormat);
         // to avoid assigning fields to defaults we have to clone them
         var strictOptions = merge(clone(seriesOptionsDefaults), clone(baselineStyleDefaults), options);
-        var series = this._private__chartWidget._internal_model()._internal_createSeries('Baseline', strictOptions);
+        var series = this._chartWidget.model().createSeries('Baseline', strictOptions);
         var res = new SeriesApi(series, this, this);
         this._private__seriesMap.set(res, series);
         this._private__seriesMapReversed.set(series, res);
@@ -17138,7 +17154,7 @@ var ChartApi = /** @class */ (function () {
         options = migrateOptions(options);
         patchPriceFormat(options.priceFormat);
         var strictOptions = merge(clone(seriesOptionsDefaults), cloudAreaStyleDefaults, options);
-        var series = this._private__chartWidget._internal_model()._internal_createSeries('CloudArea', strictOptions);
+        var series = this._chartWidget.model().createSeries('CloudArea', strictOptions);
         var res = new SeriesApi(series, this, this);
         this._private__seriesMap.set(res, series);
         this._private__seriesMapReversed.set(series, res);
@@ -17148,7 +17164,7 @@ var ChartApi = /** @class */ (function () {
         if (options === void 0) { options = {}; }
         options = migrateOptions(options);
         var strictOptions = merge(clone(seriesOptionsDefaults), options);
-        var series = this._private__chartWidget._internal_model()._internal_createSeries('BrokenArea', strictOptions);
+        var series = this._chartWidget.model().createSeries('BrokenArea', strictOptions);
         var res = new SeriesApi(series, this, this);
         this._private__seriesMap.set(res, series);
         this._private__seriesMapReversed.set(series, res);
@@ -17159,7 +17175,7 @@ var ChartApi = /** @class */ (function () {
         options = migrateOptions(options);
         patchPriceFormat(options.priceFormat);
         var strictOptions = merge(clone(seriesOptionsDefaults), barStyleDefaults, options);
-        var series = this._private__chartWidget._internal_model()._internal_createSeries('Bar', strictOptions);
+        var series = this._chartWidget.model().createSeries('Bar', strictOptions);
         var res = new SeriesApi(series, this, this);
         this._private__seriesMap.set(res, series);
         this._private__seriesMapReversed.set(series, res);
@@ -17171,7 +17187,7 @@ var ChartApi = /** @class */ (function () {
         fillUpDownCandlesticksColors(options);
         patchPriceFormat(options.priceFormat);
         var strictOptions = merge(clone(seriesOptionsDefaults), candlestickStyleDefaults, options);
-        var series = this._private__chartWidget._internal_model()._internal_createSeries('Candlestick', strictOptions);
+        var series = this._chartWidget.model().createSeries('Candlestick', strictOptions);
         var res = new CandlestickSeriesApi(series, this, this);
         this._private__seriesMap.set(res, series);
         this._private__seriesMapReversed.set(series, res);
@@ -17182,7 +17198,7 @@ var ChartApi = /** @class */ (function () {
         options = migrateOptions(options);
         patchPriceFormat(options.priceFormat);
         var strictOptions = merge(clone(seriesOptionsDefaults), histogramStyleDefaults, options);
-        var series = this._private__chartWidget._internal_model()._internal_createSeries('Histogram', strictOptions);
+        var series = this._chartWidget.model().createSeries('Histogram', strictOptions);
         var res = new SeriesApi(series, this, this);
         this._private__seriesMap.set(res, series);
         this._private__seriesMapReversed.set(series, res);
@@ -17193,7 +17209,7 @@ var ChartApi = /** @class */ (function () {
         options = migrateOptions(options);
         patchPriceFormat(options.priceFormat);
         var strictOptions = merge(clone(seriesOptionsDefaults), lineStyleDefaults, options);
-        var series = this._private__chartWidget._internal_model()._internal_createSeries('Line', strictOptions);
+        var series = this._chartWidget.model().createSeries('Line', strictOptions);
         var res = new SeriesApi(series, this, this);
         this._private__seriesMap.set(res, series);
         this._private__seriesMapReversed.set(series, res);
@@ -17202,77 +17218,77 @@ var ChartApi = /** @class */ (function () {
     ChartApi.prototype.removeSeries = function (seriesApi) {
         var series = ensureDefined(this._private__seriesMap.get(seriesApi));
         var update = this._private__dataLayer._internal_removeSeries(series);
-        var model = this._private__chartWidget._internal_model();
-        model._internal_removeSeries(series);
+        var model = this._chartWidget.model();
+        model.removeSeries(series);
         this._private__sendUpdateToChart(update);
         this._private__seriesMap.delete(seriesApi);
         this._private__seriesMapReversed.delete(series);
     };
     ChartApi.prototype.addLineTool = function (name, points, options) {
         var strictOptions = merge(clone(LineToolsOptionDefaults[name]), options || {});
-        var tool = this._private__chartWidget._internal_model()._internal_createLineTool(name, strictOptions, points);
+        var tool = this._chartWidget.model().createLineTool(name, strictOptions, points);
         return new LineToolApi(tool);
     };
     ChartApi.prototype.setActiveLineTool = function (name, options) {
-        this._private__chartWidget._internal_model()._internal_lineToolCreator()._internal_setActiveLineTool(name, options);
+        this._chartWidget.model().lineToolCreator().setActiveLineTool(name, options);
     };
-    ChartApi.prototype._internal_applyNewData = function (series, data) {
+    ChartApi.prototype.applyNewData = function (series, data) {
         this._private__sendUpdateToChart(this._private__dataLayer._internal_setSeriesData(series, data));
     };
-    ChartApi.prototype._internal_updateData = function (series, data) {
+    ChartApi.prototype.updateData = function (series, data) {
         this._private__sendUpdateToChart(this._private__dataLayer._internal_updateSeriesData(series, data));
     };
     ChartApi.prototype.subscribeClick = function (handler) {
-        this._private__clickedDelegate._internal_subscribe(handler);
+        this._private__clickedDelegate.subscribe(handler);
     };
     ChartApi.prototype.unsubscribeClick = function (handler) {
-        this._private__clickedDelegate._internal_unsubscribe(handler);
+        this._private__clickedDelegate.unsubscribe(handler);
     };
     ChartApi.prototype.subscribeCrosshairMove = function (handler) {
-        this._private__crosshairMovedDelegate._internal_subscribe(handler);
+        this._private__crosshairMovedDelegate.subscribe(handler);
     };
     ChartApi.prototype.unsubscribeCrosshairMove = function (handler) {
-        this._private__crosshairMovedDelegate._internal_unsubscribe(handler);
+        this._private__crosshairMovedDelegate.unsubscribe(handler);
     };
     ChartApi.prototype.clearCrosshairPosition = function () {
-        this._private__chartWidget._internal_model()._internal_clearCurrentPosition();
+        this._chartWidget.model().clearCurrentPosition();
     };
     ChartApi.prototype.priceScale = function (priceScaleId) {
         if (priceScaleId === undefined) {
             warn('Using ChartApi.priceScale() method without arguments has been deprecated, pass valid price scale id instead');
-            priceScaleId = this._private__chartWidget._internal_model()._internal_defaultVisiblePriceScaleId();
+            priceScaleId = this._chartWidget.model().defaultVisiblePriceScaleId();
         }
-        return new PriceScaleApi(this._private__chartWidget, priceScaleId);
+        return new PriceScaleApi(this._chartWidget, priceScaleId);
     };
     ChartApi.prototype.timeScale = function () {
         return this._private__timeScaleApi;
     };
     ChartApi.prototype.applyOptions = function (options) {
-        this._private__chartWidget._internal_applyOptions(toInternalOptions(options));
+        this._chartWidget.applyOptions(toInternalOptions(options));
     };
     ChartApi.prototype.options = function () {
-        return this._private__chartWidget._internal_options();
+        return this._chartWidget.options();
     };
     ChartApi.prototype.takeScreenshot = function () {
-        return this._private__chartWidget._internal_takeScreenshot();
+        return this._chartWidget.takeScreenshot();
     };
     ChartApi.prototype.fullUpdate = function () {
-        return this._private__chartWidget._internal_model()._internal_fullUpdate();
+        return this._chartWidget.model().fullUpdate();
     };
     ChartApi.prototype.removePane = function (index) {
-        this._private__chartWidget._internal_model()._internal_removePane(index);
+        this._chartWidget.model().removePane(index);
     };
     ChartApi.prototype.swapPane = function (first, second) {
-        this._private__chartWidget._internal_model()._internal_swapPane(first, second);
+        this._chartWidget.model().swapPane(first, second);
     };
     ChartApi.prototype.getPaneElements = function () {
-        return this._private__chartWidget._internal_paneWidgets().map(function (paneWidget) { return paneWidget._internal_getPaneCell(); });
+        return this._chartWidget.paneWidgets().map(function (paneWidget) { return paneWidget.getPaneCell(); });
     };
     ChartApi.prototype._private__sendUpdateToChart = function (update) {
-        var model = this._private__chartWidget._internal_model();
-        model._internal_updateTimeScale(update._internal_timeScale._internal_baseIndex, update._internal_timeScale._internal_points, update._internal_timeScale._internal_firstChangedPointIndex);
-        update._internal_series.forEach(function (value, series) { return series._internal_setData(value._internal_data, value._internal_info); });
-        model._internal_recalculateAllPanes();
+        var model = this._chartWidget.model();
+        model.updateTimeScale(update._internal_timeScale._internal_baseIndex, update._internal_timeScale._internal_points, update._internal_timeScale._internal_firstChangedPointIndex);
+        update._internal_series.forEach(function (value, series) { return series.setData(value._internal_data, value._internal_info); });
+        model.recalculateAllPanes();
     };
     ChartApi.prototype._private__mapSeriesToApi = function (series) {
         return ensureDefined(this._private__seriesMapReversed.get(series));
@@ -17280,16 +17296,16 @@ var ChartApi = /** @class */ (function () {
     ChartApi.prototype._private__convertMouseParams = function (param) {
         var _this = this;
         var seriesPrices = new Map();
-        param._internal_seriesPrices.forEach(function (price, series) {
+        param.seriesPrices.forEach(function (price, series) {
             seriesPrices.set(_this._private__mapSeriesToApi(series), price);
         });
-        var hoveredSeries = param._internal_hoveredSeries === undefined ? undefined : this._private__mapSeriesToApi(param._internal_hoveredSeries);
+        var hoveredSeries = param.hoveredSeries === undefined ? undefined : this._private__mapSeriesToApi(param.hoveredSeries);
         return {
-            time: param._internal_time && (param._internal_time._internal_businessDay || param._internal_time._internal_timestamp),
-            point: param._internal_point,
-            paneIndex: param._internal_paneIndex,
+            time: param.time && (param.time.businessDay || param.time.timestamp),
+            point: param.point,
+            paneIndex: param.paneIndex,
             hoveredSeries: hoveredSeries,
-            hoveredMarkerId: param._internal_hoveredObject,
+            hoveredMarkerId: param.hoveredObject,
             seriesPrices: seriesPrices,
         };
     };
@@ -17321,7 +17337,7 @@ function createChart(container, options) {
  * Returns the current version as a string. For example `'3.3.0'`.
  */
 function version() {
-    return "3.8.0-dev+202211041724";
+    return "3.8.0-dev+202211041825";
 }
 
 export { BoxHorizontalAlignment, BoxVerticalAlignment, ColorType, CrosshairMode, LastPriceAnimationMode as LasPriceAnimationMode, LastPriceAnimationMode, LineEnd, LineStyle, LineType, PriceLineSource, PriceScaleMode, TextAlignment, TickMarkType, TimeScaleMode, TrackingModeExitMode, createChart, isBusinessDay, isUTCTimestamp, version };

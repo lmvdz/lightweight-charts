@@ -10,12 +10,12 @@ import { Delegate } from '../helpers/delegate';
 import { IDestroyable } from '../helpers/idestroyable';
 import { ISubscription } from '../helpers/isubscription';
 
-import { ChartModel, HoveredObject, TrackingModeExitMode } from '../model/chart-model';
+import { ChartModel, TrackingModeExitMode } from '../model/chart-model';
 import { CanvasRenderParams } from '../model/canvas-render-params';
 import { Coordinate } from '../model/coordinate';
 import { IDataSource } from '../model/idata-source';
 import { InvalidationLevel } from '../model/invalidate-mask';
-import { IPriceDataSource } from '../model/iprice-data-source';
+// import { IPriceDataSource } from '../model/iprice-data-source';
 import { Pane, PaneCursorType, PaneInfo } from '../model/pane';
 import { Point } from '../model/point';
 import { TimePointIndex } from '../model/time-data';
@@ -93,11 +93,11 @@ function sourceTopPaneViews(
 	return source.topPaneViews !== undefined ? source.topPaneViews(pane) : [];
 }
 
-export interface HitTestResult {
-	source: IPriceDataSource;
-	object?: HoveredObject;
-	view: IPaneView;
-}
+// interface HitTestResult {
+// 	source: IPriceDataSource;
+// 	object?: HoveredObject;
+// 	view: IPaneView;
+// }
 
 // TODO: iosif might not be needed
 // interface HitTestPaneViewResult {
@@ -588,26 +588,26 @@ export class PaneWidget implements IDestroyable, MouseEventHandlers {
 		this._endScroll(event);
 	}
 
-	public hitTest(x: Coordinate, y: Coordinate): HitTestResult | null {
-		// const state = this._state;
-		// if (state === null) {
-		// 	return null;
-		// }
+	// public hitTest(x: Coordinate, y: Coordinate): HitTestResult | null {
+	// 	// const state = this._state;
+	// 	// if (state === null) {
+	// 	// 	return null;
+	// 	// }
 
-		// const sources = state.orderedSources();
-		// for (const source of sources) {
-		// 	const sourceResult = this._hitTestPaneView(source.paneViews(state), x, y);
-		// 	if (sourceResult !== null) {
-		// 		return {
-		// 			source: source,
-		// 			view: sourceResult.view,
-		// 			object: sourceResult.object,
-		// 		};
-		// 	}
-		// }
+	// 	// const sources = state.orderedSources();
+	// 	// for (const source of sources) {
+	// 	// 	const sourceResult = this._hitTestPaneView(source.paneViews(state), x, y);
+	// 	// 	if (sourceResult !== null) {
+	// 	// 		return {
+	// 	// 			source: source,
+	// 	// 			view: sourceResult.view,
+	// 	// 			object: sourceResult.object,
+	// 	// 		};
+	// 	// 	}
+	// 	// }
 
-		return null;
-	}
+	// 	return null;
+	// }
 
 	public setPriceAxisSize(width: number, position: PriceAxisWidgetSide): void {
 		const priceAxisWidget =

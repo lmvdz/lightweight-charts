@@ -18,6 +18,7 @@ import {
 	SeriesType,
 } from '../model/series-options';
 import { BusinessDay, UTCTimestamp } from '../model/time-data';
+import { ChartApi } from './chart-api';
 
 import { Time } from './data-consumer';
 import { ILineToolApi } from './iline-tool-api';
@@ -69,6 +70,9 @@ export type MouseEventHandler = (param: MouseEventParams) => void;
  * The main interface of a single chart.
  */
 export interface IChartApi {
+
+	get(): ChartApi;
+
 	/**
 	 * Removes the chart object including all DOM elements. This is an irreversible operation, you cannot do anything with the chart after removing it.
 	 */

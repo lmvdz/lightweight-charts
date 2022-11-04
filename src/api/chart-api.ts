@@ -163,7 +163,7 @@ function toInternalOptions(options: DeepPartial<ChartOptions>): DeepPartial<Char
 export type IPriceScaleApiProvider = Pick<IChartApi, 'priceScale'>;
 
 export class ChartApi implements IChartApi, DataUpdatesConsumer<SeriesType> {
-	private _chartWidget: ChartWidget;
+	public _chartWidget: ChartWidget;
 	private _dataLayer: DataLayer = new DataLayer();
 	private readonly _seriesMap: Map<SeriesApi<SeriesType>, Series> = new Map();
 	private readonly _seriesMapReversed: Map<Series, SeriesApi<SeriesType>> = new Map();
@@ -199,6 +199,10 @@ export class ChartApi implements IChartApi, DataUpdatesConsumer<SeriesType> {
 
 		const model = this._chartWidget.model();
 		this._timeScaleApi = new TimeScaleApi(model, this._chartWidget.timeAxisWidget());
+	}
+
+	public get(): ChartApi {
+		return this;
 	}
 
 	public remove(): void {
