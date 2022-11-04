@@ -33,11 +33,10 @@ export interface CrosshairTimeAndCoordinate {
 export type PriceAndCoordinateProvider = (priceScale: PriceScale) => CrosshairPriceAndCoordinate;
 export type TimeAndCoordinateProvider = () => CrosshairTimeAndCoordinate;
 
-
 /**
  * Represents the crosshair mode.
  */
- export const enum CrosshairMode {
+export const enum CrosshairMode {
 	/**
 	 * This mode allows crosshair to move freely on the chart.
 	 */

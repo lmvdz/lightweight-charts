@@ -59,7 +59,6 @@ export abstract class PaneRendererLineBase<
 		// TODO: implement drawing a colored line, see https://github.com/tradingview/lightweight-charts/issues/195#issuecomment-961850692
 
 		if (this._data.items.length === 1) {
-
 			const point = this._data.items[0];
 			ctx.moveTo(point.x - this._data.barWidth / 2, point.y);
 			ctx.lineTo(point.x + this._data.barWidth / 2, point.y);

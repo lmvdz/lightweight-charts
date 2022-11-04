@@ -584,7 +584,6 @@ export class ChartWidget implements IDestroyable {
 		this.paint(invalidateMask);
 	}
 
-<<<<<<< HEAD
 	private _applyTimeScaleInvalidations(invalidateMask: InvalidateMask): void {
 		const timeScaleInvalidations = invalidateMask.timeScaleInvalidations();
 		for (const tsInvalidation of timeScaleInvalidations) {
@@ -602,11 +601,6 @@ export class ChartWidget implements IDestroyable {
 	}
 
 	private _applyTimeScaleInvalidation(invalidation: TimeScaleInvalidation): void {
-=======
-	private _applyTimeScaleInvalidation(
-		invalidation: TimeScaleInvalidation
-	): void {
->>>>>>> iosiftalmacel/master
 		const timeScale = this._model.timeScale();
 		switch (invalidation.type) {
 			case TimeScaleInvalidationType.FitContent:

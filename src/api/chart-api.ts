@@ -412,7 +412,7 @@ export class ChartApi implements IChartApi, DataUpdatesConsumer<SeriesType> {
 	public fullUpdate(): void {
 		return this._chartWidget.model().fullUpdate();
 	}
-	
+
 	public removePane(index: number): void {
 		this._chartWidget.model().removePane(index);
 	}

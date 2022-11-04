@@ -10,12 +10,8 @@ import { Delegate } from '../helpers/delegate';
 import { IDestroyable } from '../helpers/idestroyable';
 import { ISubscription } from '../helpers/isubscription';
 
-<<<<<<< HEAD
 import { ChartModel, HoveredObject, TrackingModeExitMode } from '../model/chart-model';
-=======
 import { CanvasRenderParams } from '../model/canvas-render-params';
-import { ChartModel, HoveredObject } from '../model/chart-model';
->>>>>>> iosiftalmacel/master
 import { Coordinate } from '../model/coordinate';
 import { IDataSource } from '../model/idata-source';
 import { InvalidationLevel } from '../model/invalidate-mask';
@@ -29,18 +25,23 @@ import { IPaneView } from '../views/pane/ipane-view';
 import { createBoundCanvas, getContext2D, Size } from './canvas-utils';
 import { ChartWidget } from './chart-widget';
 import { KineticAnimation } from './kinetic-animation';
-<<<<<<< HEAD
-import { MouseEventHandler, MouseEventHandlerMouseEvent, MouseEventHandlers, MouseEventHandlerTouchEvent, Position, TouchMouseEvent } from './mouse-event-handler';
-=======
+// import { MouseEventHandler, MouseEventHandlerMouseEvent, MouseEventHandlers, MouseEventHandlerTouchEvent, Position, TouchMouseEvent } from './mouse-event-handler';
 import {
 	InputEventType,
+	MouseEventHandlerMouseEvent,
+	MouseEventHandlerTouchEvent,
+	MouseEventHandlers,
 	isInputEventListener as isInputEventListener,
 	MouseEventHandler,
 	Position,
 	TouchMouseEvent,
 } from './mouse-event-handler';
->>>>>>> iosiftalmacel/master
 import { PriceAxisWidget, PriceAxisWidgetSide } from './price-axis-widget';
+import { isMobile, mobileTouch } from './support-touch';
+
+// actually we should check what event happened (touch or mouse)
+// not check current UA to detect "mobile" device
+const trackCrosshairOnlyAfterLongTap = isMobile;
 
 const enum Constants {
 	MinScrollSpeed = 0.2,
@@ -322,76 +323,57 @@ export class PaneWidget implements IDestroyable, MouseEventHandlers {
 		this._setCrosshairPosition(event.localX, event.localY);
 	}
 
-	public mouseMoveEvent(event: MouseEventHandlerMouseEvent): void {
-		if (!this._state) {
-			return;
-		}
-<<<<<<< HEAD
-		this._onMouseEvent();
-=======
-
-		this._terminateKineticAnimation();
-
-		if (
-			document.activeElement !== document.body &&
-			document.activeElement !== document.documentElement
-		) {
-			// If any focusable element except the page itself is focused, remove the focus
-			(ensureNotNull(document.activeElement) as HTMLElement).blur();
-		} else {
-			// Clear selection
-			const selection = document.getSelection();
-			if (selection !== null) {
-				selection.removeAllRanges();
-			}
-		}
-
-		const model = this._model();
-
-		const priceScale = this._state.defaultPriceScale();
-
-		if (priceScale.isEmpty() || model.timeScale().isEmpty()) {
-			return;
-		}
-
-		if (this._startTrackPoint !== null) {
-			const crosshair = model.crosshairSource();
-			this._initCrosshairPosition = new Point(
-				crosshair.appliedX(),
-				crosshair.appliedY()
-			);
-			this._startTrackPoint = new Point(event.localX, event.localY);
-		}
-
-		if (!mobileTouch) {
-			this._setCrosshairPosition(event.localX, event.localY);
-			this._propagateEvent(InputEventType.MouseDown, event);
-		}
-	}
-
 	public mouseMoveEvent(event: TouchMouseEvent): void {
 		if (!this._state) {
 			return;
 		}
->>>>>>> iosiftalmacel/master
 
 		const x = event.localX;
 		const y = event.localY;
 
-<<<<<<< HEAD
-		this._setCrosshairPosition(x, y);
-		const hitTest = this.hitTest(x, y);
-		this._model().setHoveredSource(hitTest && { source: hitTest.source, object: hitTest.object });
-=======
-		if (this._preventCrosshairMove()) {
-			this._clearCrosshairPosition();
+		if (event as MouseEventHandlerMouseEvent) {
+			this._terminateKineticAnimation();
+
+			if (
+				document.activeElement !== document.body &&
+				document.activeElement !== document.documentElement
+			) {
+				// If any focusable element except the page itself is focused, remove the focus
+				(ensureNotNull(document.activeElement) as HTMLElement).blur();
+			} else {
+				// Clear selection
+				const selection = document.getSelection();
+				if (selection !== null) {
+					selection.removeAllRanges();
+				}
+			}
+
+			const model = this._model();
+
+			const priceScale = this._state.defaultPriceScale();
+
+			if (priceScale.isEmpty() || model.timeScale().isEmpty()) {
+				return;
+			}
+
+			if (this._startTrackPoint !== null) {
+				const crosshair = model.crosshairSource();
+				this._initCrosshairPosition = new Point(
+					crosshair.appliedX(),
+					crosshair.appliedY()
+				);
+				this._startTrackPoint = new Point(event.localX, event.localY);
+			}
+		} else {
+			if (this._preventCrosshairMove()) {
+				this._clearCrosshairPosition();
+			}
 		}
 
 		if (!mobileTouch) {
 			this._setCrosshairPosition(x, y);
 			this._propagateEvent(InputEventType.MouseMove, event);
 		}
->>>>>>> iosiftalmacel/master
 	}
 
 	public mouseClickEvent(event: MouseEventHandlerMouseEvent): void {
@@ -407,14 +389,6 @@ export class PaneWidget implements IDestroyable, MouseEventHandlers {
 
 		if (this._clicked.hasListeners()) {
 			const currentTime = this._model().crosshairSource().appliedIndex();
-<<<<<<< HEAD
-			this._clicked.fire(currentTime, {
-				x,
-				y,
-				shiftKey: event.shiftKey,
-				ctrlKey: event.ctrlKey,
-			});
-=======
 			const paneIndex = this._model().getPaneIndex(ensureNotNull(this._state));
 
 			const point = new Point(x, y) as Point & PaneInfo;
@@ -520,14 +494,7 @@ export class PaneWidget implements IDestroyable, MouseEventHandlers {
 			}
 
 			model.scrollTimeTo(event.localX);
->>>>>>> iosiftalmacel/master
 		}
-	}
-
-	public pressedMouseMoveEvent(event: MouseEventHandlerMouseEvent): void {
-		this._onMouseEvent();
-		this._pressedMouseTouchMoveEvent(event);
-		this._setCrosshairPosition(event.localX, event.localY);
 	}
 
 	public mouseUpEvent(event: MouseEventHandlerMouseEvent): void {
@@ -545,13 +512,8 @@ export class PaneWidget implements IDestroyable, MouseEventHandlers {
 	public longTapEvent(event: MouseEventHandlerTouchEvent): void {
 		this._longTap = true;
 
-<<<<<<< HEAD
-		if (this._startTrackPoint === null) {
-			const point: Point = { x: event.localX, y: event.localY };
-=======
 		if (this._startTrackPoint === null && trackCrosshairOnlyAfterLongTap) {
 			const point = new Point(event.localX, event.localY);
->>>>>>> iosiftalmacel/master
 			this._startTrackingMode(point, point);
 		}
 	}
@@ -594,8 +556,8 @@ export class PaneWidget implements IDestroyable, MouseEventHandlers {
 
 		if (this._startTrackPoint !== null) {
 			const crosshair = this._model().crosshairSource();
-			this._initCrosshairPosition = { x: crosshair.appliedX(), y: crosshair.appliedY() };
-			this._startTrackPoint = { x: event.localX, y: event.localY };
+			this._initCrosshairPosition = new Point(crosshair.appliedX(), crosshair.appliedY());
+			this._startTrackPoint = new Point(event.localX, event.localY);
 		}
 	}
 
@@ -981,10 +943,6 @@ export class PaneWidget implements IDestroyable, MouseEventHandlers {
 		}
 	}
 
-<<<<<<< HEAD
-	private _preventScroll(event: TouchMouseEvent): boolean {
-		return event.isTouch && this._longTap || this._startTrackPoint !== null;
-=======
 	private _preventCrosshairMove(): boolean {
 		return trackCrosshairOnlyAfterLongTap && this._startTrackPoint === null;
 	}
@@ -994,7 +952,6 @@ export class PaneWidget implements IDestroyable, MouseEventHandlers {
 			(trackCrosshairOnlyAfterLongTap && this._longTap) ||
 			this._startTrackPoint !== null
 		);
->>>>>>> iosiftalmacel/master
 	}
 
 	private _correctXCoord(x: Coordinate): Coordinate {
@@ -1162,14 +1119,11 @@ export class PaneWidget implements IDestroyable, MouseEventHandlers {
 
 		const now = performance.now();
 
-		if (this._startScrollingPos === null && !this._preventScroll(event)) {
-			this._startScrollingPos = {
-				x: event.clientX,
-				y: event.clientY,
-				timestamp: now,
-				localX: event.localX,
-				localY: event.localY,
-			};
+		if (this._startScrollingPos === null && !this._preventScroll()) {
+			this._startScrollingPos = new Point(event.clientX, event.clientY) as StartScrollPosition;
+			this._startScrollingPos.timestamp = now;
+			this._startScrollingPos.localX = event.localX;
+			this._startScrollingPos.localY = event.localY;
 		}
 
 		if (this._scrollXAnimation !== null) {
@@ -1231,26 +1185,8 @@ export class PaneWidget implements IDestroyable, MouseEventHandlers {
 		}
 	}
 
-<<<<<<< HEAD
-	private readonly _canvasConfiguredHandler = () => {
-		if (this._isSettingSize || this._state === null) {
-			return;
-		}
-
-		this._model().lightUpdate();
-	};
-
-	private readonly _topCanvasConfiguredHandler = () => {
-		if (this._isSettingSize || this._state === null) {
-			return;
-		}
-
-		this._model().lightUpdate();
-	};
-=======
 	private readonly _canvasConfiguredHandler = () =>
 		this._state && this._model().lightUpdate();
 	private readonly _topCanvasConfiguredHandler = () =>
 		this._state && this._model().lightUpdate();
->>>>>>> iosiftalmacel/master
 }

@@ -77,7 +77,6 @@ export class PaneSeparator implements IDestroyable {
 				mouseUpEvent: this._mouseUpEvent.bind(this),
 				touchEndEvent: this._mouseUpEvent.bind(this),
 			};
-<<<<<<< HEAD
 			this._mouseEventHandler = new MouseEventHandler(
 				this._handle,
 				handlers,
@@ -86,12 +85,6 @@ export class PaneSeparator implements IDestroyable {
 					treatHorzTouchDragAsPageScroll: () => true,
 				}
 			);
-=======
-			this._mouseEventHandler = new MouseEventHandler(this._handle, handlers, {
-				treatVertTouchDragAsPageScroll: false,
-				treatHorzTouchDragAsPageScroll: true,
-			});
->>>>>>> iosiftalmacel/master
 		}
 	}
 

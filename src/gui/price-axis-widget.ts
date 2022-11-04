@@ -196,13 +196,8 @@ export class PriceAxisWidget implements IDestroyable {
 		if (this._priceScale === null) {
 			return 0;
 		}
-<<<<<<< HEAD
-
-		let tickMarkMaxWidth = 0;
-=======
 		// need some reasonable value for scale while initialization
 		let tickMarkMaxWidth = 34;
->>>>>>> iosiftalmacel/master
 		const rendererOptions = this.rendererOptions();
 
 		const ctx = getContext2D(this._canvasBinding.canvas);

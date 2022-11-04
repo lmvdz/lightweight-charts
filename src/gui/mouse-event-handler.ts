@@ -5,15 +5,11 @@ import { IDestroyable } from '../helpers/idestroyable';
 
 import { Coordinate } from '../model/coordinate';
 
-<<<<<<< HEAD
 export type HandlerMouseEventCallback = (event: MouseEventHandlerMouseEvent) => void;
 export type HandlerTouchEventCallback = (event: MouseEventHandlerTouchEvent) => void;
-=======
 import { PaneWidget } from './pane-widget';
-import { mobileTouch } from './support-touch';
 
 export type HandlerEventCallback = (event: TouchMouseEvent) => void;
->>>>>>> iosiftalmacel/master
 export type EmptyCallback = () => void;
 export type PinchEventCallback = (middlePoint: Position, scale: number) => void;
 
@@ -89,14 +85,11 @@ export interface MouseEventHandlerEventBase {
 	readonly metaKey: boolean;
 	readonly srcType: string;
 
-<<<<<<< HEAD
 	target: MouseEvent['target'];
-=======
 	consumed?: boolean;
 	// TODO: remove this after rewriting MouseEventHandler to handle touch and mouse event separately
-	readonly type: 'touch' | 'mouse';
+	readonly type?: 'touch' | 'mouse';
 
->>>>>>> iosiftalmacel/master
 	view: MouseEvent['view'];
 
 	preventDefault(): void;
