@@ -1,6 +1,6 @@
 /*!
  * @license
- * TradingView Lightweight Charts v3.8.0-dev+202211041612
+ * TradingView Lightweight Charts v3.8.0-dev+202211041630
  * Copyright (c) 2020 TradingView, Inc.
  * Licensed under Apache License 2.0 https://www.apache.org/licenses/LICENSE-2.0
  */
@@ -17309,7 +17309,7 @@ function createChart(container, options) {
  * Returns the current version as a string. For example `'3.3.0'`.
  */
 function version() {
-    return "3.8.0-dev+202211041612";
+    return "3.8.0-dev+202211041630";
 }
 
 export { BoxHorizontalAlignment, BoxVerticalAlignment, ColorType, CrosshairMode, LastPriceAnimationMode as LasPriceAnimationMode, LastPriceAnimationMode, LineEnd, LineStyle, LineType, PriceLineSource, PriceScaleMode, TextAlignment, TickMarkType, TimeScaleMode, TrackingModeExitMode, createChart, isBusinessDay, isUTCTimestamp, version };
