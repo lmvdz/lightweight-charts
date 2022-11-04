@@ -1,6 +1,6 @@
 /*!
  * @license
- * TradingView Lightweight Charts v3.8.0-dev+202211041825
+ * TradingView Lightweight Charts v3.8.0-dev+202211041912
  * Copyright (c) 2020 TradingView, Inc.
  * Licensed under Apache License 2.0 https://www.apache.org/licenses/LICENSE-2.0
  */
@@ -5391,7 +5391,7 @@
         LineToolPaneView.prototype._internal_areAnchorsVisible = function () {
             return this._internal__source.hovered() || this._internal__source.selected() || this._internal__source.editing() || !this._internal__source.finished();
         };
-        LineToolPaneView.prototype._internal_update = function () {
+        LineToolPaneView.prototype.update = function () {
             this._internal__invalidated = true;
         };
         LineToolPaneView.prototype._internal_addAnchors = function (renderer) {
@@ -16937,7 +16937,7 @@
             this._private__chartWidget.model().applyPriceScaleOptions(this._private__priceScaleId, options);
         };
         PriceScaleApi.prototype.options = function () {
-            return this._private__priceScale().options();
+            return this._priceScale().options();
         };
         PriceScaleApi.prototype.width = function () {
             if (!isDefaultPriceScale(this._private__priceScaleId)) {
@@ -16945,7 +16945,7 @@
             }
             return this._private__chartWidget.getPriceAxisWidth(this._private__priceScaleId === "left" /* Left */ ? 'left' : 'right');
         };
-        PriceScaleApi.prototype._private__priceScale = function () {
+        PriceScaleApi.prototype._priceScale = function () {
             return ensureNotNull(this._private__chartWidget.model().findPriceScale(this._private__priceScaleId)).priceScale;
         };
         return PriceScaleApi;
@@ -17446,7 +17446,7 @@
      * Returns the current version as a string. For example `'3.3.0'`.
      */
     function version() {
-        return "3.8.0-dev+202211041825";
+        return "3.8.0-dev+202211041912";
     }
 
     var LightweightChartsModule = /*#__PURE__*/Object.freeze({

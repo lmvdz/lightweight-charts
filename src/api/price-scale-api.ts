@@ -33,7 +33,7 @@ export class PriceScaleApi implements IPriceScaleApi {
 		return this._chartWidget.getPriceAxisWidth(this._priceScaleId === DefaultPriceScaleId.Left ? 'left' : 'right');
 	}
 
-	private _priceScale(): PriceScale {
+	public _priceScale(): PriceScale {
 		return ensureNotNull(this._chartWidget.model().findPriceScale(this._priceScaleId)).priceScale;
 	}
 }

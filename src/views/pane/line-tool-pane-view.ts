@@ -14,15 +14,14 @@ import { Point } from '../../model/point';
 import { CompositeRenderer } from '../../renderers/composite-renderer';
 import { IPaneRenderer } from '../../renderers/ipane-renderer';
 import { AnchorPoint, LineAnchorRenderer } from '../../renderers/line-anchor-renderer';
-
-import { IPaneView } from './ipane-view';
+import { IUpdatablePaneView } from './iupdatable-pane-view';
 
 export interface CreateAnchorData {
 	points: AnchorPoint[];
 	pointsCursorType?: PaneCursorType[];
 }
 
-export abstract class LineToolPaneView implements IPaneView, IInputEventListener {
+export abstract class LineToolPaneView implements IUpdatablePaneView, IInputEventListener {
 	protected readonly _source: LineTool<LineToolType>;
 	protected readonly _model: ChartModel;
 	protected _points: AnchorPoint[] = [];
