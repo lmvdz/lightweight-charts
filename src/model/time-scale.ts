@@ -527,7 +527,10 @@ export class TimeScale {
 			if (timestamp === timePoint.timestamp) {
 				return x;
 			} else if (index === 0 || index === this._points.length - 1) {
-				const interval = this._points[1].time.timestamp - this._points[0].time.timestamp;
+				let interval = 0 - this._points[0].time.timestamp;
+				if (this._points.length === 2) {
+					interval = this._points[1].time.timestamp - this._points[0].time.timestamp;
+				}
 				const timeDiff = timePoint.timestamp - timestamp;
 				const bars = timeDiff / interval;
 				return x + (bars * this.barSpacing()) as Coordinate;
