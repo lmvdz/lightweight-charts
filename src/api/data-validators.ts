@@ -67,26 +67,22 @@ function checkBarItem(type: 'Bar' | 'Candlestick', barItem: SeriesDataItemTypeMa
 		return;
 	}
 
-	assert(
-		// eslint-disable-next-line @typescript-eslint/tslint/config
-		typeof barItem.open === 'number',
-		`${type} series item data value of open must be a number, got=${typeof barItem.open}, value=${barItem.open}`
-	);
-	assert(
-		// eslint-disable-next-line @typescript-eslint/tslint/config
-		typeof barItem.high === 'number',
-		`${type} series item data value of high must be a number, got=${typeof barItem.high}, value=${barItem.high}`
-	);
-	assert(
-		// eslint-disable-next-line @typescript-eslint/tslint/config
-		typeof barItem.low === 'number',
-		`${type} series item data value of low must be a number, got=${typeof barItem.low}, value=${barItem.low}`
-	);
-	assert(
-		// eslint-disable-next-line @typescript-eslint/tslint/config
-		typeof barItem.close === 'number',
-		`${type} series item data value of close must be a number, got=${typeof barItem.close}, value=${barItem.close}`
-	);
+	// assert(
+	// 	/// eslint-disable-next-line @typescript-eslint/tslint/config
+	// 	typeof barItem.open === 'number', `${type} series item data value of open must be a number, got=${typeof barItem.open}, value=${barItem.open}`
+	// );
+	// assert(
+	// 	/// eslint-disable-next-line @typescript-eslint/tslint/config
+	// 	typeof barItem.high === 'number', `${type} series item data value of high must be a number, got=${typeof barItem.high}, value=${barItem.high}`
+	// );
+	// assert(
+	// 	/// eslint-disable-next-line @typescript-eslint/tslint/config
+	// 	typeof barItem.low === 'number', `${type} series item data value of low must be a number, got=${typeof barItem.low}, value=${barItem.low}`
+	// );
+	// assert(
+	// 	/// eslint-disable-next-line @typescript-eslint/tslint/config
+	// 	typeof barItem.close === 'number', `${type} series item data value of close must be a number, got=${typeof barItem.close}, value=${barItem.close}`
+	// );
 }
 
 function checkLineItem(type: 'Area' | 'Baseline' | 'Line' | 'Histogram', lineItem: SeriesDataItemTypeMap[typeof type]): void {
@@ -94,10 +90,10 @@ function checkLineItem(type: 'Area' | 'Baseline' | 'Line' | 'Histogram', lineIte
 		return;
 	}
 
-	assert(
-		// eslint-disable-next-line @typescript-eslint/tslint/config
-		typeof lineItem.value === 'number',
-		`${type} series item data value must be a number, got=${typeof lineItem.value}, value=${lineItem.value}`);
+	// assert(
+	// 	// eslint-disable-next-line @typescript-eslint/tslint/config
+	// 	typeof lineItem.value === 'number',
+	// 	`${type} series item data value must be a number, got=${typeof lineItem.value}, value=${lineItem.value}`);
 }
 
 function checkCloudAreaItem(type: 'CloudArea' | 'BrokenArea', lineItem: SeriesDataItemTypeMap[typeof type]): void {
@@ -105,12 +101,12 @@ function checkCloudAreaItem(type: 'CloudArea' | 'BrokenArea', lineItem: SeriesDa
 		return;
 	}
 
-	assert(
-		// eslint-disable-next-line @typescript-eslint/tslint/config
-		typeof lineItem.higherValue === 'number',
-		`${type} series item data higher value must be a number, got=${typeof lineItem.higherValue}, value=${lineItem.higherValue}`);
-	assert(
-		// eslint-disable-next-line @typescript-eslint/tslint/config
-		typeof lineItem.lowerValue === 'number',
-		`${type} series item data lower value must be a number, got=${typeof lineItem.lowerValue}, value=${lineItem.lowerValue}`);
+	// assert(
+	// 	// eslint-disable-next-line @typescript-eslint/tslint/config
+	// 	typeof lineItem.higherValue === 'number',
+	// 	`${type} series item data higher value must be a number, got=${typeof lineItem.higherValue}, value=${lineItem.higherValue}`);
+	// assert(
+	// 	// eslint-disable-next-line @typescript-eslint/tslint/config
+	// 	typeof lineItem.lowerValue === 'number',
+	// 	`${type} series item data lower value must be a number, got=${typeof lineItem.lowerValue}, value=${lineItem.lowerValue}`);
 }

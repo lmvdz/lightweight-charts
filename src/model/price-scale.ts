@@ -459,18 +459,14 @@ export class PriceScale {
 		return this._priceRange;
 	}
 
-<<<<<<< HEAD
 	public logFormula(): LogFormula {
 		return this._logFormula;
 	}
 
-	public setPriceRange(newPriceRange: PriceRangeImpl | null, isForceSetValue?: boolean): void {
-=======
 	public setPriceRange(
 		newPriceRange: PriceRangeImpl | null,
 		isForceSetValue?: boolean
 	): void {
->>>>>>> iosiftalmacel/master
 		const oldPriceRange = this._priceRange;
 
 		if (
@@ -547,7 +543,6 @@ export class PriceScale {
 		}
 	}
 
-<<<<<<< HEAD
 	public cloudPointsArrayToCoordinates<T extends CloudPricedValue>(points: T[], baseValue: number, visibleRange?: SeriesItemsIndexesRange): void {
 		this._makeSureItIsValid();
 		const bh = this._bottomMarginPx();
@@ -590,13 +585,6 @@ export class PriceScale {
 	}
 
 	public barPricesToCoordinates<T extends BarPrices & BarCoordinates>(pricesList: T[], baseValue: number, visibleRange?: SeriesItemsIndexesRange): void {
-=======
-	public barPricesToCoordinates<T extends BarPrices & BarCoordinates>(
-		pricesList: T[],
-		baseValue: number,
-		visibleRange?: SeriesItemsIndexesRange
-	): void {
->>>>>>> iosiftalmacel/master
 		this._makeSureItIsValid();
 		const bh = this._bottomMarginPx();
 		const range = ensureNotNull(this.priceRange());

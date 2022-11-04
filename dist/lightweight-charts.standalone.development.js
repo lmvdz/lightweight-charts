@@ -1,11 +1,333 @@
 /*!
  * @license
- * TradingView Lightweight Charts v3.8.0-dev+202207260052
+ * TradingView Lightweight Charts v3.8.0-dev+202211041612
  * Copyright (c) 2020 TradingView, Inc.
  * Licensed under Apache License 2.0 https://www.apache.org/licenses/LICENSE-2.0
  */
 (function () {
     'use strict';
+
+    var Point = /** @class */ (function () {
+        function Point(x, y) {
+            this.x = x;
+            this.y = y;
+        }
+        Point.prototype.add = function (point) {
+            return new Point(this.x + point.x, this.y + point.y);
+        };
+        Point.prototype.addScaled = function (point, scale) {
+            return new Point(this.x + scale * point.x, this.y + scale * point.y);
+        };
+        Point.prototype.subtract = function (point) {
+            return new Point(this.x - point.x, this.y - point.y);
+        };
+        Point.prototype.dotProduct = function (point) {
+            return this.x * point.x + this.y * point.y;
+        };
+        Point.prototype.crossProduct = function (point) {
+            return this.x * point.y - this.y * point.x;
+        };
+        Point.prototype.signedAngle = function (point) {
+            return Math.atan2(this.crossProduct(point), this.dotProduct(point));
+        };
+        Point.prototype.angle = function (point) {
+            return Math.acos(this.dotProduct(point) / (this.length() * point.length()));
+        };
+        Point.prototype.length = function () {
+            return Math.sqrt(this.x * this.x + this.y * this.y);
+        };
+        Point.prototype.scaled = function (scale) {
+            return new Point(this.x * scale, this.y * scale);
+        };
+        Point.prototype.normalized = function () {
+            return this.scaled(1 / this.length());
+        };
+        Point.prototype.transposed = function () {
+            return new Point(-this.y, this.x);
+        };
+        Point.prototype.clone = function () {
+            return new Point(this.x, this.y);
+        };
+        return Point;
+    }());
+    var Box = /** @class */ (function () {
+        function Box(a, b) {
+            this._internal_min = new Point(Math.min(a.x, b.x), Math.min(a.y, b.y));
+            this._internal_max = new Point(Math.max(a.x, b.x), Math.max(a.y, b.y));
+        }
+        return Box;
+    }());
+    var HalfPlane = /** @class */ (function () {
+        function HalfPlane(edge, isPositive) {
+            this._internal_edge = edge;
+            this._internal_isPositive = isPositive;
+        }
+        return HalfPlane;
+    }());
+    function equalPoints(a, b) {
+        return a.x === b.x && a.y === b.y;
+    }
+    function line(a, b, c) {
+        return { _internal_a: a, _internal_b: b, _internal_c: c };
+    }
+    function lineThroughPoints(a, b) {
+        if (equalPoints(a, b)) {
+            throw new Error('Points should be distinct');
+        }
+        return line(a.y - b.y, b.x - a.x, a.x * b.y - b.x * a.y);
+    }
+    function lineSegment(a, b) {
+        if (equalPoints(a, b)) {
+            throw new Error('Points of a segment should be distinct');
+        }
+        return [a, b];
+    }
+    function halfPlaneThroughPoint(edge, point) {
+        return new HalfPlane(edge, edge._internal_a * point.x + edge._internal_b * point.y + edge._internal_c > 0);
+    }
+    function pointInHalfPlane(point, halfPlane) {
+        var edge = halfPlane._internal_edge;
+        return edge._internal_a * point.x + edge._internal_b * point.y + edge._internal_c > 0 === halfPlane._internal_isPositive;
+    }
+
+    function addPoint(array, point) {
+        for (var i = 0; i < array.length; i++) {
+            if (equalPoints(array[i], point)) {
+                return false;
+            }
+        }
+        array.push(point);
+        return true;
+    }
+    function intersectLineAndBox(line, box) {
+        if (line._internal_a === 0) {
+            var l = -line._internal_c / line._internal_b;
+            return box._internal_min.y <= l && l <= box._internal_max.y ? lineSegment(new Point(box._internal_min.x, l), new Point(box._internal_max.x, l)) : null;
+        }
+        if (line._internal_b === 0) {
+            var h = -line._internal_c / line._internal_a;
+            return box._internal_min.x <= h && h <= box._internal_max.x ? lineSegment(new Point(h, box._internal_min.y), new Point(h, box._internal_max.y)) : null;
+        }
+        var points = [];
+        var u = function (value) {
+            var i = -(line._internal_c + line._internal_a * value) / line._internal_b;
+            if (box._internal_min.y <= i && i <= box._internal_max.y) {
+                addPoint(points, new Point(value, i));
+            }
+        };
+        var p = function (value) {
+            var s = -(line._internal_c + line._internal_b * value) / line._internal_a;
+            if (box._internal_min.x <= s && s <= box._internal_max.x) {
+                addPoint(points, new Point(s, value));
+            }
+        };
+        u(box._internal_min.x);
+        p(box._internal_min.y);
+        u(box._internal_max.x);
+        p(box._internal_max.y);
+        switch (points.length) {
+            case 0:
+                return null;
+            case 1:
+                return points[0];
+            case 2:
+                return equalPoints(points[0], points[1]) ? points[0] : lineSegment(points[0], points[1]);
+        }
+        throw new Error('We should have at most two intersection points');
+    }
+    function intersectRayAndBox(point0, point1, box) {
+        var s = intersectLineSegments(point0, point1, box._internal_min, new Point(box._internal_max.x, box._internal_min.y));
+        var n = intersectLineSegments(point0, point1, new Point(box._internal_max.x, box._internal_min.y), box._internal_max);
+        var a = intersectLineSegments(point0, point1, box._internal_max, new Point(box._internal_min.x, box._internal_max.y));
+        var c = intersectLineSegments(point0, point1, new Point(box._internal_min.x, box._internal_max.y), box._internal_min);
+        var h = [];
+        if (null !== s && s >= 0) {
+            h.push(s);
+        }
+        if (null !== n && n >= 0) {
+            h.push(n);
+        }
+        if (null !== a && a >= 0) {
+            h.push(a);
+        }
+        if (null !== c && c >= 0) {
+            h.push(c);
+        }
+        if (0 === h.length) {
+            return null;
+        }
+        h.sort(function (e, t) { return e - t; });
+        var d = pointInBox(point0, box) ? h[0] : h[h.length - 1];
+        return point0.addScaled(point1.subtract(point0), d);
+    }
+    function intersectLineSegments(point0, point1, point2, point3) {
+        var z = (function (e, t, i, s) {
+            var r = t.subtract(e);
+            var n = s.subtract(i);
+            var o = r.x * n.y - r.y * n.x;
+            if (Math.abs(o) < 1e-6) {
+                return null;
+            }
+            var a = e.subtract(i);
+            return (a.y * n.x - a.x * n.y) / o;
+        })(point0, point1, point2, point3);
+        if (null === z) {
+            return null;
+        }
+        var o = point1.subtract(point0).scaled(z).add(point0);
+        var a = distanceToSegment(point2, point3, o);
+        return Math.abs(a._internal_distance) < 1e-6 ? z : null;
+    }
+    function intersectLineSegmentAndBox(segment, box) {
+        var i = segment[0].x;
+        var s = segment[0].y;
+        var n = segment[1].x;
+        var o = segment[1].y;
+        var a = box._internal_min.x;
+        var l = box._internal_min.y;
+        var c = box._internal_max.x;
+        var h = box._internal_max.y;
+        function d(n1, n2, n3, n4, n5, n6) {
+            var z = 0;
+            if (n1 < n3) {
+                z |= 1;
+            }
+            else if (n1 > n5) {
+                z |= 2;
+            }
+            if (n2 < n4) {
+                z |= 4;
+            }
+            else if (n2 > n6) {
+                z |= 8;
+            }
+            return z;
+        }
+        var check = false;
+        for (var u = d(i, s, a, l, c, h), p = d(n, o, a, l, c, h), m = 0;;) {
+            if (m > 1e3) {
+                throw new Error('Cohen - Sutherland algorithm: infinity loop');
+            }
+            m++;
+            if (!(u | p)) {
+                check = true;
+                break;
+            }
+            if (u & p) {
+                break;
+            }
+            var g = u || p;
+            var f = void 0;
+            var v = void 0;
+            if (8 & g) {
+                f = i + (n - i) * (h - s) / (o - s);
+                v = h;
+            }
+            else if (4 & g) {
+                f = i + (n - i) * (l - s) / (o - s);
+                v = l;
+            }
+            else if (2 & g) {
+                v = s + (o - s) * (c - i) / (n - i);
+                f = c;
+            }
+            else {
+                v = s + (o - s) * (a - i) / (n - i);
+                f = a;
+            }
+            if (g === u) {
+                i = f;
+                s = v;
+                u = d(i, s, a, l, c, h);
+            }
+            else {
+                n = f;
+                o = v;
+                p = d(n, o, a, l, c, h);
+            }
+        }
+        return check ? equalPoints(new Point(i, s), new Point(n, o)) ? new Point(i, s) : lineSegment(new Point(i, s), new Point(n, o)) : null;
+    }
+    function distanceToLine(point0, point1, point2) {
+        var s = point1.subtract(point0);
+        var r = point2.subtract(point0).dotProduct(s) / s.dotProduct(s);
+        return { _internal_coeff: r, _internal_distance: point0.addScaled(s, r).subtract(point2).length() };
+    }
+    function distanceToSegment(point0, point1, point2) {
+        var lineDist = distanceToLine(point0, point1, point2);
+        if (0 <= lineDist._internal_coeff && lineDist._internal_coeff <= 1) {
+            return lineDist;
+        }
+        var n = point0.subtract(point2).length();
+        var o = point1.subtract(point2).length();
+        return n < o ? { _internal_coeff: 0, _internal_distance: n } : { _internal_coeff: 1, _internal_distance: o };
+    }
+    function pointInBox(point, box) {
+        return point.x >= box._internal_min.x && point.x <= box._internal_max.x && point.y >= box._internal_min.y && point.y <= box._internal_max.y;
+    }
+    function pointInPolygon(point, polygon) {
+        var x = point.x;
+        var y = point.y;
+        var isInside = false;
+        for (var j = polygon.length - 1, i = 0; i < polygon.length; i++) {
+            var curr = polygon[i];
+            var prev = polygon[j];
+            j = i;
+            if ((curr.y < y && prev.y >= y || prev.y < y && curr.y >= y) && curr.x + (y - curr.y) / (prev.y - curr.y) * (prev.x - curr.x) < x) {
+                isInside = !isInside;
+            }
+        }
+        return isInside;
+    }
+    function pointInTriangle(point, end0, end1, end2) {
+        var middle = end0.add(end1).scaled(0.5).add(end2).scaled(0.5);
+        return intersectLineSegments(end0, end1, middle, point) === null
+            && intersectLineSegments(end1, end2, middle, point) === null
+            && intersectLineSegments(end2, end0, middle, point) === null;
+    }
+    function intersectLines(line0, line1) {
+        var c = line0._internal_a * line1._internal_b - line1._internal_a * line0._internal_b;
+        if (Math.abs(c) < 1e-6) {
+            return null;
+        }
+        var x = (line0._internal_b * line1._internal_c - line1._internal_b * line0._internal_c) / c;
+        var y = (line1._internal_a * line0._internal_c - line0._internal_a * line1._internal_c) / c;
+        return new Point(x, y);
+    }
+    function intersectPolygonAndHalfPlane(points, halfPlane) {
+        var intersectionPoints = [];
+        for (var i = 0; i < points.length; ++i) {
+            var current = points[i];
+            var next = points[(i + 1) % points.length];
+            var line = lineThroughPoints(current, next);
+            if (pointInHalfPlane(current, halfPlane)) {
+                addPointToPointsSet(intersectionPoints, current);
+                if (!pointInHalfPlane(next, halfPlane)) {
+                    var lineIntersection = intersectLines(line, halfPlane._internal_edge);
+                    if (lineIntersection !== null) {
+                        addPointToPointsSet(intersectionPoints, lineIntersection);
+                    }
+                }
+            }
+            else if (pointInHalfPlane(next, halfPlane)) {
+                var lineIntersection = intersectLines(line, halfPlane._internal_edge);
+                if (lineIntersection !== null) {
+                    addPointToPointsSet(intersectionPoints, lineIntersection);
+                }
+            }
+        }
+        return intersectionPoints.length >= 3 ? intersectionPoints : null;
+    }
+    function addPointToPointsSet(points, point) {
+        if (points.length <= 0 || !(equalPoints(points[points.length - 1], point) && equalPoints(points[0], point))) {
+            points.push(point);
+            return false;
+        }
+        return true;
+    }
+    function pointInCircle(point, edge0, distance) {
+        return (point.x - edge0.x) * (point.x - edge0.x) + (point.y - edge0.y) * (point.y - edge0.y) <= distance * distance;
+    }
 
     /**
      * Represents the possible line types.
@@ -20,7 +342,29 @@
          * A stepped line.
          */
         LineType[LineType["WithSteps"] = 1] = "WithSteps";
+        /**
+         * A stepped line.
+         */
+        LineType[LineType["WithStepsUpsideDown"] = 2] = "WithStepsUpsideDown";
     })(LineType || (LineType = {}));
+    /**
+     * Represents the possible line caps.
+     */
+    var LineEnd;
+    (function (LineEnd) {
+        /**
+         * No cap.
+         */
+        LineEnd[LineEnd["Normal"] = 0] = "Normal";
+        /**
+         * Arrow cap.
+         */
+        LineEnd[LineEnd["Arrow"] = 1] = "Arrow";
+        /**
+         * Circle cap.
+         */
+        LineEnd[LineEnd["Circle"] = 2] = "Circle";
+    })(LineEnd || (LineEnd = {}));
     /**
      * Represents the possible line styles.
      */
@@ -46,18 +390,35 @@
          * A dottled line with more space between dots.
          */
         LineStyle[LineStyle["SparseDotted"] = 4] = "SparseDotted";
+        /**
+         * A dashed line with less space between dots.
+         */
+        LineStyle[LineStyle["SmallDashed"] = 5] = "SmallDashed";
     })(LineStyle || (LineStyle = {}));
+    function computeDashPattern(ctx) {
+        return [
+            [ctx.lineWidth, 2 * ctx.lineWidth],
+            [5 * ctx.lineWidth, 6 * ctx.lineWidth],
+            [6 * ctx.lineWidth, 6 * ctx.lineWidth],
+            [ctx.lineWidth, 4 * ctx.lineWidth],
+            [2 * ctx.lineWidth, ctx.lineWidth],
+        ][ctx.lineStyle - 1] || [];
+    }
     function setLineStyle(ctx, style) {
-        var _a;
-        var dashPatterns = (_a = {},
-            _a[0 /* Solid */] = [],
-            _a[1 /* Dotted */] = [ctx.lineWidth, ctx.lineWidth],
-            _a[2 /* Dashed */] = [2 * ctx.lineWidth, 2 * ctx.lineWidth],
-            _a[3 /* LargeDashed */] = [6 * ctx.lineWidth, 6 * ctx.lineWidth],
-            _a[4 /* SparseDotted */] = [ctx.lineWidth, 4 * ctx.lineWidth],
-            _a);
-        var dashPattern = dashPatterns[style];
-        ctx.setLineDash(dashPattern);
+        ctx.lineStyle = style;
+        var dashPattern = computeDashPattern(ctx);
+        setLineDash(ctx, dashPattern);
+    }
+    function setLineDash(ctx, dashPattern) {
+        if (ctx.setLineDash) {
+            ctx.setLineDash(dashPattern);
+        }
+        else if (ctx.mozDash !== undefined) {
+            ctx.mozDash = dashPattern;
+        }
+        else if (ctx.webkitLineDash !== undefined) {
+            ctx.webkitLineDash = dashPattern;
+        }
     }
     function drawHorizontalLine(ctx, y, left, right) {
         ctx.beginPath();
@@ -73,6 +434,33 @@
         ctx.lineTo(x + correction, bottom);
         ctx.stroke();
     }
+    function drawSolidLine(ctx, x1, y1, x2, y2) {
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+    }
+    function drawDashedLine(ctx, x1, y1, x2, y2) {
+        ctx.save();
+        ctx.beginPath();
+        var dashPattern = computeDashPattern(ctx);
+        setLineDash(ctx, dashPattern);
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        ctx.restore();
+    }
+    function drawLine(ctx, x1, y1, x2, y2) {
+        if (!isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) {
+            return;
+        }
+        if (ctx.lineStyle !== 0 /* Solid */) {
+            drawDashedLine(ctx, x1, y1, x2, y2);
+        }
+        else {
+            drawSolidLine(ctx, x1, y1, x2, y2);
+        }
+    }
     function strokeInPixel(ctx, drawFunction) {
         ctx.save();
         if (ctx.lineWidth % 2) {
@@ -80,6 +468,80 @@
         }
         drawFunction();
         ctx.restore();
+    }
+    function extendAndClipLineSegment(point0, point1, width, height, extendLeft, extendRight) {
+        if (equalPoints(point0, point1)) {
+            return null;
+        }
+        var topLeft = new Point(0, 0);
+        var bottomRight = new Point(width, height);
+        if (extendLeft) {
+            if (extendRight) {
+                var points = intersectLineAndBox(lineThroughPoints(point0, point1), new Box(topLeft, bottomRight));
+                return Array.isArray(points) ? points : null;
+            }
+            else {
+                var point = intersectRayAndBox(point1, point0, new Box(topLeft, bottomRight));
+                return point === null || equalPoints(point1, point) ? null : lineSegment(point1, point);
+            }
+        }
+        if (extendRight) {
+            var point = intersectRayAndBox(point0, point1, new Box(topLeft, bottomRight));
+            return point === null || equalPoints(point0, point) ? null : lineSegment(point0, point);
+        }
+        else {
+            var points = intersectLineSegmentAndBox(lineSegment(point0, point1), new Box(topLeft, bottomRight));
+            return Array.isArray(points) ? points : null;
+        }
+    }
+    function drawCircleEnd(point, ctx, width, pixelRatio) {
+        ctx.save();
+        ctx.fillStyle = '#000000';
+        ctx.beginPath();
+        ctx.arc(point.x * pixelRatio, point.y * pixelRatio, width * pixelRatio, 0, 2 * Math.PI, false);
+        ctx.fill();
+        ctx.restore();
+    }
+    function drawArrowEnd(point0, point1, ctx, width, pixelRatio) {
+        if (point1.subtract(point0).length() < 1) {
+            return;
+        }
+        var arrowPoints = getArrowPoints(point0, point1, width);
+        for (var e = 0; e < arrowPoints.length; ++e) {
+            var first = arrowPoints[e][0];
+            var second = arrowPoints[e][1];
+            drawLine(ctx, first.x * pixelRatio, first.y * pixelRatio, second.x * pixelRatio, second.y * pixelRatio);
+        }
+    }
+    function getArrowPoints(point0, point1, width) {
+        var r = 0.5 * width;
+        var n = Math.sqrt(2);
+        var o = point1.subtract(point0);
+        var a = o.normalized();
+        var l = 5 * width;
+        var c = 1 * r;
+        if (l * n * 0.2 <= c) {
+            return [];
+        }
+        var h = a.scaled(l);
+        var d = point1.subtract(h);
+        var u = a.transposed();
+        var p = 1 * l;
+        var z = u.scaled(p);
+        var m = d.add(z);
+        var g = d.subtract(z);
+        var f = m.subtract(point1).normalized().scaled(c);
+        var v = g.subtract(point1).normalized().scaled(c);
+        var S = point1.add(f);
+        var y = point1.add(v);
+        var b = r * (n - 1);
+        var w = u.scaled(b);
+        var C = Math.min(l - 1 * r / n, r * n * 1);
+        var P = a.scaled(C);
+        var T = point1.subtract(w);
+        var x = point1.add(w);
+        var I = point1.subtract(P);
+        return [[m, S], [g, y], [T, I.subtract(w)], [x, I.add(w)]];
     }
 
     /**
@@ -496,6 +958,8 @@
         return Delegate;
     }());
 
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    /* eslint-disable @typescript-eslint/ban-types */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     function merge(dst) {
         var sources = [];
@@ -601,11 +1065,69 @@
         return "".concat(style).concat(size, "px ").concat(family);
     }
 
+    var defaultReplacementRe = /[2-9]/g;
+    var TextWidthCache = /** @class */ (function () {
+        function TextWidthCache(size) {
+            if (size === void 0) { size = 50; }
+            this._private__cache = new Map();
+            /** Current index in the "cyclic buffer" */
+            this._private__keysIndex = 0;
+            // A trick to keep array PACKED_ELEMENTS
+            this._private__keys = Array.from(new Array(size));
+        }
+        TextWidthCache.prototype._internal_reset = function () {
+            this._private__cache.clear();
+            this._private__keys.fill(undefined);
+            // We don't care where exactly the _keysIndex points,
+            // so there's no point in resetting it
+        };
+        TextWidthCache.prototype._internal_measureText = function (ctx, text, optimizationReplacementRe) {
+            var re = optimizationReplacementRe || defaultReplacementRe;
+            var cacheString = String(text).replace(re, '0');
+            var width = this._private__cache.get(cacheString);
+            if (width === undefined) {
+                width = ctx.measureText(cacheString).width;
+                if (width === 0 && text.length !== 0) {
+                    // measureText can return 0 in FF depending on a canvas size, don't cache it
+                    return 0;
+                }
+                // A cyclic buffer is used to keep track of the cache keys and to delete
+                // the oldest one before a new one is inserted.
+                // ├──────┬──────┬──────┬──────┤
+                // │ foo  │ bar  │      │      │
+                // ├──────┴──────┴──────┴──────┤
+                //                 ↑ index
+                // Eventually, the index reach the end of an array and roll-over to 0.
+                // ├──────┬──────┬──────┬──────┤
+                // │ foo  │ bar  │ baz  │ quux │
+                // ├──────┴──────┴──────┴──────┤
+                //   ↑ index = 0
+                // After that the oldest value will be overwritten.
+                // ├──────┬──────┬──────┬──────┤
+                // │ WOOT │ bar  │ baz  │ quux │
+                // ├──────┴──────┴──────┴──────┤
+                //          ↑ index = 1
+                var oldestKey = this._private__keys[this._private__keysIndex];
+                if (oldestKey !== undefined) {
+                    this._private__cache.delete(oldestKey);
+                }
+                // Set a newest key in place of the just deleted one
+                this._private__keys[this._private__keysIndex] = cacheString;
+                // Advance the index so it always points the oldest value
+                this._private__keysIndex = (this._private__keysIndex + 1) % this._private__keys.length;
+                this._private__cache.set(cacheString, width);
+            }
+            return width;
+        };
+        return TextWidthCache;
+    }());
+
     var PriceAxisRendererOptionsProvider = /** @class */ (function () {
         function PriceAxisRendererOptionsProvider(chartModel) {
             this._private__rendererOptions = {
                 _internal_borderSize: 1 /* BorderSize */,
                 _internal_tickLength: 4 /* TickLength */,
+                _internal_widthCache: new TextWidthCache(),
                 _internal_fontSize: NaN,
                 _internal_font: '',
                 _internal_fontFamily: '',
@@ -615,6 +1137,7 @@
                 _internal_paddingOuter: 0,
                 _internal_paddingTop: 0,
                 _internal_baselineOffset: 0,
+                _internal_align: 'left',
             };
             this._private__chartModel = chartModel;
         }
@@ -631,6 +1154,7 @@
                 rendererOptions._internal_paddingInner = Math.max(Math.ceil(currentFontSize / 2 - rendererOptions._internal_tickLength / 2), 0);
                 rendererOptions._internal_paddingOuter = Math.ceil(currentFontSize / 2 + rendererOptions._internal_tickLength / 2);
                 rendererOptions._internal_baselineOffset = Math.round(currentFontSize / 10);
+                rendererOptions._internal_widthCache._internal_reset();
             }
             rendererOptions._internal_color = this._private__textColor();
             return this._private__rendererOptions;
@@ -650,16 +1174,58 @@
     var CompositeRenderer = /** @class */ (function () {
         function CompositeRenderer() {
             this._private__renderers = [];
+            this._private__globalAlpha = 1;
         }
         CompositeRenderer.prototype._internal_setRenderers = function (renderers) {
             this._private__renderers = renderers;
         };
-        CompositeRenderer.prototype._internal_draw = function (ctx, pixelRatio, isHovered, hitTestData) {
-            this._private__renderers.forEach(function (r) {
+        CompositeRenderer.prototype._internal_setGlobalAlpha = function (value) {
+            this._private__globalAlpha = value;
+        };
+        CompositeRenderer.prototype._internal_append = function (renderer) {
+            var _a;
+            (_a = this._private__renderers) === null || _a === void 0 ? void 0 : _a.push(renderer);
+        };
+        CompositeRenderer.prototype._internal_insert = function (renderer, index) {
+            this._private__renderers.splice(index, 0, renderer);
+        };
+        CompositeRenderer.prototype._internal_clear = function () {
+            this._private__renderers.length = 0;
+        };
+        CompositeRenderer.prototype._internal_isEmpty = function () {
+            return this._private__renderers.length === 0;
+        };
+        CompositeRenderer.prototype._internal_draw = function (ctx, renderParams) {
+            for (var i = 0; i < this._private__renderers.length; i++) {
                 ctx.save();
-                r._internal_draw(ctx, pixelRatio, isHovered, hitTestData);
+                ctx.globalAlpha = this._private__globalAlpha;
+                this._private__renderers[i]._internal_draw(ctx, renderParams);
                 ctx.restore();
-            });
+            }
+        };
+        CompositeRenderer.prototype._internal_drawBackground = function (ctx, renderParams) {
+            ctx.save();
+            ctx.globalAlpha = this._private__globalAlpha;
+            for (var i = 0; i < this._private__renderers.length; i++) {
+                var renderer = this._private__renderers[i];
+                if (renderer._internal_drawBackground) {
+                    renderer._internal_drawBackground(ctx, renderParams);
+                }
+            }
+            ctx.restore();
+        };
+        CompositeRenderer.prototype._internal_hitTest = function (point, renderParams) {
+            var result = null;
+            for (var i = this._private__renderers.length - 1; i >= 0; i--) {
+                var renderer = this._private__renderers[i];
+                if (renderer._internal_hitTest) {
+                    result = renderer._internal_hitTest(point, renderParams) || null;
+                }
+                if (result) {
+                    break;
+                }
+            }
+            return result;
         };
         return CompositeRenderer;
     }());
@@ -667,25 +1233,27 @@
     var ScaledRenderer = /** @class */ (function () {
         function ScaledRenderer() {
         }
-        ScaledRenderer.prototype._internal_draw = function (ctx, pixelRatio, isHovered, hitTestData) {
+        ScaledRenderer.prototype._internal_draw = function (ctx, renderParams) {
+            var pixelRatio = renderParams._internal_pixelRatio;
             ctx.save();
             // actually we must be sure that this scaling applied only once at the same time
             // currently ScaledRenderer could be only nodes renderer (not top-level renderers like CompositeRenderer or something)
             // so this "constraint" is fulfilled for now
             ctx.scale(pixelRatio, pixelRatio);
-            this._internal__drawImpl(ctx, isHovered, hitTestData);
+            this._internal__drawImpl(ctx, renderParams);
             ctx.restore();
         };
-        ScaledRenderer.prototype._internal_drawBackground = function (ctx, pixelRatio, isHovered, hitTestData) {
+        ScaledRenderer.prototype._internal_drawBackground = function (ctx, renderParams) {
+            var pixelRatio = renderParams._internal_pixelRatio;
             ctx.save();
             // actually we must be sure that this scaling applied only once at the same time
             // currently ScaledRenderer could be only nodes renderer (not top-level renderers like CompositeRenderer or something)
             // so this "constraint" is fulfilled for now
             ctx.scale(pixelRatio, pixelRatio);
-            this._internal__drawBackgroundImpl(ctx, isHovered, hitTestData);
+            this._internal__drawBackgroundImpl(ctx, renderParams);
             ctx.restore();
         };
-        ScaledRenderer.prototype._internal__drawBackgroundImpl = function (ctx, isHovered, hitTestData) { };
+        ScaledRenderer.prototype._internal__drawBackgroundImpl = function (ctx, renderParams) { };
         return ScaledRenderer;
     }());
 
@@ -742,7 +1310,7 @@
             this._private__compositeRenderer = new CompositeRenderer();
             this._private__markersRenderers = [];
             this._private__markersData = [];
-            this._private__invalidated = true;
+            this._private__validated = new Map();
             this._private__chartModel = chartModel;
             this._private__crosshair = crosshair;
             this._private__compositeRenderer._internal_setRenderers(this._private__markersRenderers);
@@ -758,37 +1326,49 @@
                 });
                 this._private__compositeRenderer._internal_setRenderers(this._private__markersRenderers);
             }
-            this._private__invalidated = true;
+            this._private__validated.clear();
         };
-        CrosshairMarksPaneView.prototype._internal_renderer = function (height, width, addAnchors) {
-            if (this._private__invalidated) {
-                this._private__updateImpl(height);
-                this._private__invalidated = false;
+        CrosshairMarksPaneView.prototype._internal_renderer = function (height, width, pane) {
+            var renderers = this._private__validated.get(pane);
+            if (!renderers) {
+                renderers = this._private__updateImpl(pane, height);
+                this._private__validated.set(pane, renderers);
+                var compositeRenderer_1 = new CompositeRenderer();
+                compositeRenderer_1._internal_setRenderers(renderers);
+                return compositeRenderer_1;
             }
-            return this._private__compositeRenderer;
+            var compositeRenderer = new CompositeRenderer();
+            compositeRenderer._internal_setRenderers(renderers);
+            return compositeRenderer;
+            // return this._compositeRenderer;
         };
-        CrosshairMarksPaneView.prototype._private__updateImpl = function (height) {
+        CrosshairMarksPaneView.prototype._private__updateImpl = function (pane, height) {
             var _this = this;
-            var serieses = this._private__chartModel._internal_serieses();
+            var serieses = this._private__chartModel._internal_serieses()
+                .map(function (datasource, index) { return [datasource, index]; })
+                .filter(function (entry) { return pane._internal_dataSources().includes(entry[0]); });
             var timePointIndex = this._private__crosshair._internal_appliedIndex();
             var timeScale = this._private__chartModel._internal_timeScale();
-            serieses.forEach(function (s, index) {
-                var _a;
+            return serieses.map(function (_a) {
+                var _b;
+                var s = _a[0], index = _a[1];
                 var data = _this._private__markersData[index];
                 var seriesData = s._internal_markerDataAtIndex(timePointIndex);
                 if (seriesData === null || !s._internal_visible()) {
                     data._internal_visibleRange = null;
-                    return;
                 }
-                var firstValue = ensureNotNull(s._internal_firstValue());
-                data._internal_lineColor = seriesData._internal_backgroundColor;
-                data._internal_radius = seriesData._internal_radius;
-                data._internal_items[0]._internal_price = seriesData._internal_price;
-                data._internal_items[0]._internal_y = s._internal_priceScale()._internal_priceToCoordinate(seriesData._internal_price, firstValue._internal_value);
-                data._internal_backColor = (_a = seriesData._internal_borderColor) !== null && _a !== void 0 ? _a : _this._private__chartModel._internal_backgroundColorAtYPercentFromTop(data._internal_items[0]._internal_y / height);
-                data._internal_items[0]._internal_time = timePointIndex;
-                data._internal_items[0]._internal_x = timeScale._internal_indexToCoordinate(timePointIndex);
-                data._internal_visibleRange = rangeForSinglePoint;
+                else {
+                    var firstValue = ensureNotNull(s._internal_firstValue());
+                    data._internal_lineColor = seriesData._internal_backgroundColor;
+                    data._internal_radius = seriesData._internal_radius;
+                    data._internal_items[0]._internal_price = seriesData._internal_price;
+                    data._internal_items[0]._internal_y = s._internal_priceScale()._internal_priceToCoordinate(seriesData._internal_price, firstValue._internal_value);
+                    data._internal_backColor = (_b = seriesData._internal_borderColor) !== null && _b !== void 0 ? _b : _this._private__chartModel._internal_backgroundColorAtYPercentFromTop(data._internal_items[0]._internal_y / height);
+                    data._internal_items[0]._internal_time = timePointIndex;
+                    data._internal_items[0]._internal_x = timeScale._internal_indexToCoordinate(timePointIndex);
+                    data._internal_visibleRange = rangeForSinglePoint;
+                }
+                return _this._private__markersRenderers[index];
             });
         };
         return CrosshairMarksPaneView;
@@ -798,10 +1378,11 @@
         function CrosshairRenderer(data) {
             this._private__data = data;
         }
-        CrosshairRenderer.prototype._internal_draw = function (ctx, pixelRatio, isHovered, hitTestData) {
+        CrosshairRenderer.prototype._internal_draw = function (ctx, renderParams) {
             if (this._private__data === null) {
                 return;
             }
+            var pixelRatio = renderParams._internal_pixelRatio;
             var vertLinesVisible = this._private__data._internal_vertLine._internal_visible;
             var horzLinesVisible = this._private__data._internal_horzLine._internal_visible;
             if (!vertLinesVisible && !horzLinesVisible) {
@@ -834,7 +1415,7 @@
 
     var CrosshairPaneView = /** @class */ (function () {
         function CrosshairPaneView(source) {
-            this._private__invalidated = true;
+            this._private__validated = new Map();
             this._private__rendererData = {
                 _internal_vertLine: {
                     _internal_lineWidth: 1,
@@ -857,21 +1438,25 @@
             this._private__source = source;
         }
         CrosshairPaneView.prototype._internal_update = function () {
-            this._private__invalidated = true;
+            this._private__validated.clear();
         };
-        CrosshairPaneView.prototype._internal_renderer = function (height, width) {
-            if (this._private__invalidated) {
-                this._private__updateImpl();
-                this._private__invalidated = false;
-            }
+        CrosshairPaneView.prototype._internal_renderer = function (height, width, pane) {
+            this._private__updateImpl(pane);
+            // TODO rendererData needs to be cached per pane.
+            /* if (!this._validated.get(pane)) {
+                this._updateImpl(pane);
+                this._validated.set(pane, true);
+            } else {
+                console.warn(`unexpected validated renderer, height: ${pane.height()}`);
+            }*/
             return this._private__renderer;
         };
-        CrosshairPaneView.prototype._private__updateImpl = function () {
+        CrosshairPaneView.prototype._private__updateImpl = function (renderingPane) {
             var visible = this._private__source._internal_visible();
             var pane = ensureNotNull(this._private__source._internal_pane());
             var crosshairOptions = pane._internal_model()._internal_options().crosshair;
             var data = this._private__rendererData;
-            data._internal_horzLine._internal_visible = visible && this._private__source._internal_horzLineVisible(pane);
+            data._internal_horzLine._internal_visible = visible && this._private__source._internal_horzLineVisible(renderingPane);
             data._internal_vertLine._internal_visible = visible && this._private__source._internal_vertLineVisible();
             data._internal_horzLine._internal_lineWidth = crosshairOptions.horzLine.width;
             data._internal_horzLine._internal_lineStyle = crosshairOptions.horzLine.style;
@@ -879,8 +1464,8 @@
             data._internal_vertLine._internal_lineWidth = crosshairOptions.vertLine.width;
             data._internal_vertLine._internal_lineStyle = crosshairOptions.vertLine.style;
             data._internal_vertLine._internal_color = crosshairOptions.vertLine.color;
-            data._internal_w = pane._internal_width();
-            data._internal_h = pane._internal_height();
+            data._internal_w = renderingPane._internal_width();
+            data._internal_h = renderingPane._internal_height();
             data._internal_x = this._private__source._internal_appliedX();
             data._internal_y = this._private__source._internal_appliedY();
         };
@@ -924,9 +1509,9 @@
         ctx.fillRect(x, y, borderWidth, height);
         ctx.fillRect(x + width - borderWidth, y, borderWidth, height);
     }
-    function drawScaled(ctx, ratio, func) {
+    function drawScaled(ctx, pixelRatio, func) {
         ctx.save();
-        ctx.scale(ratio, ratio);
+        ctx.scale(pixelRatio, pixelRatio);
         func();
         ctx.restore();
     }
@@ -957,7 +1542,7 @@
             this._private__data = data;
             this._private__commonData = commonData;
         };
-        PriceAxisViewRenderer.prototype._internal_draw = function (ctx, rendererOptions, textWidthCache, width, align, pixelRatio) {
+        PriceAxisViewRenderer.prototype._internal_draw = function (ctx, rendererOptions, renderParams) {
             if (!this._private__data._internal_visible) {
                 return;
             }
@@ -969,7 +1554,7 @@
             var paddingInner = rendererOptions._internal_paddingInner;
             var paddingOuter = rendererOptions._internal_paddingOuter;
             var text = this._private__data._internal_text;
-            var textWidth = Math.ceil(textWidthCache._internal_measureText(ctx, text));
+            var textWidth = Math.ceil(rendererOptions._internal_widthCache._internal_measureText(ctx, text));
             var baselineOffset = rendererOptions._internal_baselineOffset;
             var totalHeight = rendererOptions._internal_fontSize + paddingTop + paddingBottom;
             var halfHeigth = Math.ceil(totalHeight * 0.5);
@@ -981,7 +1566,9 @@
             yMid = Math.round(yMid);
             var yTop = yMid - halfHeigth;
             var yBottom = yTop + totalHeight;
-            var alignRight = align === 'right';
+            var alignRight = rendererOptions._internal_align === 'right';
+            var pixelRatio = renderParams._internal_pixelRatio;
+            var width = renderParams._internal_cssWidth;
             var xInside = alignRight ? width : 0;
             var rightScaled = Math.ceil(width * pixelRatio);
             var xOutside = xInside;
@@ -1050,8 +1637,8 @@
         return PriceAxisViewRenderer;
     }());
 
-    var PriceAxisView = /** @class */ (function () {
-        function PriceAxisView(ctor) {
+    var PriceAxisLabelView = /** @class */ (function () {
+        function PriceAxisLabelView(ctor) {
             this._private__commonRendererData = {
                 _internal_coordinate: 0,
                 _internal_color: '#FFF',
@@ -1060,7 +1647,7 @@
             this._private__axisRendererData = {
                 _internal_text: '',
                 _internal_visible: false,
-                _internal_tickVisible: true,
+                _internal_tickVisible: false,
                 _internal_moveTextToInvisibleTick: false,
                 _internal_borderColor: '',
             };
@@ -1075,72 +1662,63 @@
             this._private__axisRenderer = new (ctor || PriceAxisViewRenderer)(this._private__axisRendererData, this._private__commonRendererData);
             this._private__paneRenderer = new (ctor || PriceAxisViewRenderer)(this._private__paneRendererData, this._private__commonRendererData);
         }
-        PriceAxisView.prototype._internal_text = function () {
+        PriceAxisLabelView.prototype._internal_text = function () {
             this._private__updateRendererDataIfNeeded();
             return this._private__axisRendererData._internal_text;
         };
-        PriceAxisView.prototype._internal_coordinate = function () {
+        PriceAxisLabelView.prototype._internal_coordinate = function () {
             this._private__updateRendererDataIfNeeded();
             return this._private__commonRendererData._internal_coordinate;
         };
-        PriceAxisView.prototype._internal_update = function () {
+        PriceAxisLabelView.prototype._internal_update = function () {
             this._private__invalidated = true;
         };
-        PriceAxisView.prototype._internal_height = function (rendererOptions, useSecondLine) {
+        PriceAxisLabelView.prototype._internal_height = function (rendererOptions, useSecondLine) {
             if (useSecondLine === void 0) { useSecondLine = false; }
             return Math.max(this._private__axisRenderer._internal_height(rendererOptions, useSecondLine), this._private__paneRenderer._internal_height(rendererOptions, useSecondLine));
         };
-        PriceAxisView.prototype._internal_getFixedCoordinate = function () {
+        PriceAxisLabelView.prototype._internal_getFixedCoordinate = function () {
             return this._private__commonRendererData._internal_fixedCoordinate || 0;
         };
-        PriceAxisView.prototype._internal_setFixedCoordinate = function (value) {
+        PriceAxisLabelView.prototype._internal_setFixedCoordinate = function (value) {
             this._private__commonRendererData._internal_fixedCoordinate = value;
         };
-        PriceAxisView.prototype._internal_isVisible = function () {
+        PriceAxisLabelView.prototype._internal_isVisible = function () {
             this._private__updateRendererDataIfNeeded();
             return this._private__axisRendererData._internal_visible || this._private__paneRendererData._internal_visible;
         };
-        PriceAxisView.prototype._internal_isAxisLabelVisible = function () {
+        PriceAxisLabelView.prototype._internal_renderer = function () {
             this._private__updateRendererDataIfNeeded();
-            return this._private__axisRendererData._internal_visible;
-        };
-        PriceAxisView.prototype._internal_renderer = function (priceScale) {
-            this._private__updateRendererDataIfNeeded();
-            // force update tickVisible state from price scale options
-            // because we don't have and we can't have price axis in other methods
-            // (like paneRenderer or any other who call _updateRendererDataIfNeeded)
-            this._private__axisRendererData._internal_tickVisible = this._private__axisRendererData._internal_tickVisible && priceScale._internal_options().drawTicks;
-            this._private__paneRendererData._internal_tickVisible = this._private__paneRendererData._internal_tickVisible && priceScale._internal_options().drawTicks;
             this._private__axisRenderer._internal_setData(this._private__axisRendererData, this._private__commonRendererData);
             this._private__paneRenderer._internal_setData(this._private__paneRendererData, this._private__commonRendererData);
             return this._private__axisRenderer;
         };
-        PriceAxisView.prototype._internal_paneRenderer = function () {
+        PriceAxisLabelView.prototype._internal_paneRenderer = function () {
             this._private__updateRendererDataIfNeeded();
             this._private__axisRenderer._internal_setData(this._private__axisRendererData, this._private__commonRendererData);
             this._private__paneRenderer._internal_setData(this._private__paneRendererData, this._private__commonRendererData);
             return this._private__paneRenderer;
         };
-        PriceAxisView.prototype._private__updateRendererDataIfNeeded = function () {
+        PriceAxisLabelView.prototype._private__updateRendererDataIfNeeded = function () {
             if (this._private__invalidated) {
-                this._private__axisRendererData._internal_tickVisible = true;
+                this._private__axisRendererData._internal_tickVisible = false;
                 this._private__paneRendererData._internal_tickVisible = false;
                 this._internal__updateRendererData(this._private__axisRendererData, this._private__paneRendererData, this._private__commonRendererData);
             }
         };
-        return PriceAxisView;
+        return PriceAxisLabelView;
     }());
 
-    var CrosshairPriceAxisView = /** @class */ (function (_super) {
-        __extends(CrosshairPriceAxisView, _super);
-        function CrosshairPriceAxisView(source, priceScale, valueProvider) {
+    var CrosshairPriceAxisLabelView = /** @class */ (function (_super) {
+        __extends(CrosshairPriceAxisLabelView, _super);
+        function CrosshairPriceAxisLabelView(source, priceScale, valueProvider) {
             var _this = _super.call(this) || this;
             _this._private__source = source;
             _this._private__priceScale = priceScale;
             _this._private__valueProvider = valueProvider;
             return _this;
         }
-        CrosshairPriceAxisView.prototype._internal__updateRendererData = function (axisRendererData, paneRendererData, commonRendererData) {
+        CrosshairPriceAxisLabelView.prototype._internal__updateRendererData = function (axisRendererData, paneRendererData, commonRendererData) {
             axisRendererData._internal_visible = false;
             var options = this._private__source._internal_options().horzLine;
             if (!options.labelVisible) {
@@ -1158,23 +1736,24 @@
             axisRendererData._internal_text = this._private__priceScale._internal_formatPrice(value._internal_price, firstValue);
             axisRendererData._internal_visible = true;
         };
-        return CrosshairPriceAxisView;
-    }(PriceAxisView));
+        return CrosshairPriceAxisLabelView;
+    }(PriceAxisLabelView));
 
     var optimizationReplacementRe = /[1-9]/g;
-    var TimeAxisViewRenderer = /** @class */ (function () {
-        function TimeAxisViewRenderer() {
+    var TimeAxisLabelRenderer = /** @class */ (function () {
+        function TimeAxisLabelRenderer() {
             this._private__data = null;
         }
-        TimeAxisViewRenderer.prototype._internal_setData = function (data) {
+        TimeAxisLabelRenderer.prototype._internal_setData = function (data) {
             this._private__data = data;
         };
-        TimeAxisViewRenderer.prototype._internal_draw = function (ctx, rendererOptions, pixelRatio) {
+        TimeAxisLabelRenderer.prototype._internal_draw = function (ctx, rendererOptions, renderParams) {
             var _this = this;
             if (this._private__data === null || this._private__data._internal_visible === false || this._private__data._internal_text.length === 0) {
                 return;
             }
             ctx.font = rendererOptions._internal_font;
+            var pixelRatio = renderParams._internal_pixelRatio;
             var textWidth = Math.round(rendererOptions._internal_widthCache._internal_measureText(ctx, this._private__data._internal_text, optimizationReplacementRe));
             if (textWidth <= 0) {
                 return;
@@ -1207,83 +1786,125 @@
             var x2scaled = Math.round(x2 * pixelRatio);
             var y2scaled = Math.round(y2 * pixelRatio);
             ctx.fillRect(x1scaled, y1scaled, x2scaled - x1scaled, y2scaled - y1scaled);
-            var tickX = Math.round(this._private__data._internal_coordinate * pixelRatio);
-            var tickTop = y1scaled;
-            var tickBottom = Math.round((tickTop + rendererOptions._internal_borderSize + rendererOptions._internal_tickLength) * pixelRatio);
-            ctx.fillStyle = this._private__data._internal_color;
-            var tickWidth = Math.max(1, Math.floor(pixelRatio));
-            var tickOffset = Math.floor(pixelRatio * 0.5);
-            ctx.fillRect(tickX - tickOffset, tickTop, tickWidth, tickBottom - tickTop);
+            if (this._private__data._internal_tickVisible) {
+                var tickX = Math.round(this._private__data._internal_coordinate * pixelRatio);
+                var tickTop = y1scaled;
+                var tickBottom = Math.round((tickTop + rendererOptions._internal_borderSize + rendererOptions._internal_tickLength) * pixelRatio);
+                ctx.fillStyle = this._private__data._internal_color;
+                var tickWidth = Math.max(1, Math.floor(pixelRatio));
+                var tickOffset = Math.floor(pixelRatio * 0.5);
+                ctx.fillRect(tickX - tickOffset, tickTop, tickWidth, tickBottom - tickTop);
+            }
             var yText = y2 - rendererOptions._internal_baselineOffset - rendererOptions._internal_paddingBottom;
             ctx.textAlign = 'left';
             ctx.fillStyle = this._private__data._internal_color;
-            drawScaled(ctx, pixelRatio, function () {
+            drawScaled(ctx, renderParams._internal_pixelRatio, function () {
                 ctx.fillText(ensureNotNull(_this._private__data)._internal_text, x1 + horzMargin, yText);
             });
             ctx.restore();
         };
-        return TimeAxisViewRenderer;
+        return TimeAxisLabelRenderer;
     }());
 
-    var CrosshairTimeAxisView = /** @class */ (function () {
-        function CrosshairTimeAxisView(crosshair, model, valueProvider) {
-            this._private__invalidated = true;
-            this._private__renderer = new TimeAxisViewRenderer();
-            this._private__rendererData = {
-                _internal_visible: false,
-                _internal_background: '#4c525e',
-                _internal_color: 'white',
+    var TimeAxisLabelView = /** @class */ (function () {
+        function TimeAxisLabelView(model) {
+            this._internal__renderer = new TimeAxisLabelRenderer();
+            this._internal__invalidated = true;
+            this._internal__rendererData = {
+                _internal_background: '',
+                _internal_coordinate: 0,
+                _internal_color: '',
                 _internal_text: '',
                 _internal_width: 0,
-                _internal_coordinate: NaN,
+                _internal_visible: false,
+                _internal_tickVisible: false,
             };
-            this._private__crosshair = crosshair;
-            this._private__model = model;
-            this._private__valueProvider = valueProvider;
+            this._internal__model = model;
+            this._internal__renderer._internal_setData(this._internal__rendererData);
         }
-        CrosshairTimeAxisView.prototype._internal_update = function () {
-            this._private__invalidated = true;
+        TimeAxisLabelView.prototype._internal_update = function () {
+            this._internal__invalidated = true;
         };
-        CrosshairTimeAxisView.prototype._internal_renderer = function () {
-            if (this._private__invalidated) {
-                this._private__updateImpl();
-                this._private__invalidated = false;
+        TimeAxisLabelView.prototype._internal_renderer = function () {
+            if (this._internal__invalidated) {
+                this._internal__updateImpl();
             }
-            this._private__renderer._internal_setData(this._private__rendererData);
-            return this._private__renderer;
+            this._internal__invalidated = false;
+            return this._internal__renderer;
         };
-        CrosshairTimeAxisView.prototype._private__updateImpl = function () {
-            var data = this._private__rendererData;
-            data._internal_visible = false;
-            var options = this._private__crosshair._internal_options().vertLine;
+        TimeAxisLabelView.prototype._internal__updateImpl = function () {
+            this._internal__rendererData._internal_visible = false;
+            if (this._internal__model._internal_timeScale()._internal_isEmpty()) {
+                return;
+            }
+            var background = this._internal__getBackgroundColor();
+            if (background === null) {
+                return;
+            }
+            var timestamp = this._internal__getTime();
+            if (timestamp === null) {
+                return;
+            }
+            var colors = generateContrastColors(background);
+            this._internal__rendererData._internal_background = colors._internal_background;
+            this._internal__rendererData._internal_color = colors._internal_foreground;
+            this._internal__rendererData._internal_coordinate = this._internal__model._internal_timeScale()._internal_timeToCoordinate({ _internal_timestamp: timestamp });
+            this._internal__rendererData._internal_text = this._internal__model._internal_timeScale()._internal_formatDateTime({ _internal_timestamp: timestamp });
+            this._internal__rendererData._internal_width = this._internal__model._internal_timeScale()._internal_width();
+            this._internal__rendererData._internal_visible = true;
+            this._internal__invalidated = false;
+        };
+        return TimeAxisLabelView;
+    }());
+
+    var CrosshairTimeAxisLabelView = /** @class */ (function (_super) {
+        __extends(CrosshairTimeAxisLabelView, _super);
+        function CrosshairTimeAxisLabelView(crosshair, model, valueProvider) {
+            var _this = _super.call(this, model) || this;
+            _this._internal__crosshair = crosshair;
+            _this._internal__valueProvider = valueProvider;
+            return _this;
+        }
+        CrosshairTimeAxisLabelView.prototype._internal__getTime = function () {
+            var currentTime = this._internal__model._internal_timeScale()._internal_floatIndexToTime(this._internal__crosshair._internal_appliedIndex());
+            return currentTime;
+        };
+        CrosshairTimeAxisLabelView.prototype._internal__getBackgroundColor = function () {
+            return '#4c525e';
+        };
+        CrosshairTimeAxisLabelView.prototype._internal__updateImpl = function () {
+            this._internal__rendererData._internal_visible = false;
+            var options = this._internal__crosshair._internal_options().vertLine;
             if (!options.labelVisible) {
                 return;
             }
-            var timeScale = this._private__model._internal_timeScale();
-            if (timeScale._internal_isEmpty()) {
-                return;
-            }
-            var currentTime = timeScale._internal_indexToTime(this._private__crosshair._internal_appliedIndex());
-            data._internal_width = timeScale._internal_width();
-            var value = this._private__valueProvider();
-            if (!value._internal_time) {
-                return;
-            }
-            data._internal_coordinate = value._internal_coordinate;
-            data._internal_text = timeScale._internal_formatDateTime(ensureNotNull(currentTime));
-            data._internal_visible = true;
-            var colors = generateContrastColors(options.labelBackgroundColor);
-            data._internal_background = colors._internal_background;
-            data._internal_color = colors._internal_foreground;
+            _super.prototype._internal__updateImpl.call(this);
         };
-        return CrosshairTimeAxisView;
-    }());
+        return CrosshairTimeAxisLabelView;
+    }(TimeAxisLabelView));
+
+    var source = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    function randomHashN(count) {
+        var hash = '';
+        for (var i = 0; i < count; ++i) {
+            var index = Math.floor(Math.random() * source.length);
+            hash += source[index];
+        }
+        return hash;
+    }
 
     var DataSource = /** @class */ (function () {
         function DataSource() {
             this._internal__priceScale = null;
+            this._private__id = randomHashN(6);
             this._private__zorder = 0;
         }
+        DataSource.prototype._internal_id = function () {
+            return this._private__id;
+        };
+        DataSource.prototype._internal_setId = function (id) {
+            this._private__id = id;
+        };
         DataSource.prototype._internal_zorder = function () {
             return this._private__zorder;
         };
@@ -1363,7 +1984,7 @@
             // for current position always return both price and coordinate
             _this._private__currentPosPriceProvider = valuePriceProvider(function () { return _this._private__price; }, function () { return _this._private__y; });
             var currentPosTimeProvider = valueTimeProvider(function () { return _this._private__index; }, function () { return _this._internal_appliedX(); });
-            _this._private__timeAxisView = new CrosshairTimeAxisView(_this, model, currentPosTimeProvider);
+            _this._private__timeAxisView = new CrosshairTimeAxisLabelView(_this, model, currentPosTimeProvider);
             _this._private__paneView = new CrosshairPaneView(_this);
             return _this;
         }
@@ -1412,7 +2033,7 @@
             this._private__pane = null;
             this._internal_clearOriginCoord();
         };
-        Crosshair.prototype._internal_paneViews = function (pane) {
+        Crosshair.prototype._internal_paneViews = function () {
             return this._private__pane !== null ? [this._private__paneView, this._private__markersPaneView] : [];
         };
         Crosshair.prototype._internal_horzLineVisible = function (pane) {
@@ -1486,7 +2107,7 @@
         Crosshair.prototype._private__createPriceAxisViewOnDemand = function (map, priceScale, valueProvider) {
             var view = map.get(priceScale);
             if (view === undefined) {
-                view = new CrosshairPriceAxisView(this, priceScale, valueProvider);
+                view = new CrosshairPriceAxisLabelView(this, priceScale, valueProvider);
                 map.set(priceScale, view);
             }
             return view;
@@ -1586,6 +2207,1443 @@
         return InvalidateMask;
     }());
 
+    /* eslint-disable @typescript-eslint/naming-convention */
+    var TextDefaults = {
+        value: '',
+        padding: 0,
+        wordWrapWidth: 0,
+        forceTextAlign: false,
+        forceCalculateMaxLineWidth: false,
+        alignment: "left" /* Left */,
+        font: { family: defaultFontFamily, color: '#2962ff', size: 12, bold: false, italic: false },
+        box: { scale: 1, angle: 0, alignment: { vertical: "bottom" /* Bottom */, horizontal: "left" /* Left */ } },
+    };
+    var TrendLineOptionDefaults = {
+        visible: true,
+        line: {
+            width: 1,
+            color: '#2962ff',
+            style: 0 /* Solid */,
+            extend: { left: false, right: false },
+            end: { left: 0 /* Normal */, right: 0 /* Normal */ },
+        },
+        text: TextDefaults,
+    };
+    var HorizontalLineOptionDefaults = {
+        visible: true,
+        line: {
+            width: 1,
+            color: '#2962ff',
+            style: 0 /* Solid */,
+            extend: { left: true, right: true },
+            end: { left: 0 /* Normal */, right: 0 /* Normal */ },
+        },
+        text: TextDefaults,
+    };
+    var ParallelChannelOptionDefaults = {
+        visible: true,
+        showMiddleLine: true,
+        extend: { left: false, right: false },
+        background: { color: applyAlpha('#2962ff', 0.2) },
+        middleLine: { width: 1, color: '#2962ff', style: 2 /* Dashed */ },
+        channelLine: { width: 1, color: '#2962ff', style: 0 /* Solid */ },
+    };
+    var FibRetracementOptionDefaults = {
+        visible: true,
+        extend: { left: false, right: false },
+        line: { width: 1, style: 0 /* Solid */ },
+        levels: [
+            { color: '#787b86', coeff: 0 },
+            { color: '#f23645', coeff: 0.236 },
+            { color: '#81c784', coeff: 0.382 },
+            { color: '#4caf50', coeff: 0.5 },
+            { color: '#089981', coeff: 0.618 },
+            { color: '#64b5f6', coeff: 0.786 },
+            { color: '#787b86', coeff: 1 },
+            { color: '#2962ff', coeff: 1.618 },
+            { color: '#f23645', coeff: 2.618 },
+            { color: '#9c27b0', coeff: 3.618 },
+            { color: '#e91e63', coeff: 4.236 },
+        ],
+    };
+    var BrushOptionDefaults = {
+        visible: true,
+        line: {
+            width: 1,
+            color: '#00bcd4',
+            join: "round" /* Round */,
+            style: 0 /* Solid */,
+            end: { left: 0 /* Normal */, right: 0 /* Normal */ },
+        },
+    };
+    var RectangleOptionDefaults = {
+        visible: true,
+        rectangle: {
+            extend: { left: false, right: false },
+            background: { color: applyAlpha('#9c27b0', 0.2) },
+            border: { width: 1, style: 0 /* Solid */, color: '#9c27b0' },
+        },
+        text: TextDefaults,
+    };
+    var TriangleOptionDefaults = {
+        visible: true,
+        triangle: {
+            background: { color: applyAlpha('#f57c00', 0.2) },
+            border: { width: 1, style: 0 /* Solid */, color: '#f57c00' },
+        },
+    };
+    var VerticalLineOptionDefaults = {
+        visible: true,
+        text: TextDefaults,
+        line: { width: 1, color: '#2962ff', style: 0 /* Solid */ },
+    };
+    var PathOptionDefaults = {
+        visible: true,
+        line: {
+            width: 1,
+            color: '#2962ff',
+            style: 0 /* Solid */,
+            end: { left: 0 /* Normal */, right: 1 /* Arrow */ },
+        },
+    };
+    var CrossLineOptionDefaults = {
+        visible: true,
+        line: { width: 1, color: '#2962ff', style: 0 /* Solid */ },
+    };
+    var HighlighterOptionDefaults = {
+        visible: true,
+        line: { color: applyAlpha('#f23645', 0.15) },
+    };
+    var TextOptionDefaults = {
+        visible: true,
+        text: merge(clone(TextDefaults), { value: 'Text' }),
+    };
+    /** @public */
+    var LineToolsOptionDefaults = {
+        Ray: merge(clone(TrendLineOptionDefaults), { line: { extend: { right: true } } }),
+        Arrow: merge(clone(TrendLineOptionDefaults), { line: { end: { right: 1 /* Arrow */ } } }),
+        ExtendedLine: merge(clone(TrendLineOptionDefaults), { line: { extend: { right: true, left: true } } }),
+        HorizontalRay: merge(clone(HorizontalLineOptionDefaults), { line: { extend: { left: false } } }),
+        FibRetracement: FibRetracementOptionDefaults,
+        ParallelChannel: ParallelChannelOptionDefaults,
+        HorizontalLine: HorizontalLineOptionDefaults,
+        VerticalLine: VerticalLineOptionDefaults,
+        Highlighter: HighlighterOptionDefaults,
+        CrossLine: CrossLineOptionDefaults,
+        TrendLine: TrendLineOptionDefaults,
+        Rectangle: RectangleOptionDefaults,
+        Triangle: TriangleOptionDefaults,
+        Brush: BrushOptionDefaults,
+        Path: PathOptionDefaults,
+        Text: TextOptionDefaults,
+    };
+
+    var PriceAxisBackgroundRenderer = /** @class */ (function () {
+        function PriceAxisBackgroundRenderer() {
+            this._private__data = null;
+        }
+        PriceAxisBackgroundRenderer.prototype._internal_setData = function (data) {
+            this._private__data = data;
+        };
+        PriceAxisBackgroundRenderer.prototype._internal_drawBackground = function (ctx, rendererOptions, renderParams) {
+            if (this._private__data === null || this._private__data._internal_visible === false) {
+                return;
+            }
+            var _a = this._private__data, y = _a._internal_coordinate, height = _a._internal_height, color = _a._internal_color;
+            var width = ctx.canvas.clientWidth;
+            drawScaled(ctx, renderParams._internal_pixelRatio, function () {
+                ctx.fillStyle = color;
+                ctx.fillRect(0, y, width, height);
+            });
+        };
+        return PriceAxisBackgroundRenderer;
+    }());
+
+    var LineToolPriceAxisBackgroundView = /** @class */ (function () {
+        function LineToolPriceAxisBackgroundView(lineTool) {
+            this._internal__renderer = new PriceAxisBackgroundRenderer();
+            this._internal__invalidated = true;
+            this._internal__rendererData = {
+                _internal_color: 'rgba(41, 98, 255, 0.25)',
+                _internal_visible: false,
+                _internal_coordinate: 0,
+                _internal_height: 0,
+            };
+            this._internal__source = lineTool;
+            this._internal__model = lineTool._internal_model();
+            this._internal__renderer._internal_setData(this._internal__rendererData);
+        }
+        LineToolPriceAxisBackgroundView.prototype._internal_update = function () {
+            this._internal__invalidated = true;
+        };
+        LineToolPriceAxisBackgroundView.prototype._internal_renderer = function () {
+            if (this._internal__invalidated) {
+                this._internal__updateImpl();
+            }
+            this._internal__invalidated = false;
+            return this._internal__renderer;
+        };
+        LineToolPriceAxisBackgroundView.prototype._internal__updateImpl = function () {
+            this._internal__rendererData._internal_visible = false;
+            var priceScale = this._internal__source._internal_priceScale();
+            if (!priceScale || priceScale._internal_isEmpty()) {
+                return;
+            }
+            if (!this._internal__source._internal_selected()) {
+                return;
+            }
+            var x = this._internal__source._internal_priceAxisPoints().map(function (point) {
+                return priceScale._internal_priceToCoordinate(point.price, point.price);
+            });
+            var max = Math.max.apply(Math, x);
+            var min = Math.min.apply(Math, x);
+            this._internal__rendererData._internal_coordinate = min;
+            this._internal__rendererData._internal_height = max - min;
+            this._internal__rendererData._internal_visible = true;
+            this._internal__invalidated = false;
+        };
+        return LineToolPriceAxisBackgroundView;
+    }());
+
+    var LineToolPriceAxisLabelView = /** @class */ (function (_super) {
+        __extends(LineToolPriceAxisLabelView, _super);
+        function LineToolPriceAxisLabelView(lineTool, pointIndex) {
+            var _this = _super.call(this) || this;
+            _this._internal__active = false;
+            _this._internal__active = false;
+            _this._internal__source = lineTool;
+            _this._internal__pointIndex = pointIndex;
+            return _this;
+        }
+        LineToolPriceAxisLabelView.prototype._internal_setActive = function (active) {
+            this._internal__active = active;
+        };
+        LineToolPriceAxisLabelView.prototype._internal__updateRendererData = function (axisRenderData, paneRenderData, commonRendererData) {
+            var _a;
+            axisRenderData._internal_visible = false;
+            var chartModel = this._internal__source._internal_model();
+            if (!chartModel._internal_timeScale() || chartModel._internal_timeScale()._internal_isEmpty()) {
+                return;
+            }
+            var background = this._internal__getBackgroundColor();
+            if (background === null) {
+                return;
+            }
+            var priceScale = this._internal__source._internal_priceScale();
+            if (priceScale === null || priceScale._internal_isEmpty()) {
+                return;
+            }
+            if (chartModel._internal_timeScale()._internal_visibleStrictRange() === null) {
+                return;
+            }
+            var points = this._internal__source._internal_priceAxisPoints();
+            if (points.length <= this._internal__pointIndex) {
+                return;
+            }
+            var point = points[this._internal__pointIndex];
+            if (!isFinite(point.price)) {
+                return;
+            }
+            var ownerSource = this._internal__source._internal_ownerSource();
+            var firstValue = null !== ownerSource ? ownerSource._internal_firstValue() : null;
+            if (null === firstValue) {
+                return;
+            }
+            commonRendererData._internal_background = background;
+            commonRendererData._internal_color = generateContrastColors(commonRendererData._internal_background)._internal_foreground;
+            commonRendererData._internal_coordinate = priceScale._internal_priceToCoordinate(point.price, firstValue._internal_value);
+            axisRenderData._internal_text = ((_a = this._internal__source._internal_priceScale()) === null || _a === void 0 ? void 0 : _a._internal_formatPrice(point.price, firstValue._internal_value)) || '';
+            axisRenderData._internal_visible = true;
+        };
+        LineToolPriceAxisLabelView.prototype._internal__getBackgroundColor = function () {
+            return this._internal__source._internal_priceAxisLabelColor();
+        };
+        return LineToolPriceAxisLabelView;
+    }(PriceAxisLabelView));
+
+    var TimeAxisBackgroundRenderer = /** @class */ (function () {
+        function TimeAxisBackgroundRenderer() {
+            this._private__data = null;
+        }
+        TimeAxisBackgroundRenderer.prototype._internal_setData = function (data) {
+            this._private__data = data;
+        };
+        TimeAxisBackgroundRenderer.prototype._internal_drawBackground = function (ctx, rendererOptions, renderParams) {
+            if (this._private__data === null || this._private__data._internal_visible === false) {
+                return;
+            }
+            var _a = this._private__data, x = _a._internal_coordinate, width = _a._internal_width, color = _a._internal_color;
+            var height = ctx.canvas.clientHeight;
+            drawScaled(ctx, renderParams._internal_pixelRatio, function () {
+                ctx.fillStyle = color;
+                ctx.fillRect(x, 0, width, height);
+            });
+        };
+        return TimeAxisBackgroundRenderer;
+    }());
+
+    var LineToolTimeAxisBackgroundView = /** @class */ (function () {
+        function LineToolTimeAxisBackgroundView(lineTool) {
+            this._internal__renderer = new TimeAxisBackgroundRenderer();
+            this._internal__invalidated = true;
+            this._internal__rendererData = {
+                _internal_color: 'rgba(41, 98, 255, 0.25)',
+                _internal_visible: false,
+                _internal_coordinate: 0,
+                _internal_width: 0,
+            };
+            this._internal__source = lineTool;
+            this._internal__model = lineTool._internal_model();
+            this._internal__renderer._internal_setData(this._internal__rendererData);
+        }
+        LineToolTimeAxisBackgroundView.prototype._internal_update = function () {
+            this._internal__invalidated = true;
+        };
+        LineToolTimeAxisBackgroundView.prototype._internal_renderer = function () {
+            if (this._internal__invalidated) {
+                this._internal__updateImpl();
+            }
+            this._internal__invalidated = false;
+            return this._internal__renderer;
+        };
+        LineToolTimeAxisBackgroundView.prototype._internal__updateImpl = function () {
+            var _this = this;
+            this._internal__rendererData._internal_visible = false;
+            if (this._internal__model._internal_timeScale()._internal_isEmpty()) {
+                return;
+            }
+            if (!this._internal__source._internal_selected()) {
+                return;
+            }
+            var y = this._internal__source._internal_timeAxisPoints().map(function (point) {
+                return _this._internal__model._internal_timeScale()._internal_timeToCoordinate({ _internal_timestamp: point.timestamp });
+            });
+            var max = Math.max.apply(Math, y);
+            var min = Math.min.apply(Math, y);
+            this._internal__rendererData._internal_coordinate = min;
+            this._internal__rendererData._internal_width = max - min;
+            this._internal__rendererData._internal_visible = true;
+            this._internal__invalidated = false;
+        };
+        return LineToolTimeAxisBackgroundView;
+    }());
+
+    var LineToolTimeAxisLabelView = /** @class */ (function (_super) {
+        __extends(LineToolTimeAxisLabelView, _super);
+        function LineToolTimeAxisLabelView(lineTool, pointIndex) {
+            var _this = _super.call(this, lineTool._internal_model()) || this;
+            _this._internal__source = lineTool;
+            _this._internal__pointIndex = pointIndex;
+            return _this;
+        }
+        LineToolTimeAxisLabelView.prototype._internal__getBackgroundColor = function () {
+            return this._internal__source._internal_timeAxisLabelColor();
+        };
+        LineToolTimeAxisLabelView.prototype._internal__getTime = function () {
+            var points = this._internal__source._internal_timeAxisPoints();
+            return points.length <= this._internal__pointIndex ? null : points[this._internal__pointIndex].timestamp;
+        };
+        return LineToolTimeAxisLabelView;
+    }(TimeAxisLabelView));
+
+    var LineTool = /** @class */ (function (_super) {
+        __extends(LineTool, _super);
+        function LineTool(model, options, points) {
+            if (points === void 0) { points = []; }
+            var _this = _super.call(this) || this;
+            _this._internal__pointChanged = new Delegate();
+            _this._internal__pointAdded = new Delegate();
+            _this._internal__priceAxisViews = [];
+            _this._internal__timeAxisViews = [];
+            _this._internal__paneViews = [];
+            _this._internal__hovered = false;
+            _this._internal__selected = false;
+            _this._internal__finished = false;
+            _this._internal__editing = false;
+            _this._internal__ownerSource = null;
+            _this._internal__lastPoint = null;
+            _this._internal__points = [];
+            _this._internal__model = model;
+            _this._internal__points = points;
+            _this._internal__options = options;
+            for (var i = 0; i < _this._internal_pointsCount(); i++) {
+                _this._internal__priceAxisViews.push(new LineToolPriceAxisLabelView(_this, i));
+                _this._internal__timeAxisViews.push(new LineToolTimeAxisLabelView(_this, i));
+            }
+            if (_this._internal_pointsCount() > 1) {
+                _this._internal__priceAxisViews.push(new LineToolPriceAxisBackgroundView(_this));
+                _this._internal__timeAxisViews.push(new LineToolTimeAxisBackgroundView(_this));
+            }
+            // TODO: iosif change to use the ownerSourceId
+            // this._ownerSource = model.serieses().find((series: IPriceDataSource) => series.id() === this._options.ownerSourceId) || null;
+            _this._internal__ownerSource = model._internal_serieses()[0];
+            _this._internal__finished = _this._internal__points.length >= (_this._internal_pointsCount() === -1 ? 2 : _this._internal_pointsCount());
+            return _this;
+        }
+        LineTool.prototype._internal_finished = function () {
+            return this._internal__finished;
+        };
+        LineTool.prototype._internal_tryFinish = function () {
+            if (this._internal__points.length >= Math.max(1, this._internal_pointsCount())) {
+                this._internal__finished = true;
+                this._internal__selected = true;
+                this._internal__lastPoint = null;
+                this._internal_model()._internal_updateSource(this);
+            }
+        };
+        LineTool.prototype._internal_points = function () {
+            var points = __spreadArray(__spreadArray([], this._internal__points, true), (this._internal__lastPoint ? [this._internal__lastPoint] : []), true);
+            return this._internal_pointsCount() === -1 ? points : points.slice(0, this._internal_pointsCount());
+        };
+        LineTool.prototype._internal_addPoint = function (point) {
+            this._internal__points.push(point);
+        };
+        LineTool.prototype._internal_getPoint = function (index) {
+            return this._internal_points()[index] || null;
+        };
+        LineTool.prototype._internal_setPoint = function (index, point) {
+            this._internal__points[index].price = point.price;
+            this._internal__points[index].timestamp = point.timestamp;
+        };
+        LineTool.prototype._internal_setPoints = function (points) {
+            this._internal__points = points;
+        };
+        LineTool.prototype._internal_setLastPoint = function (point) {
+            this._internal__lastPoint = point;
+        };
+        LineTool.prototype._internal_pointToScreenPoint = function (linePoint) {
+            var _a, _b;
+            var baseValue = ((_b = (_a = this._internal_ownerSource()) === null || _a === void 0 ? void 0 : _a._internal_firstValue()) === null || _b === void 0 ? void 0 : _b._internal_value) || 0;
+            var priceScale = this._internal_priceScale();
+            var timeScale = this._internal_timeScale();
+            if (!priceScale || priceScale._internal_isEmpty() || timeScale._internal_isEmpty()) {
+                return null;
+            }
+            var x = timeScale._internal_timeToCoordinate({ _internal_timestamp: linePoint.timestamp });
+            var y = priceScale._internal_priceToCoordinate(linePoint.price, baseValue);
+            return new Point(x, y);
+        };
+        LineTool.prototype._internal_screenPointToPoint = function (point) {
+            var _a, _b;
+            var baseValue = ((_b = (_a = this._internal_ownerSource()) === null || _a === void 0 ? void 0 : _a._internal_firstValue()) === null || _b === void 0 ? void 0 : _b._internal_value) || 0;
+            var priceScale = this._internal_priceScale();
+            var timeScale = this._internal_timeScale();
+            if (!priceScale) {
+                return null;
+            }
+            var price = priceScale._internal_coordinateToPrice(point.y, baseValue);
+            var timestamp = timeScale._internal_coordinateToTime(point.x)._internal_timestamp;
+            return { price: price, timestamp: timestamp };
+        };
+        LineTool.prototype._internal_state = function () {
+            return { _internal_id: this._internal_id(), _internal_type: this._internal__toolType, _internal_options: this._internal__options };
+        };
+        LineTool.prototype._internal_priceScale = function () {
+            // TODO: iosif update to use the onwer source price scale
+            return this._internal__model._internal_panes()[0]._internal_rightPriceScale();
+            // return this._ownerSource ? this._ownerSource.priceScale() : null;
+        };
+        LineTool.prototype._internal_timeScale = function () {
+            return this._internal__model._internal_timeScale();
+        };
+        LineTool.prototype._internal_ownerSource = function () {
+            return this._internal__ownerSource;
+        };
+        LineTool.prototype._internal_options = function () {
+            return this._internal__options;
+        };
+        LineTool.prototype._internal_visible = function () {
+            return this._internal__options.visible;
+        };
+        LineTool.prototype._internal_applyOptions = function (options) {
+            merge(this._internal__options, options);
+            this._internal_model()._internal_updateSource(this);
+            this._internal__paneViews.forEach(function (paneView) {
+                paneView._internal_update('options');
+            });
+        };
+        LineTool.prototype._internal_paneViews = function (pane) {
+            return this._internal__paneViews;
+        };
+        LineTool.prototype._internal_updateAllViews = function () {
+            if (!this._internal_options().visible) {
+                return;
+            }
+            this._internal__updateAllPaneViews();
+            for (var i = 0; i < this._internal__priceAxisViews.length; i++) {
+                this._internal__priceAxisViews[i]._internal_update();
+            }
+            for (var i = 0; i < this._internal__timeAxisViews.length; i++) {
+                this._internal__timeAxisViews[i]._internal_update();
+            }
+        };
+        LineTool.prototype._internal_hovered = function () {
+            return this._internal__hovered;
+        };
+        LineTool.prototype._internal_setHovered = function (hovered) {
+            var changed = hovered !== this._internal__hovered;
+            this._internal__hovered = hovered;
+            return changed;
+        };
+        LineTool.prototype._internal_selected = function () {
+            return this._internal__selected;
+        };
+        LineTool.prototype._internal_setSelected = function (selected) {
+            var changed = selected !== this._internal__selected;
+            this._internal__selected = selected;
+            if (changed) {
+                this._internal_updateAllViews();
+            }
+            return changed;
+        };
+        LineTool.prototype._internal_editing = function () {
+            return this._internal__editing;
+        };
+        LineTool.prototype._internal_setEditing = function (editing) {
+            var changed = editing !== this._internal__editing;
+            this._internal__editing = editing;
+            return changed;
+        };
+        LineTool.prototype._internal_model = function () {
+            return this._internal__model;
+        };
+        LineTool.prototype._internal_toolType = function () {
+            return this._internal__toolType;
+        };
+        LineTool.prototype._internal_destroy = function () { };
+        LineTool.prototype._internal_timeAxisPoints = function () {
+            return this._internal_points();
+        };
+        LineTool.prototype._internal_priceAxisPoints = function () {
+            return this._internal_points();
+        };
+        LineTool.prototype._internal_timeAxisLabelColor = function () {
+            return this._internal_selected() ? '#2962FF' : null;
+        };
+        LineTool.prototype._internal_priceAxisLabelColor = function () {
+            return this._internal_selected() ? '#2962FF' : null;
+        };
+        LineTool.prototype._internal_timeAxisViews = function () {
+            return this._internal__timeAxisViews;
+        };
+        LineTool.prototype._internal_priceAxisViews = function () {
+            return this._internal__priceAxisViews;
+        };
+        LineTool.prototype._internal_lineDrawnWithPressedButton = function () {
+            return false;
+        };
+        LineTool.prototype._internal_hasMagnet = function () {
+            return true;
+        };
+        LineTool.prototype._internal__setPaneViews = function (paneViews) {
+            this._internal__paneViews = paneViews;
+        };
+        LineTool.prototype._internal__updateAllPaneViews = function () {
+            this._internal__paneViews.forEach(function (paneView) { return paneView._internal_update(); });
+        };
+        return LineTool;
+    }(DataSource));
+
+    function deepCopy(value) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        var copy;
+        if (typeof value != 'object' ||
+            value === null ||
+            typeof value.nodeType == 'number') {
+            copy = value;
+        }
+        else if (value instanceof Date) {
+            copy = new Date(value.valueOf());
+        }
+        else if (Array.isArray(value)) {
+            copy = [];
+            for (var i = 0; i < value.length; i++) {
+                if (Object.prototype.hasOwnProperty.call(value, i)) {
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                    copy[i] = deepCopy(value[i]);
+                }
+            }
+        }
+        else {
+            copy = {};
+            Object.keys(value).forEach(function (key) {
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                copy[key] = deepCopy(value[key]);
+            });
+        }
+        return copy;
+    }
+
+    var HitTestResult = /** @class */ (function () {
+        function HitTestResult(type, data) {
+            this._private__type = type;
+            this._private__data = data || null;
+        }
+        HitTestResult.prototype._internal_type = function () {
+            return this._private__type;
+        };
+        HitTestResult.prototype._internal_data = function () {
+            return this._private__data;
+        };
+        return HitTestResult;
+    }());
+    var HitTestType;
+    (function (HitTestType) {
+        HitTestType[HitTestType["_internal_Regular"] = 1] = "_internal_Regular";
+        HitTestType[HitTestType["_internal_MovePoint"] = 2] = "_internal_MovePoint";
+        HitTestType[HitTestType["_internal_MovePointBackground"] = 3] = "_internal_MovePointBackground";
+        HitTestType[HitTestType["_internal_ChangePoint"] = 4] = "_internal_ChangePoint";
+        HitTestType[HitTestType["_internal_Custom"] = 5] = "_internal_Custom";
+    })(HitTestType || (HitTestType = {}));
+
+    function optimalBarWidth(barSpacing, pixelRatio) {
+        return Math.floor(barSpacing * 0.3 * pixelRatio);
+    }
+    function optimalCandlestickWidth(barSpacing, pixelRatio) {
+        var barSpacingSpecialCaseFrom = 2.5;
+        var barSpacingSpecialCaseTo = 4;
+        var barSpacingSpecialCaseCoeff = 3;
+        if (barSpacing >= barSpacingSpecialCaseFrom && barSpacing <= barSpacingSpecialCaseTo) {
+            return Math.floor(barSpacingSpecialCaseCoeff * pixelRatio);
+        }
+        // coeff should be 1 on small barspacing and go to 0.8 while groing bar spacing
+        var barSpacingReducingCoeff = 0.2;
+        var coeff = 1 - barSpacingReducingCoeff * Math.atan(Math.max(barSpacingSpecialCaseTo, barSpacing) - barSpacingSpecialCaseTo) / (Math.PI * 0.5);
+        var res = Math.floor(barSpacing * coeff * pixelRatio);
+        var scaledBarSpacing = Math.floor(barSpacing * pixelRatio);
+        var optimal = Math.min(res, scaledBarSpacing);
+        return Math.max(Math.floor(pixelRatio), optimal);
+    }
+    var interactionTolerance = {
+        _internal_line: 3,
+        _internal_minDistanceBetweenPoints: 5,
+        _internal_series: 2,
+        _internal_curve: 3,
+        _internal_anchor: 2,
+        _internal_esd: 0,
+    };
+
+    var SegmentRenderer = /** @class */ (function () {
+        function SegmentRenderer() {
+            this._internal__data = null;
+            this._internal__hitTest = new HitTestResult(HitTestType._internal_MovePoint);
+        }
+        SegmentRenderer.prototype._internal_setData = function (data) {
+            this._internal__data = data;
+        };
+        SegmentRenderer.prototype._internal_setHitTest = function (hitTest) {
+            this._internal__hitTest = hitTest;
+        };
+        SegmentRenderer.prototype._internal_draw = function (ctx, renderParams) {
+            if (!this._internal__data || this._internal__data._internal_points.length < 2) {
+                return;
+            }
+            var pixelRatio = renderParams._internal_pixelRatio;
+            var lineWidth = this._internal__data._internal_line.width || 1;
+            var lineColor = this._internal__data._internal_line.color || 'white';
+            var lineStyle = this._internal__data._internal_line.style || 0 /* Solid */;
+            ctx.lineCap = 'butt';
+            ctx.strokeStyle = lineColor;
+            ctx.lineWidth = Math.max(1, Math.floor(lineWidth * pixelRatio));
+            setLineStyle(ctx, lineStyle);
+            var point0 = this._internal__data._internal_points[0];
+            var point1 = this._internal__data._internal_points[1];
+            this._private__drawEnds(ctx, [point0, point1], lineWidth, pixelRatio);
+            var line = this._private__extendAndClipLineSegment(point0, point1, renderParams);
+            if (line !== null && lineWidth > 0) {
+                if (line[0].x === line[1].x) {
+                    drawVerticalLine(ctx, Math.round(line[0].x * pixelRatio), line[0].y * pixelRatio, line[1].y * pixelRatio);
+                }
+                else if (line[0].y === line[1].y) {
+                    drawHorizontalLine(ctx, Math.round(line[0].y * pixelRatio), line[0].x * pixelRatio, line[1].x * pixelRatio);
+                }
+                else {
+                    drawLine(ctx, line[0].x * pixelRatio, line[0].y * pixelRatio, line[1].x * pixelRatio, line[1].y * pixelRatio);
+                }
+            }
+        };
+        SegmentRenderer.prototype._internal_hitTest = function (point, renderParams) {
+            if (this._internal__data === null || this._internal__data._internal_points.length < 2) {
+                return null;
+            }
+            var tolerance = interactionTolerance._internal_line;
+            var line = this._private__extendAndClipLineSegment(this._internal__data._internal_points[0], this._internal__data._internal_points[1], renderParams);
+            if (null !== line && distanceToSegment(line[0], line[1], point)._internal_distance <= tolerance) {
+                return this._internal__hitTest;
+            }
+            return null;
+        };
+        SegmentRenderer.prototype._private__extendAndClipLineSegment = function (end0, end1, renderParams) {
+            var _a, _b;
+            var data = ensureNotNull(this._internal__data);
+            return extendAndClipLineSegment(end0, end1, renderParams._internal_cssWidth, renderParams._internal_cssHeight, !!((_a = data._internal_line.extend) === null || _a === void 0 ? void 0 : _a.left), !!((_b = data._internal_line.extend) === null || _b === void 0 ? void 0 : _b.right));
+        };
+        SegmentRenderer.prototype._private__drawEnds = function (ctx, points, width, pixelRatio) {
+            var _a, _b;
+            var data = ensureNotNull(this._internal__data);
+            switch ((_a = data._internal_line.end) === null || _a === void 0 ? void 0 : _a.left) {
+                case 1 /* Arrow */:
+                    drawArrowEnd(points[1], points[0], ctx, width, pixelRatio);
+                    break;
+                case 2 /* Circle */:
+                    drawCircleEnd(points[0], ctx, width, pixelRatio);
+            }
+            switch ((_b = data._internal_line.end) === null || _b === void 0 ? void 0 : _b.right) {
+                case 1 /* Arrow */:
+                    drawArrowEnd(points[0], points[1], ctx, width, pixelRatio);
+                    break;
+                case 2 /* Circle */:
+                    drawCircleEnd(points[1], ctx, width, pixelRatio);
+            }
+        };
+        return SegmentRenderer;
+    }());
+
+    function drawRoundRect(ctx, x, y, width, height, radius) {
+        var a;
+        var b;
+        var c;
+        var d;
+        if (Array.isArray(radius)) {
+            if (2 === radius.length) {
+                var e = Math.max(0, radius[0]);
+                var t = Math.max(0, radius[1]);
+                a = e;
+                b = e;
+                c = t;
+                d = t;
+            }
+            else {
+                if (4 !== radius.length) {
+                    throw new Error('Wrong border radius - it should be like css border radius');
+                }
+                a = Math.max(0, radius[0]);
+                b = Math.max(0, radius[1]);
+                c = Math.max(0, radius[2]);
+                d = Math.max(0, radius[3]);
+            }
+        }
+        else {
+            var e = Math.max(0, radius);
+            a = e;
+            b = e;
+            c = e;
+            d = e;
+        }
+        ctx.beginPath();
+        ctx.moveTo(x + a, y);
+        ctx.lineTo(x + width - b, y);
+        if (b !== 0) {
+            ctx.arcTo(x + width, y, x + width, y + b, b);
+        }
+        ctx.lineTo(x + width, y + height - c);
+        if (c !== 0) {
+            ctx.arcTo(x + width, y + height, x + width - c, y + height, c);
+        }
+        ctx.lineTo(x + d, y + height);
+        if (d !== 0) {
+            ctx.arcTo(x, y + height, x, y + height - d, d);
+        }
+        ctx.lineTo(x, y + a);
+        if (a !== 0) {
+            ctx.arcTo(x, y, x + a, y, a);
+        }
+    }
+    // eslint-disable-next-line max-params
+    function fillRectWithBorder(ctx, point0, point1, backgroundColor, borderColor, borderWidth, borderStyle, borderAlign, extendLeft, extendRight, containerWidth) {
+        if (borderWidth === void 0) { borderWidth = 0; }
+        var x1 = extendLeft ? 0 : point0.x;
+        var x2 = extendRight ? containerWidth : point1.x;
+        if (backgroundColor !== undefined) {
+            ctx.fillStyle = backgroundColor;
+            ctx.fillRect(x1, point0.y, x2 - x1, point1.y - point0.y);
+        }
+        if (borderColor !== undefined && borderWidth > 0) {
+            ctx.beginPath();
+            setLineStyle(ctx, borderStyle || 0 /* Solid */);
+            var topLeft = new Point(0, 0);
+            var topRight = new Point(0, 0);
+            var bottomRight = new Point(0, 0);
+            var bottomLeft = new Point(0, 0);
+            switch (borderAlign) {
+                case 'outer':
+                    {
+                        var halfBordeWidth = 0.5 * borderWidth;
+                        bottomRight = new Point(0, halfBordeWidth);
+                        bottomLeft = new Point(0, halfBordeWidth);
+                        topLeft = new Point(halfBordeWidth, -borderWidth);
+                        topRight = new Point(halfBordeWidth, -borderWidth);
+                        break;
+                    }
+                case 'center':
+                    {
+                        var e = borderWidth % 2 ? 0.5 : 0;
+                        var t = borderWidth % 2 ? 0.5 : 1;
+                        var halfBordeWidth = 0.5 * borderWidth;
+                        bottomRight = new Point(halfBordeWidth - e, -e);
+                        bottomLeft = new Point(t + halfBordeWidth, -e);
+                        topLeft = new Point(-e, e + halfBordeWidth);
+                        topRight = new Point(t, e + halfBordeWidth);
+                        break;
+                    }
+                case 'inner':
+                    {
+                        var halfBordeWidth = 0.5 * borderWidth;
+                        bottomRight = new Point(0, -halfBordeWidth);
+                        bottomLeft = new Point(1, -halfBordeWidth);
+                        topLeft = new Point(-halfBordeWidth, borderWidth);
+                        topRight = new Point(1 - halfBordeWidth, borderWidth);
+                        break;
+                    }
+            }
+            ctx.lineWidth = borderWidth;
+            ctx.strokeStyle = borderColor;
+            ctx.moveTo(x1 - bottomRight.x, point0.y - bottomRight.y);
+            ctx.lineTo(x2 + bottomLeft.x, point0.y - bottomLeft.y);
+            ctx.moveTo(point1.x + topRight.x, point0.y + topRight.y);
+            ctx.lineTo(point1.x + topRight.x, point1.y - topRight.y);
+            ctx.moveTo(x1 - bottomRight.x, point1.y + bottomRight.y);
+            ctx.lineTo(x2 + bottomLeft.x, point1.y + bottomLeft.y);
+            ctx.moveTo(point0.x - topLeft.x, point0.y + topLeft.y);
+            ctx.lineTo(point0.x - topLeft.x, point1.y - topLeft.y);
+            ctx.stroke();
+        }
+    }
+
+    var TextRenderer = /** @class */ (function () {
+        function TextRenderer(data, hitTest) {
+            this._internal__internalData = null;
+            this._internal__polygonPoints = null;
+            this._internal__linesInfo = null;
+            this._internal__fontInfo = null;
+            this._internal__boxSize = null;
+            this._internal__data = null;
+            this._internal__hitTest = hitTest || new HitTestResult(HitTestType._internal_MovePoint);
+            if (data !== undefined) {
+                this._internal_setData(data);
+            }
+        }
+        TextRenderer.prototype._internal_setData = function (data) {
+            // eslint-disable-next-line complexity
+            function checkUnchanged(before, after) {
+                var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25, _26, _27, _28, _29, _30, _31, _32, _33, _34, _35, _36, _37, _38, _39, _40, _41, _42, _43, _44, _45, _46, _47, _48, _49, _50, _51, _52, _53, _54, _55, _56, _57, _58, _59, _60, _61, _62, _63, _64, _65, _66, _67, _68, _69, _70, _71, _72, _73, _74, _75, _76, _77, _78, _79, _80, _81, _82, _83, _84, _85, _86, _87, _88, _89, _90, _91, _92, _93, _94, _95, _96, _97;
+                if (null === before || null === after) {
+                    return null === before === (null === after);
+                }
+                if (before._internal_points === undefined !== (after._internal_points === undefined)) {
+                    return false;
+                }
+                if (before._internal_points !== undefined && after._internal_points !== undefined) {
+                    if (before._internal_points.length !== after._internal_points.length) {
+                        return false;
+                    }
+                    for (var i = 0; i < before._internal_points.length; ++i) {
+                        if (before._internal_points[i].x !== after._internal_points[i].x || before._internal_points[i].y !== after._internal_points[i].y) {
+                            return false;
+                        }
+                    }
+                }
+                return ((_a = before._internal_text) === null || _a === void 0 ? void 0 : _a.forceCalculateMaxLineWidth) === ((_b = after._internal_text) === null || _b === void 0 ? void 0 : _b.forceCalculateMaxLineWidth)
+                    && ((_c = before._internal_text) === null || _c === void 0 ? void 0 : _c.forceTextAlign) === ((_d = after._internal_text) === null || _d === void 0 ? void 0 : _d.forceTextAlign)
+                    && ((_e = before._internal_text) === null || _e === void 0 ? void 0 : _e.wordWrapWidth) === ((_f = after._internal_text) === null || _f === void 0 ? void 0 : _f.wordWrapWidth)
+                    && ((_g = before._internal_text) === null || _g === void 0 ? void 0 : _g.padding) === ((_h = after._internal_text) === null || _h === void 0 ? void 0 : _h.padding)
+                    && ((_j = before._internal_text) === null || _j === void 0 ? void 0 : _j.value) === ((_k = after._internal_text) === null || _k === void 0 ? void 0 : _k.value)
+                    && ((_l = before._internal_text) === null || _l === void 0 ? void 0 : _l.alignment) === ((_m = after._internal_text) === null || _m === void 0 ? void 0 : _m.alignment)
+                    && ((_p = (_o = before._internal_text) === null || _o === void 0 ? void 0 : _o.font) === null || _p === void 0 ? void 0 : _p.bold) === ((_r = (_q = after._internal_text) === null || _q === void 0 ? void 0 : _q.font) === null || _r === void 0 ? void 0 : _r.bold)
+                    && ((_t = (_s = before._internal_text) === null || _s === void 0 ? void 0 : _s.font) === null || _t === void 0 ? void 0 : _t.size) === ((_v = (_u = after._internal_text) === null || _u === void 0 ? void 0 : _u.font) === null || _v === void 0 ? void 0 : _v.size)
+                    && ((_x = (_w = before._internal_text) === null || _w === void 0 ? void 0 : _w.font) === null || _x === void 0 ? void 0 : _x.family) === ((_z = (_y = after._internal_text) === null || _y === void 0 ? void 0 : _y.font) === null || _z === void 0 ? void 0 : _z.family)
+                    && ((_1 = (_0 = before._internal_text) === null || _0 === void 0 ? void 0 : _0.font) === null || _1 === void 0 ? void 0 : _1.italic) === ((_3 = (_2 = after._internal_text) === null || _2 === void 0 ? void 0 : _2.font) === null || _3 === void 0 ? void 0 : _3.italic)
+                    && ((_5 = (_4 = before._internal_text) === null || _4 === void 0 ? void 0 : _4.box) === null || _5 === void 0 ? void 0 : _5.angle) === ((_7 = (_6 = after._internal_text) === null || _6 === void 0 ? void 0 : _6.box) === null || _7 === void 0 ? void 0 : _7.angle)
+                    && ((_9 = (_8 = before._internal_text) === null || _8 === void 0 ? void 0 : _8.box) === null || _9 === void 0 ? void 0 : _9.scale) === ((_11 = (_10 = after._internal_text) === null || _10 === void 0 ? void 0 : _10.box) === null || _11 === void 0 ? void 0 : _11.scale)
+                    && ((_14 = (_13 = (_12 = before._internal_text) === null || _12 === void 0 ? void 0 : _12.box) === null || _13 === void 0 ? void 0 : _13.offset) === null || _14 === void 0 ? void 0 : _14.x) === ((_17 = (_16 = (_15 = after._internal_text) === null || _15 === void 0 ? void 0 : _15.box) === null || _16 === void 0 ? void 0 : _16.offset) === null || _17 === void 0 ? void 0 : _17.x)
+                    && ((_20 = (_19 = (_18 = before._internal_text) === null || _18 === void 0 ? void 0 : _18.box) === null || _19 === void 0 ? void 0 : _19.offset) === null || _20 === void 0 ? void 0 : _20.y) === ((_23 = (_22 = (_21 = after._internal_text) === null || _21 === void 0 ? void 0 : _21.box) === null || _22 === void 0 ? void 0 : _22.offset) === null || _23 === void 0 ? void 0 : _23.y)
+                    && ((_25 = (_24 = before._internal_text) === null || _24 === void 0 ? void 0 : _24.box) === null || _25 === void 0 ? void 0 : _25.maxHeight) === ((_27 = (_26 = after._internal_text) === null || _26 === void 0 ? void 0 : _26.box) === null || _27 === void 0 ? void 0 : _27.maxHeight)
+                    && ((_30 = (_29 = (_28 = before._internal_text) === null || _28 === void 0 ? void 0 : _28.box) === null || _29 === void 0 ? void 0 : _29.padding) === null || _30 === void 0 ? void 0 : _30.x) === ((_33 = (_32 = (_31 = after._internal_text) === null || _31 === void 0 ? void 0 : _31.box) === null || _32 === void 0 ? void 0 : _32.padding) === null || _33 === void 0 ? void 0 : _33.x)
+                    && ((_36 = (_35 = (_34 = before._internal_text) === null || _34 === void 0 ? void 0 : _34.box) === null || _35 === void 0 ? void 0 : _35.padding) === null || _36 === void 0 ? void 0 : _36.y) === ((_39 = (_38 = (_37 = after._internal_text) === null || _37 === void 0 ? void 0 : _37.box) === null || _38 === void 0 ? void 0 : _38.padding) === null || _39 === void 0 ? void 0 : _39.y)
+                    && ((_42 = (_41 = (_40 = before._internal_text) === null || _40 === void 0 ? void 0 : _40.box) === null || _41 === void 0 ? void 0 : _41.alignment) === null || _42 === void 0 ? void 0 : _42.vertical) === ((_45 = (_44 = (_43 = after._internal_text) === null || _43 === void 0 ? void 0 : _43.box) === null || _44 === void 0 ? void 0 : _44.alignment) === null || _45 === void 0 ? void 0 : _45.vertical)
+                    && ((_48 = (_47 = (_46 = before._internal_text) === null || _46 === void 0 ? void 0 : _46.box) === null || _47 === void 0 ? void 0 : _47.alignment) === null || _48 === void 0 ? void 0 : _48.horizontal) === ((_51 = (_50 = (_49 = after._internal_text) === null || _49 === void 0 ? void 0 : _49.box) === null || _50 === void 0 ? void 0 : _50.alignment) === null || _51 === void 0 ? void 0 : _51.horizontal)
+                    && ((_55 = (_54 = (_53 = (_52 = before._internal_text) === null || _52 === void 0 ? void 0 : _52.box) === null || _53 === void 0 ? void 0 : _53.background) === null || _54 === void 0 ? void 0 : _54.inflation) === null || _55 === void 0 ? void 0 : _55.x) === ((_59 = (_58 = (_57 = (_56 = after._internal_text) === null || _56 === void 0 ? void 0 : _56.box) === null || _57 === void 0 ? void 0 : _57.background) === null || _58 === void 0 ? void 0 : _58.inflation) === null || _59 === void 0 ? void 0 : _59.x)
+                    && ((_63 = (_62 = (_61 = (_60 = before._internal_text) === null || _60 === void 0 ? void 0 : _60.box) === null || _61 === void 0 ? void 0 : _61.background) === null || _62 === void 0 ? void 0 : _62.inflation) === null || _63 === void 0 ? void 0 : _63.y) === ((_67 = (_66 = (_65 = (_64 = after._internal_text) === null || _64 === void 0 ? void 0 : _64.box) === null || _65 === void 0 ? void 0 : _65.background) === null || _66 === void 0 ? void 0 : _66.inflation) === null || _67 === void 0 ? void 0 : _67.y)
+                    && ((_70 = (_69 = (_68 = before._internal_text) === null || _68 === void 0 ? void 0 : _68.box) === null || _69 === void 0 ? void 0 : _69.border) === null || _70 === void 0 ? void 0 : _70.highlight) === ((_73 = (_72 = (_71 = after._internal_text) === null || _71 === void 0 ? void 0 : _71.box) === null || _72 === void 0 ? void 0 : _72.border) === null || _73 === void 0 ? void 0 : _73.highlight)
+                    && ((_76 = (_75 = (_74 = before._internal_text) === null || _74 === void 0 ? void 0 : _74.box) === null || _75 === void 0 ? void 0 : _75.border) === null || _76 === void 0 ? void 0 : _76.radius) === ((_79 = (_78 = (_77 = after._internal_text) === null || _77 === void 0 ? void 0 : _77.box) === null || _78 === void 0 ? void 0 : _78.border) === null || _79 === void 0 ? void 0 : _79.radius)
+                    && ((_82 = (_81 = (_80 = before._internal_text) === null || _80 === void 0 ? void 0 : _80.box) === null || _81 === void 0 ? void 0 : _81.shadow) === null || _82 === void 0 ? void 0 : _82.offset) === ((_85 = (_84 = (_83 = after._internal_text) === null || _83 === void 0 ? void 0 : _83.box) === null || _84 === void 0 ? void 0 : _84.shadow) === null || _85 === void 0 ? void 0 : _85.offset)
+                    && ((_88 = (_87 = (_86 = before._internal_text) === null || _86 === void 0 ? void 0 : _86.box) === null || _87 === void 0 ? void 0 : _87.shadow) === null || _88 === void 0 ? void 0 : _88.color) === ((_91 = (_90 = (_89 = after._internal_text) === null || _89 === void 0 ? void 0 : _89.box) === null || _90 === void 0 ? void 0 : _90.shadow) === null || _91 === void 0 ? void 0 : _91.color)
+                    && ((_94 = (_93 = (_92 = before._internal_text) === null || _92 === void 0 ? void 0 : _92.box) === null || _93 === void 0 ? void 0 : _93.shadow) === null || _94 === void 0 ? void 0 : _94.blur) === ((_97 = (_96 = (_95 = after._internal_text) === null || _95 === void 0 ? void 0 : _95.box) === null || _96 === void 0 ? void 0 : _96.shadow) === null || _97 === void 0 ? void 0 : _97.blur);
+            }
+            if (checkUnchanged(this._internal__data, data)) {
+                this._internal__data = data;
+            }
+            else {
+                this._internal__data = data;
+                this._internal__polygonPoints = null;
+                this._internal__internalData = null;
+                this._internal__linesInfo = null;
+                this._internal__fontInfo = null;
+                this._internal__boxSize = null;
+            }
+        };
+        TextRenderer.prototype._internal_hitTest = function (point) {
+            if (this._internal__data === null || this._internal__data._internal_points === undefined || this._internal__data._internal_points.length === 0) {
+                return null;
+            }
+            else if (pointInPolygon(point, this._private__getPolygonPoints())) {
+                return this._internal__hitTest;
+            }
+            else {
+                return null;
+            }
+        };
+        TextRenderer.prototype._internal_doesIntersectWithBox = function (box) {
+            if (this._internal__data === null || this._internal__data._internal_points === undefined || this._internal__data._internal_points.length === 0) {
+                return false;
+            }
+            else {
+                return pointInBox(this._internal__data._internal_points[0], box);
+            }
+        };
+        TextRenderer.prototype._internal_measure = function () {
+            if (this._internal__data === null) {
+                return { _internal_width: 0, _internal_height: 0 };
+            }
+            return this._private__getBoxSize();
+        };
+        TextRenderer.prototype._internal_rect = function () {
+            if (this._internal__data === null) {
+                return { _internal_x: 0, _internal_y: 0, _internal_width: 0, _internal_height: 0 };
+            }
+            var internalData = this._private__getInternalData();
+            return { _internal_x: internalData._internal_boxLeft, _internal_y: internalData._internal_boxTop, _internal_width: internalData._internal_boxWidth, _internal_height: internalData._internal_boxHeight };
+        };
+        TextRenderer.prototype._internal_isOutOfScreen = function (width, height) {
+            if (null === this._internal__data || void 0 === this._internal__data._internal_points || 0 === this._internal__data._internal_points.length) {
+                return true;
+            }
+            var internalData = this._private__getInternalData();
+            if (internalData._internal_boxLeft + internalData._internal_boxWidth < 0 || internalData._internal_boxLeft > width) {
+                var screenBox_1 = new Box(new Point(0, 0), new Point(width, height));
+                return this._private__getPolygonPoints().every(function (point) { return !pointInBox(point, screenBox_1); });
+            }
+            return false;
+        };
+        TextRenderer.prototype._internal_setPoints = function (points, hitTest) {
+            ensureNotNull(this._internal__data)._internal_points = points;
+            this._internal__hitTest = hitTest || new HitTestResult(HitTestType._internal_MovePoint);
+        };
+        TextRenderer.prototype._internal_fontStyle = function () {
+            return this._internal__data === null ? '' : this._private__getFontInfo()._internal_fontStyle;
+        };
+        TextRenderer.prototype._internal_wordWrap = function (test, wrapWidth, font) {
+            return textWrap(test, font || this._internal_fontStyle(), wrapWidth);
+        };
+        // eslint-disable-next-line complexity
+        TextRenderer.prototype._internal_draw = function (ctx, renderParams) {
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2, _3, _4, _5, _6;
+            if (this._internal__data === null || this._internal__data._internal_points === undefined || this._internal__data._internal_points.length === 0) {
+                return;
+            }
+            if (this._internal_isOutOfScreen(renderParams._internal_cssWidth, renderParams._internal_cssHeight)) {
+                return;
+            }
+            var textData = this._internal__data._internal_text;
+            var pixelRatio = renderParams._internal_pixelRatio;
+            var internalData = this._private__getInternalData();
+            var pivot = this._private__getRotationPoint().scaled(pixelRatio);
+            ctx.save();
+            ctx.translate(pivot.x, pivot.y);
+            ctx.rotate(((_a = textData.box) === null || _a === void 0 ? void 0 : _a.angle) || 0);
+            ctx.translate(-pivot.x, -pivot.y);
+            var fontSize = this._private__getFontInfo()._internal_fontSize;
+            ctx.textAlign = internalData._internal_textAlign;
+            ctx.textBaseline = 'middle';
+            ctx.font = this._internal_fontStyle();
+            var scaledTop = Math.round(internalData._internal_boxTop * pixelRatio);
+            var scaledLeft = Math.round(internalData._internal_boxLeft * pixelRatio);
+            var scaledRight = scaledLeft + Math.round(internalData._internal_boxWidth * pixelRatio);
+            var scaledBottom = scaledTop + Math.round(internalData._internal_boxHeight * pixelRatio);
+            if (((_c = (_b = textData.box) === null || _b === void 0 ? void 0 : _b.background) === null || _c === void 0 ? void 0 : _c.color) || ((_e = (_d = textData.box) === null || _d === void 0 ? void 0 : _d.border) === null || _e === void 0 ? void 0 : _e.color) || ((_g = (_f = textData.box) === null || _f === void 0 ? void 0 : _f.border) === null || _g === void 0 ? void 0 : _g.highlight) && textData.wordWrapWidth) {
+                var borderWidth = Math.round((((_j = (_h = textData.box) === null || _h === void 0 ? void 0 : _h.border) === null || _j === void 0 ? void 0 : _j.width) || Math.max(fontSize / 12, 1)) * pixelRatio);
+                var halfBorderWidth = borderWidth / 2;
+                var ctxUpdated = false;
+                if ((_k = textData.box) === null || _k === void 0 ? void 0 : _k.shadow) {
+                    var _7 = (_l = textData.box) === null || _l === void 0 ? void 0 : _l.shadow, color = _7.color, blur_1 = _7.blur, offset = _7.offset;
+                    ctx.save();
+                    ctx.shadowColor = color;
+                    ctx.shadowBlur = blur_1;
+                    ctx.shadowOffsetX = (offset === null || offset === void 0 ? void 0 : offset.x) || 0;
+                    ctx.shadowOffsetY = (offset === null || offset === void 0 ? void 0 : offset.y) || 0;
+                    ctxUpdated = true;
+                }
+                if ((_m = textData.box.border) === null || _m === void 0 ? void 0 : _m.radius) {
+                    if ((_o = textData.box.background) === null || _o === void 0 ? void 0 : _o.color) {
+                        var radius = ((_q = (_p = textData.box) === null || _p === void 0 ? void 0 : _p.border) === null || _q === void 0 ? void 0 : _q.radius) * pixelRatio;
+                        drawRoundRect(ctx, scaledLeft, scaledTop, scaledRight - scaledLeft, scaledBottom - scaledTop, radius);
+                        ctx.fillStyle = (_s = (_r = textData.box) === null || _r === void 0 ? void 0 : _r.background) === null || _s === void 0 ? void 0 : _s.color;
+                        ctx.fill();
+                        if (ctxUpdated) {
+                            ctx.restore();
+                            ctxUpdated = false;
+                        }
+                    }
+                    if ((_t = textData.box.border) === null || _t === void 0 ? void 0 : _t.color) {
+                        var radius = ((_v = (_u = textData.box) === null || _u === void 0 ? void 0 : _u.border) === null || _v === void 0 ? void 0 : _v.radius) * pixelRatio + borderWidth;
+                        drawRoundRect(ctx, scaledLeft - halfBorderWidth, scaledTop - halfBorderWidth, scaledRight - scaledLeft + borderWidth, scaledBottom - scaledTop + borderWidth, radius);
+                        ctx.strokeStyle = textData.box.border.color;
+                        ctx.lineWidth = borderWidth;
+                        if (ctxUpdated) {
+                            ctx.restore();
+                            ctxUpdated = false;
+                        }
+                    }
+                }
+                else if ((_w = textData.box.background) === null || _w === void 0 ? void 0 : _w.color) {
+                    ctx.fillStyle = textData.box.background.color;
+                    ctx.fillRect(scaledLeft, scaledTop, scaledRight - scaledLeft, scaledBottom - scaledTop);
+                    if (ctxUpdated) {
+                        ctx.restore();
+                        ctxUpdated = false;
+                    }
+                }
+                else if (((_y = (_x = textData.box) === null || _x === void 0 ? void 0 : _x.border) === null || _y === void 0 ? void 0 : _y.color) || ((_0 = (_z = textData.box) === null || _z === void 0 ? void 0 : _z.border) === null || _0 === void 0 ? void 0 : _0.highlight)) {
+                    var usedBorderWidth = void 0;
+                    if ((_2 = (_1 = textData.box) === null || _1 === void 0 ? void 0 : _1.border) === null || _2 === void 0 ? void 0 : _2.color) {
+                        ctx.strokeStyle = (_4 = (_3 = textData.box) === null || _3 === void 0 ? void 0 : _3.border) === null || _4 === void 0 ? void 0 : _4.color;
+                        usedBorderWidth = borderWidth;
+                    }
+                    else {
+                        ctx.strokeStyle = (_5 = textData.font) === null || _5 === void 0 ? void 0 : _5.color;
+                        setLineStyle(ctx, 2 /* Dashed */);
+                        usedBorderWidth = Math.max(1, Math.floor(pixelRatio));
+                    }
+                    ctx.lineWidth = usedBorderWidth;
+                    ctx.beginPath();
+                    ctx.moveTo(scaledLeft - usedBorderWidth / 2, scaledTop - usedBorderWidth / 2);
+                    ctx.lineTo(scaledLeft - usedBorderWidth / 2, scaledBottom + usedBorderWidth / 2);
+                    ctx.lineTo(scaledRight + usedBorderWidth / 2, scaledBottom + usedBorderWidth / 2);
+                    ctx.lineTo(scaledRight + usedBorderWidth / 2, scaledTop - usedBorderWidth / 2);
+                    ctx.lineTo(scaledLeft - usedBorderWidth / 2, scaledTop - usedBorderWidth / 2);
+                    ctx.stroke();
+                    if (ctxUpdated) {
+                        ctx.restore();
+                    }
+                }
+            }
+            ctx.fillStyle = (_6 = textData.font) === null || _6 === void 0 ? void 0 : _6.color;
+            var lines = this._private__getLinesInfo()._internal_lines;
+            var extraSpace = 0.05 * fontSize;
+            var linePadding = getScaledPadding(this._internal__data);
+            var x = (scaledLeft + Math.round(internalData._internal_textStart * pixelRatio)) / pixelRatio;
+            var y = (scaledTop + Math.round((internalData._internal_textTop + extraSpace) * pixelRatio)) / pixelRatio;
+            var _loop_1 = function (line) {
+                // eslint-disable-next-line @typescript-eslint/no-loop-func
+                drawScaled(ctx, pixelRatio, function () { return ctx.fillText(line, x, y); });
+                y += fontSize + linePadding;
+            };
+            for (var _i = 0, lines_1 = lines; _i < lines_1.length; _i++) {
+                var line = lines_1[_i];
+                _loop_1(line);
+            }
+            ctx.restore();
+        };
+        // eslint-disable-next-line complexity
+        TextRenderer.prototype._private__getInternalData = function () {
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w;
+            if (this._internal__internalData !== null) {
+                return this._internal__internalData;
+            }
+            var data = ensureNotNull(this._internal__data);
+            var paddingX = getScaledBoxPaddingX(data);
+            var paddingY = getScaledBoxPaddingY(data);
+            var inflationPaddingX = getScaledBackgroundInflationX(data) + paddingX;
+            var inflationPaddingY = getScaledBackgroundInflationY(data) + paddingY;
+            var anchor = ensureDefined(data._internal_points)[0];
+            var boxSize = this._private__getBoxSize();
+            var boxWidth = boxSize._internal_width;
+            var boxHeight = boxSize._internal_height;
+            var anchorY = anchor.y;
+            var anchorX = anchor.x;
+            switch ((_c = (_b = (_a = data._internal_text) === null || _a === void 0 ? void 0 : _a.box) === null || _b === void 0 ? void 0 : _b.alignment) === null || _c === void 0 ? void 0 : _c.vertical) {
+                case "bottom" /* Bottom */:
+                    anchorY -= boxHeight + (((_f = (_e = (_d = data._internal_text) === null || _d === void 0 ? void 0 : _d.box) === null || _e === void 0 ? void 0 : _e.offset) === null || _f === void 0 ? void 0 : _f.y) || 0);
+                    break;
+                case "middle" /* Middle */:
+                    anchorY -= boxHeight / 2;
+                    break;
+                case "top" /* Top */:
+                    anchorY += (((_j = (_h = (_g = data._internal_text) === null || _g === void 0 ? void 0 : _g.box) === null || _h === void 0 ? void 0 : _h.offset) === null || _j === void 0 ? void 0 : _j.y) || 0);
+            }
+            var textY = anchorY + (inflationPaddingY) + getScaledFontSize(data) / 2;
+            var textAlign = "start" /* Start */;
+            var textX = 0;
+            switch ((_m = (_l = (_k = data._internal_text) === null || _k === void 0 ? void 0 : _k.box) === null || _l === void 0 ? void 0 : _l.alignment) === null || _m === void 0 ? void 0 : _m.horizontal) {
+                case "left" /* Left */:
+                    anchorX += (((_q = (_p = (_o = data._internal_text) === null || _o === void 0 ? void 0 : _o.box) === null || _p === void 0 ? void 0 : _p.offset) === null || _q === void 0 ? void 0 : _q.x) || 0);
+                    break;
+                case "center" /* Center */:
+                    anchorX -= boxWidth / 2;
+                    break;
+                case "right" /* Right */:
+                    anchorX -= boxWidth + (((_t = (_s = (_r = data._internal_text) === null || _r === void 0 ? void 0 : _r.box) === null || _s === void 0 ? void 0 : _s.offset) === null || _t === void 0 ? void 0 : _t.x) || 0);
+            }
+            switch (ensureDefined((_u = data._internal_text) === null || _u === void 0 ? void 0 : _u.alignment)) {
+                case "left" /* Left */: {
+                    textAlign = "start" /* Start */;
+                    textX = anchorX + inflationPaddingX;
+                    if (isRtl()) {
+                        if ((_v = data._internal_text) === null || _v === void 0 ? void 0 : _v.forceTextAlign) {
+                            textAlign = "left" /* Left */;
+                        }
+                        else {
+                            textX = anchorX + boxWidth - inflationPaddingX;
+                            textAlign = "right" /* Right */;
+                        }
+                    }
+                    break;
+                }
+                case "center" /* Center */:
+                    textAlign = "center" /* Center */;
+                    textX = anchorX + boxWidth / 2;
+                    break;
+                case "right" /* Right */:
+                    textAlign = "end" /* End */;
+                    textX = anchorX + boxWidth - inflationPaddingX;
+                    if (isRtl() && ((_w = data._internal_text) === null || _w === void 0 ? void 0 : _w.forceTextAlign)) {
+                        textAlign = "right" /* Right */;
+                    }
+                    break;
+            }
+            this._internal__internalData = {
+                _internal_boxLeft: anchorX,
+                _internal_boxTop: anchorY,
+                _internal_boxWidth: boxWidth,
+                _internal_boxHeight: boxHeight,
+                _internal_textAlign: textAlign,
+                _internal_textTop: textY - anchorY,
+                _internal_textStart: textX - anchorX,
+            };
+            return this._internal__internalData;
+        };
+        TextRenderer.prototype._private__getLinesMaxWidth = function (lines) {
+            var _a, _b, _c;
+            if (!cacheCanvas) {
+                createCacheCanvas();
+            }
+            cacheCanvas.textBaseline = 'alphabetic';
+            cacheCanvas.font = this._internal_fontStyle();
+            if (this._internal__data !== null && ((_a = this._internal__data._internal_text) === null || _a === void 0 ? void 0 : _a.wordWrapWidth) && !((_b = this._internal__data._internal_text) === null || _b === void 0 ? void 0 : _b.forceCalculateMaxLineWidth)) {
+                return ((_c = this._internal__data._internal_text) === null || _c === void 0 ? void 0 : _c.wordWrapWidth) * getFontAwareScale(this._internal__data);
+            }
+            var maxWidth = 0;
+            for (var _i = 0, lines_2 = lines; _i < lines_2.length; _i++) {
+                var line = lines_2[_i];
+                maxWidth = Math.max(maxWidth, cacheCanvas.measureText(line).width);
+            }
+            return maxWidth;
+        };
+        TextRenderer.prototype._private__getLinesInfo = function () {
+            var _a, _b, _c, _d, _e, _f;
+            if (null === this._internal__linesInfo) {
+                var data = ensureNotNull(this._internal__data);
+                var lines = this._internal_wordWrap(((_a = data._internal_text) === null || _a === void 0 ? void 0 : _a.value) || '', (_b = data._internal_text) === null || _b === void 0 ? void 0 : _b.wordWrapWidth);
+                if (((_d = (_c = data._internal_text) === null || _c === void 0 ? void 0 : _c.box) === null || _d === void 0 ? void 0 : _d.maxHeight) !== undefined) {
+                    var maxHeight = ensureDefined((_f = (_e = data._internal_text) === null || _e === void 0 ? void 0 : _e.box) === null || _f === void 0 ? void 0 : _f.maxHeight);
+                    var scaledFontSize = getScaledFontSize(data);
+                    var scaledPadding = getScaledPadding(data);
+                    var maxLines = Math.floor((maxHeight + scaledPadding) / (scaledFontSize + scaledPadding));
+                    if (lines.length > maxLines) {
+                        lines = lines.slice(0, maxLines);
+                    }
+                }
+                this._internal__linesInfo = { _internal_linesMaxWidth: this._private__getLinesMaxWidth(lines), _internal_lines: lines };
+            }
+            return this._internal__linesInfo;
+        };
+        TextRenderer.prototype._private__getFontInfo = function () {
+            var _a, _b, _c, _d, _e, _f;
+            if (this._internal__fontInfo === null) {
+                var data = ensureNotNull(this._internal__data);
+                var fontSize = getScaledFontSize(data);
+                var fontStyle = (((_b = (_a = data._internal_text) === null || _a === void 0 ? void 0 : _a.font) === null || _b === void 0 ? void 0 : _b.bold) ? 'bold ' : '') + (((_d = (_c = data._internal_text) === null || _c === void 0 ? void 0 : _c.font) === null || _d === void 0 ? void 0 : _d.italic) ? 'italic ' : '') + fontSize + 'px ' + ((_f = (_e = data._internal_text) === null || _e === void 0 ? void 0 : _e.font) === null || _f === void 0 ? void 0 : _f.family);
+                this._internal__fontInfo = { _internal_fontStyle: fontStyle, _internal_fontSize: fontSize };
+            }
+            return this._internal__fontInfo;
+        };
+        TextRenderer.prototype._private__getBoxSize = function () {
+            if (null === this._internal__boxSize) {
+                var linesInfo = this._private__getLinesInfo();
+                var data = ensureNotNull(this._internal__data);
+                this._internal__boxSize = {
+                    _internal_width: getBoxWidth(data, linesInfo._internal_linesMaxWidth),
+                    _internal_height: getBoxHeight(data, linesInfo._internal_lines.length),
+                };
+            }
+            return this._internal__boxSize;
+        };
+        TextRenderer.prototype._private__getPolygonPoints = function () {
+            var _a, _b;
+            if (null !== this._internal__polygonPoints) {
+                return this._internal__polygonPoints;
+            }
+            if (null === this._internal__data) {
+                return [];
+            }
+            var _c = this._private__getInternalData(), boxLeft = _c._internal_boxLeft, boxTop = _c._internal_boxTop, boxWidth = _c._internal_boxWidth, boxHeight = _c._internal_boxHeight;
+            var pivot = this._private__getRotationPoint();
+            var angle = ((_b = (_a = this._internal__data._internal_text) === null || _a === void 0 ? void 0 : _a.box) === null || _b === void 0 ? void 0 : _b.angle) || 0;
+            this._internal__polygonPoints = [
+                rotatePoint(new Point(boxLeft, boxTop), pivot, angle),
+                rotatePoint(new Point(boxLeft + boxWidth, boxTop), pivot, angle),
+                rotatePoint(new Point(boxLeft + boxWidth, boxTop + boxHeight), pivot, angle),
+                rotatePoint(new Point(boxLeft, boxTop + boxHeight), pivot, angle),
+            ];
+            return this._internal__polygonPoints;
+        };
+        TextRenderer.prototype._private__getRotationPoint = function () {
+            var _a, _b, _c;
+            var _d = this._private__getInternalData(), boxLeft = _d._internal_boxLeft, boxTop = _d._internal_boxTop, boxWidth = _d._internal_boxWidth, boxHeight = _d._internal_boxHeight;
+            var _e = ensureDefined((_c = (_b = (_a = this._internal__data) === null || _a === void 0 ? void 0 : _a._internal_text) === null || _b === void 0 ? void 0 : _b.box) === null || _c === void 0 ? void 0 : _c.alignment), horizontal = _e.horizontal, vertical = _e.vertical;
+            var x = 0;
+            var y = 0;
+            switch (horizontal) {
+                case "center" /* Center */:
+                    x = boxLeft + boxWidth / 2;
+                    break;
+                case "left" /* Left */:
+                    x = boxLeft;
+                    break;
+                case "right" /* Right */:
+                    x = boxLeft + boxWidth;
+            }
+            switch (vertical) {
+                case "middle" /* Middle */:
+                    y = boxTop + boxHeight / 2;
+                    break;
+                case "top" /* Top */:
+                    y = boxTop;
+                    break;
+                case "bottom" /* Bottom */:
+                    y = boxTop + boxHeight;
+            }
+            return new Point(x, y);
+        };
+        return TextRenderer;
+    }());
+    // eslint-disable-next-line complexity
+    function textWrap(text, font, lineWrapWidth) {
+        if (!cacheCanvas) {
+            createCacheCanvas();
+        }
+        lineWrapWidth = Object.prototype.toString.call(lineWrapWidth) === '[object String]' ? parseInt(lineWrapWidth) : lineWrapWidth;
+        text += '';
+        var lines = !Number.isInteger(lineWrapWidth) || !isFinite(lineWrapWidth) || lineWrapWidth <= 0
+            ? text.split(/\r\n|\r|\n|$/)
+            : text.split(/[^\S\r\n]*(?:\r\n|\r|\n|$)/);
+        if (!lines[lines.length - 1]) {
+            lines.pop();
+        }
+        if (!Number.isInteger(lineWrapWidth) || !isFinite(lineWrapWidth) || lineWrapWidth <= 0) {
+            return lines;
+        }
+        cacheCanvas.font = font;
+        var wrappedLines = [];
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i];
+            var lineWidth = cacheCanvas.measureText(line).width;
+            if (lineWidth <= lineWrapWidth) {
+                wrappedLines.push(line);
+                continue;
+            }
+            var splitedLine = line.split(/([-)\]},.!?:;])|(\s+)/);
+            for (; splitedLine.length;) {
+                var space = Math.floor(lineWrapWidth / lineWidth * (splitedLine.length + 2) / 3);
+                if (space <= 0 || cacheCanvas.measureText(splitedLine.slice(0, 3 * space - 1).join('')).width <= lineWrapWidth) {
+                    for (; cacheCanvas.measureText(splitedLine.slice(0, 3 * (space + 1) - 1).join('')).width <= lineWrapWidth;) {
+                        space++;
+                    }
+                }
+                else {
+                    // eslint-disable-next-line no-empty
+                    for (; space > 0 && cacheCanvas.measureText(splitedLine.slice(0, 3 * --space - 1).join('')).width > lineWrapWidth;) { }
+                }
+                if (space > 0) {
+                    wrappedLines.push(splitedLine.slice(0, 3 * space - 1).join(''));
+                    splitedLine.splice(0, 3 * space);
+                }
+                else {
+                    var paragraph = splitedLine[0] + (splitedLine[1] || '');
+                    var subspace = Math.floor(lineWrapWidth / cacheCanvas.measureText(paragraph).width * paragraph.length);
+                    if (cacheCanvas.measureText(paragraph.substring(0, subspace)).width <= lineWrapWidth) {
+                        for (; cacheCanvas.measureText(paragraph.substring(0, subspace + 1)).width <= lineWrapWidth;) {
+                            subspace++;
+                        }
+                    }
+                    else {
+                        // eslint-disable-next-line no-empty
+                        for (; subspace > 1 && cacheCanvas.measureText(paragraph.substring(0, --subspace)).width > lineWrapWidth;) { }
+                    }
+                    subspace = Math.max(1, subspace);
+                    wrappedLines.push(paragraph.substring(0, subspace));
+                    splitedLine[0] = paragraph.substring(subspace);
+                    splitedLine[1] = '';
+                }
+                if (cacheCanvas.measureText(splitedLine.join('')).width <= lineWrapWidth) {
+                    wrappedLines.push(splitedLine.join(''));
+                    break;
+                }
+            }
+        }
+        return wrappedLines;
+    }
+    var cacheCanvas;
+    function createCacheCanvas() {
+        var canvas = document.createElement('canvas');
+        canvas.width = 0;
+        canvas.height = 0;
+        cacheCanvas = ensureNotNull(canvas.getContext('2d'));
+    }
+    function rotatePoint(point, pivot, angle) {
+        if (0 === angle) {
+            return point.clone();
+        }
+        var x = (point.x - pivot.x) * Math.cos(angle) - (point.y - pivot.y) * Math.sin(angle) + pivot.x;
+        var y = (point.x - pivot.x) * Math.sin(angle) + (point.y - pivot.y) * Math.cos(angle) + pivot.y;
+        return new Point(x, y);
+    }
+    function getBoxWidth(data, maxLineWidth) {
+        return maxLineWidth + 2 * getScaledBackgroundInflationX(data) + 2 * getScaledBoxPaddingX(data);
+    }
+    function getBoxHeight(data, linesCount) {
+        return getScaledFontSize(data) * linesCount + getScaledPadding(data) * (linesCount - 1) + 2 * getScaledBackgroundInflationY(data) + 2 * getScaledBoxPaddingY(data);
+    }
+    function getScaledBoxPaddingY(data) {
+        var _a, _b, _c, _d, _e, _f;
+        return ((_c = (_b = (_a = data._internal_text) === null || _a === void 0 ? void 0 : _a.box) === null || _b === void 0 ? void 0 : _b.padding) === null || _c === void 0 ? void 0 : _c.y) !== undefined ? ((_f = (_e = (_d = data._internal_text) === null || _d === void 0 ? void 0 : _d.box) === null || _e === void 0 ? void 0 : _e.padding) === null || _f === void 0 ? void 0 : _f.y) * getFontAwareScale(data) : getScaledFontSize(data) / 3;
+    }
+    function getScaledBoxPaddingX(data) {
+        var _a, _b, _c, _d, _e, _f;
+        return ((_c = (_b = (_a = data._internal_text) === null || _a === void 0 ? void 0 : _a.box) === null || _b === void 0 ? void 0 : _b.padding) === null || _c === void 0 ? void 0 : _c.x) ? ((_f = (_e = (_d = data._internal_text) === null || _d === void 0 ? void 0 : _d.box) === null || _e === void 0 ? void 0 : _e.padding) === null || _f === void 0 ? void 0 : _f.x) * getFontAwareScale(data) : getScaledFontSize(data) / 3;
+    }
+    function getScaledBackgroundInflationY(data) {
+        var _a, _b, _c, _d;
+        return (((_d = (_c = (_b = (_a = data._internal_text) === null || _a === void 0 ? void 0 : _a.box) === null || _b === void 0 ? void 0 : _b.background) === null || _c === void 0 ? void 0 : _c.inflation) === null || _d === void 0 ? void 0 : _d.y) || 0) * getFontAwareScale(data);
+    }
+    function getScaledBackgroundInflationX(data) {
+        var _a, _b, _c, _d;
+        return (((_d = (_c = (_b = (_a = data._internal_text) === null || _a === void 0 ? void 0 : _a.box) === null || _b === void 0 ? void 0 : _b.background) === null || _c === void 0 ? void 0 : _c.inflation) === null || _d === void 0 ? void 0 : _d.x) || 0) * getFontAwareScale(data);
+    }
+    function getScaledPadding(data) {
+        var _a;
+        return (((_a = data._internal_text) === null || _a === void 0 ? void 0 : _a.padding) || 0) * getFontAwareScale(data);
+    }
+    function getScaledFontSize(data) {
+        return Math.ceil(getFontSize(data) * getFontAwareScale(data));
+    }
+    function getFontSize(data) {
+        var _a, _b;
+        return ((_b = (_a = data._internal_text) === null || _a === void 0 ? void 0 : _a.font) === null || _b === void 0 ? void 0 : _b.size) || 30;
+    }
+    function getFontAwareScale(data) {
+        var _a, _b;
+        var scale = Math.min(1, Math.max(0.2, ((_b = (_a = data._internal_text) === null || _a === void 0 ? void 0 : _a.box) === null || _b === void 0 ? void 0 : _b.scale) || 1));
+        if (scale === 1) {
+            return scale;
+        }
+        var fontSize = getFontSize(data);
+        return Math.ceil(scale * fontSize) / fontSize;
+    }
+    function isRtl() {
+        return 'rtl' === window.document.dir;
+    }
+
+    var GridRenderer = /** @class */ (function () {
+        function GridRenderer() {
+            this._private__data = null;
+        }
+        GridRenderer.prototype._internal_setData = function (data) {
+            this._private__data = data;
+        };
+        GridRenderer.prototype._internal_draw = function (ctx, renderParams) {
+            var _this = this;
+            if (this._private__data === null) {
+                return;
+            }
+            var pixelRatio = renderParams._internal_pixelRatio;
+            var lineWidth = Math.max(1, Math.floor(pixelRatio));
+            ctx.lineWidth = lineWidth;
+            var height = Math.ceil(this._private__data._internal_h * pixelRatio);
+            var width = Math.ceil(this._private__data._internal_w * pixelRatio);
+            strokeInPixel(ctx, function () {
+                var data = ensureNotNull(_this._private__data);
+                if (data._internal_vertLinesVisible) {
+                    ctx.strokeStyle = data._internal_vertLinesColor;
+                    setLineStyle(ctx, data._internal_vertLineStyle);
+                    ctx.beginPath();
+                    for (var _i = 0, _a = data._internal_timeMarks; _i < _a.length; _i++) {
+                        var timeMark = _a[_i];
+                        var x = Math.round(timeMark._internal_coord * pixelRatio);
+                        ctx.moveTo(x, -lineWidth);
+                        ctx.lineTo(x, height + lineWidth);
+                    }
+                    ctx.stroke();
+                }
+                if (data._internal_horzLinesVisible) {
+                    ctx.strokeStyle = data._internal_horzLinesColor;
+                    setLineStyle(ctx, data._internal_horzLineStyle);
+                    ctx.beginPath();
+                    for (var _b = 0, _c = data._internal_priceMarks; _b < _c.length; _b++) {
+                        var priceMark = _c[_b];
+                        var y = Math.round(priceMark._internal_coord * pixelRatio);
+                        ctx.moveTo(-lineWidth, y);
+                        ctx.lineTo(width + lineWidth, y);
+                    }
+                    ctx.stroke();
+                }
+            });
+        };
+        return GridRenderer;
+    }());
+
+    var GridPaneView = /** @class */ (function () {
+        function GridPaneView(pane) {
+            this._private__renderer = new GridRenderer();
+            this._private__invalidated = true;
+            this._private__pane = pane;
+        }
+        GridPaneView.prototype._internal_update = function () {
+            this._private__invalidated = true;
+        };
+        GridPaneView.prototype._internal_renderer = function (height, width) {
+            if (this._private__invalidated) {
+                var gridOptions = this._private__pane._internal_model()._internal_options().grid;
+                var data = {
+                    _internal_h: height,
+                    _internal_w: width,
+                    _internal_horzLinesVisible: gridOptions.horzLines.visible,
+                    _internal_vertLinesVisible: gridOptions.vertLines.visible,
+                    _internal_horzLinesColor: gridOptions.horzLines.color,
+                    _internal_vertLinesColor: gridOptions.vertLines.color,
+                    _internal_horzLineStyle: gridOptions.horzLines.style,
+                    _internal_vertLineStyle: gridOptions.vertLines.style,
+                    _internal_priceMarks: this._private__pane._internal_defaultPriceScale()._internal_marks(),
+                    _internal_timeMarks: this._private__pane._internal_model()._internal_timeScale()._internal_marks() || [],
+                };
+                this._private__renderer._internal_setData(data);
+                this._private__invalidated = false;
+            }
+            return this._private__renderer;
+        };
+        return GridPaneView;
+    }());
+
+    var Grid = /** @class */ (function () {
+        function Grid(pane) {
+            this._private__paneView = new GridPaneView(pane);
+        }
+        Grid.prototype._internal_paneView = function () {
+            return this._private__paneView;
+        };
+        return Grid;
+    }());
+
     var formatterOptions = {
         _internal_decimalSign: '.',
         _internal_decimalSignFractional: '\'',
@@ -1682,6 +3740,3348 @@
         return PercentageFormatter;
     }(PriceFormatter));
 
+    var PriceRangeImpl = /** @class */ (function () {
+        function PriceRangeImpl(minValue, maxValue) {
+            this._private__minValue = minValue;
+            this._private__maxValue = maxValue;
+        }
+        PriceRangeImpl.prototype._internal_equals = function (pr) {
+            if (pr === null) {
+                return false;
+            }
+            return this._private__minValue === pr._private__minValue && this._private__maxValue === pr._private__maxValue;
+        };
+        PriceRangeImpl.prototype._internal_clone = function () {
+            return new PriceRangeImpl(this._private__minValue, this._private__maxValue);
+        };
+        PriceRangeImpl.prototype._internal_minValue = function () {
+            return this._private__minValue;
+        };
+        PriceRangeImpl.prototype._internal_maxValue = function () {
+            return this._private__maxValue;
+        };
+        PriceRangeImpl.prototype._internal_length = function () {
+            return this._private__maxValue - this._private__minValue;
+        };
+        PriceRangeImpl.prototype._internal_isEmpty = function () {
+            return this._private__maxValue === this._private__minValue || Number.isNaN(this._private__maxValue) || Number.isNaN(this._private__minValue);
+        };
+        PriceRangeImpl.prototype._internal_merge = function (anotherRange) {
+            if (anotherRange === null) {
+                return this;
+            }
+            return new PriceRangeImpl(Math.min(this._internal_minValue(), anotherRange._internal_minValue()), Math.max(this._internal_maxValue(), anotherRange._internal_maxValue()));
+        };
+        PriceRangeImpl.prototype._internal_scaleAroundCenter = function (coeff) {
+            if (!isNumber(coeff)) {
+                return;
+            }
+            var delta = this._private__maxValue - this._private__minValue;
+            if (delta === 0) {
+                return;
+            }
+            var center = (this._private__maxValue + this._private__minValue) * 0.5;
+            var maxDelta = this._private__maxValue - center;
+            var minDelta = this._private__minValue - center;
+            maxDelta *= coeff;
+            minDelta *= coeff;
+            this._private__maxValue = center + maxDelta;
+            this._private__minValue = center + minDelta;
+        };
+        PriceRangeImpl.prototype._internal_shift = function (delta) {
+            if (!isNumber(delta)) {
+                return;
+            }
+            this._private__maxValue += delta;
+            this._private__minValue += delta;
+        };
+        PriceRangeImpl.prototype._internal_toRaw = function () {
+            return {
+                minValue: this._private__minValue,
+                maxValue: this._private__maxValue,
+            };
+        };
+        PriceRangeImpl._internal_fromRaw = function (raw) {
+            return (raw === null) ? null : new PriceRangeImpl(raw.minValue, raw.maxValue);
+        };
+        return PriceRangeImpl;
+    }());
+
+    function clamp(value, minVal, maxVal) {
+        return Math.min(Math.max(value, minVal), maxVal);
+    }
+    function isBaseDecimal(value) {
+        if (value < 0) {
+            return false;
+        }
+        for (var current = value; current > 1; current /= 10) {
+            if ((current % 10) !== 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+    function greaterOrEqual(x1, x2, epsilon) {
+        return (x2 - x1) <= epsilon;
+    }
+    function equal(x1, x2, epsilon) {
+        return Math.abs(x1 - x2) < epsilon;
+    }
+    function log10(x) {
+        if (x <= 0) {
+            return NaN;
+        }
+        return Math.log(x) / Math.log(10);
+    }
+    function min(arr) {
+        if (arr.length < 1) {
+            throw Error('array is empty');
+        }
+        var minVal = arr[0];
+        for (var i = 1; i < arr.length; ++i) {
+            if (arr[i] < minVal) {
+                minVal = arr[i];
+            }
+        }
+        return minVal;
+    }
+    function ceiledEven(x) {
+        var ceiled = Math.ceil(x);
+        return (ceiled % 2 !== 0) ? ceiled - 1 : ceiled;
+    }
+    function ceiledOdd(x) {
+        var ceiled = Math.ceil(x);
+        return (ceiled % 2 === 0) ? ceiled - 1 : ceiled;
+    }
+
+    var defLogFormula = {
+        _internal_logicalOffset: 4,
+        _internal_coordOffset: 0.0001,
+    };
+    function fromPercent(value, baseValue) {
+        if (baseValue < 0) {
+            value = -value;
+        }
+        return (value / 100) * baseValue + baseValue;
+    }
+    function toPercent(value, baseValue) {
+        var result = 100 * (value - baseValue) / baseValue;
+        return (baseValue < 0 ? -result : result);
+    }
+    function toPercentRange(priceRange, baseValue) {
+        var minPercent = toPercent(priceRange._internal_minValue(), baseValue);
+        var maxPercent = toPercent(priceRange._internal_maxValue(), baseValue);
+        return new PriceRangeImpl(minPercent, maxPercent);
+    }
+    function fromIndexedTo100(value, baseValue) {
+        value -= 100;
+        if (baseValue < 0) {
+            value = -value;
+        }
+        return (value / 100) * baseValue + baseValue;
+    }
+    function toIndexedTo100(value, baseValue) {
+        var result = 100 * (value - baseValue) / baseValue + 100;
+        return (baseValue < 0 ? -result : result);
+    }
+    function toIndexedTo100Range(priceRange, baseValue) {
+        var minPercent = toIndexedTo100(priceRange._internal_minValue(), baseValue);
+        var maxPercent = toIndexedTo100(priceRange._internal_maxValue(), baseValue);
+        return new PriceRangeImpl(minPercent, maxPercent);
+    }
+    function toLog(price, logFormula) {
+        var m = Math.abs(price);
+        if (m < 1e-15) {
+            return 0;
+        }
+        var res = log10(m + logFormula._internal_coordOffset) + logFormula._internal_logicalOffset;
+        return ((price < 0) ? -res : res);
+    }
+    function fromLog(logical, logFormula) {
+        var m = Math.abs(logical);
+        if (m < 1e-15) {
+            return 0;
+        }
+        var res = Math.pow(10, m - logFormula._internal_logicalOffset) - logFormula._internal_coordOffset;
+        return (logical < 0) ? -res : res;
+    }
+    function convertPriceRangeToLog(priceRange, logFormula) {
+        if (priceRange === null) {
+            return null;
+        }
+        var min = toLog(priceRange._internal_minValue(), logFormula);
+        var max = toLog(priceRange._internal_maxValue(), logFormula);
+        return new PriceRangeImpl(min, max);
+    }
+    function canConvertPriceRangeFromLog(priceRange, logFormula) {
+        if (priceRange === null) {
+            return false;
+        }
+        var min = fromLog(priceRange._internal_minValue(), logFormula);
+        var max = fromLog(priceRange._internal_maxValue(), logFormula);
+        return isFinite(min) && isFinite(max);
+    }
+    function convertPriceRangeFromLog(priceRange, logFormula) {
+        if (priceRange === null) {
+            return null;
+        }
+        var min = fromLog(priceRange._internal_minValue(), logFormula);
+        var max = fromLog(priceRange._internal_maxValue(), logFormula);
+        return new PriceRangeImpl(min, max);
+    }
+    function logFormulaForPriceRange(range) {
+        if (range === null) {
+            return defLogFormula;
+        }
+        var diff = Math.abs(range._internal_maxValue() - range._internal_minValue());
+        if (diff >= 1 || diff < 1e-15) {
+            return defLogFormula;
+        }
+        var digits = Math.ceil(Math.abs(Math.log10(diff)));
+        var logicalOffset = defLogFormula._internal_logicalOffset + digits;
+        var coordOffset = 1 / Math.pow(10, logicalOffset);
+        return {
+            _internal_logicalOffset: logicalOffset,
+            _internal_coordOffset: coordOffset,
+        };
+    }
+    function logFormulasAreSame(f1, f2) {
+        return f1._internal_logicalOffset === f2._internal_logicalOffset && f1._internal_coordOffset === f2._internal_coordOffset;
+    }
+
+    var PriceTickSpanCalculator = /** @class */ (function () {
+        function PriceTickSpanCalculator(base, integralDividers) {
+            this._private__base = base;
+            this._private__integralDividers = integralDividers;
+            if (isBaseDecimal(this._private__base)) {
+                this._private__fractionalDividers = [2, 2.5, 2];
+            }
+            else {
+                this._private__fractionalDividers = [];
+                for (var baseRest = this._private__base; baseRest !== 1;) {
+                    if ((baseRest % 2) === 0) {
+                        this._private__fractionalDividers.push(2);
+                        baseRest /= 2;
+                    }
+                    else if ((baseRest % 5) === 0) {
+                        this._private__fractionalDividers.push(2, 2.5);
+                        baseRest /= 5;
+                    }
+                    else {
+                        throw new Error('unexpected base');
+                    }
+                    if (this._private__fractionalDividers.length > 100) {
+                        throw new Error('something wrong with base');
+                    }
+                }
+            }
+        }
+        PriceTickSpanCalculator.prototype._internal_tickSpan = function (high, low, maxTickSpan) {
+            var minMovement = (this._private__base === 0) ? (0) : (1 / this._private__base);
+            var resultTickSpan = Math.pow(10, Math.max(0, Math.ceil(log10(high - low))));
+            var index = 0;
+            var c = this._private__integralDividers[0];
+            // eslint-disable-next-line no-constant-condition
+            while (true) {
+                // the second part is actual for small with very small values like 1e-10
+                // greaterOrEqual fails for such values
+                var resultTickSpanLargerMinMovement = greaterOrEqual(resultTickSpan, minMovement, 1e-14 /* TickSpanEpsilon */) && resultTickSpan > (minMovement + 1e-14 /* TickSpanEpsilon */);
+                var resultTickSpanLargerMaxTickSpan = greaterOrEqual(resultTickSpan, maxTickSpan * c, 1e-14 /* TickSpanEpsilon */);
+                var resultTickSpanLarger1 = greaterOrEqual(resultTickSpan, 1, 1e-14 /* TickSpanEpsilon */);
+                var haveToContinue = resultTickSpanLargerMinMovement && resultTickSpanLargerMaxTickSpan && resultTickSpanLarger1;
+                if (!haveToContinue) {
+                    break;
+                }
+                resultTickSpan /= c;
+                c = this._private__integralDividers[++index % this._private__integralDividers.length];
+            }
+            if (resultTickSpan <= (minMovement + 1e-14 /* TickSpanEpsilon */)) {
+                resultTickSpan = minMovement;
+            }
+            resultTickSpan = Math.max(1, resultTickSpan);
+            if ((this._private__fractionalDividers.length > 0) && equal(resultTickSpan, 1, 1e-14 /* TickSpanEpsilon */)) {
+                index = 0;
+                c = this._private__fractionalDividers[0];
+                while (greaterOrEqual(resultTickSpan, maxTickSpan * c, 1e-14 /* TickSpanEpsilon */) && resultTickSpan > (minMovement + 1e-14 /* TickSpanEpsilon */)) {
+                    resultTickSpan /= c;
+                    c = this._private__fractionalDividers[++index % this._private__fractionalDividers.length];
+                }
+            }
+            return resultTickSpan;
+        };
+        return PriceTickSpanCalculator;
+    }());
+
+    var TICK_DENSITY = 2.5;
+    var PriceTickMarkBuilder = /** @class */ (function () {
+        function PriceTickMarkBuilder(priceScale, base, coordinateToLogicalFunc, logicalToCoordinateFunc) {
+            this._private__marks = [];
+            this._private__priceScale = priceScale;
+            this._private__base = base;
+            this._private__coordinateToLogicalFunc = coordinateToLogicalFunc;
+            this._private__logicalToCoordinateFunc = logicalToCoordinateFunc;
+        }
+        PriceTickMarkBuilder.prototype._internal_tickSpan = function (high, low) {
+            if (high < low) {
+                throw new Error('high < low');
+            }
+            var scaleHeight = this._private__priceScale._internal_height();
+            var markHeight = this._private__tickMarkHeight();
+            var maxTickSpan = (high - low) * markHeight / scaleHeight;
+            var spanCalculator1 = new PriceTickSpanCalculator(this._private__base, [2, 2.5, 2]);
+            var spanCalculator2 = new PriceTickSpanCalculator(this._private__base, [2, 2, 2.5]);
+            var spanCalculator3 = new PriceTickSpanCalculator(this._private__base, [2.5, 2, 2]);
+            var spans = [];
+            spans.push(spanCalculator1._internal_tickSpan(high, low, maxTickSpan), spanCalculator2._internal_tickSpan(high, low, maxTickSpan), spanCalculator3._internal_tickSpan(high, low, maxTickSpan));
+            return min(spans);
+        };
+        PriceTickMarkBuilder.prototype._internal_rebuildTickMarks = function () {
+            var priceScale = this._private__priceScale;
+            var firstValue = priceScale._internal_firstValue();
+            if (firstValue === null) {
+                this._private__marks = [];
+                return;
+            }
+            var scaleHeight = priceScale._internal_height();
+            var bottom = this._private__coordinateToLogicalFunc(scaleHeight - 1, firstValue);
+            var top = this._private__coordinateToLogicalFunc(0, firstValue);
+            var extraTopBottomMargin = this._private__priceScale._internal_options().entireTextOnly ? this._private__fontHeight() / 2 : 0;
+            var minCoord = extraTopBottomMargin;
+            var maxCoord = scaleHeight - 1 - extraTopBottomMargin;
+            var high = Math.max(bottom, top);
+            var low = Math.min(bottom, top);
+            if (high === low) {
+                this._private__marks = [];
+                return;
+            }
+            var span = this._internal_tickSpan(high, low);
+            var mod = high % span;
+            mod += mod < 0 ? span : 0;
+            var sign = (high >= low) ? 1 : -1;
+            var prevCoord = null;
+            var targetIndex = 0;
+            for (var logical = high - mod; logical > low; logical -= span) {
+                var coord = this._private__logicalToCoordinateFunc(logical, firstValue, true);
+                // check if there is place for it
+                // this is required for log scale
+                if (prevCoord !== null && Math.abs(coord - prevCoord) < this._private__tickMarkHeight()) {
+                    continue;
+                }
+                // check if a tick mark is partially visible and skip it if entireTextOnly is true
+                if (coord < minCoord || coord > maxCoord) {
+                    continue;
+                }
+                if (targetIndex < this._private__marks.length) {
+                    this._private__marks[targetIndex]._internal_coord = coord;
+                    this._private__marks[targetIndex]._internal_label = priceScale._internal_formatLogical(logical);
+                }
+                else {
+                    this._private__marks.push({
+                        _internal_coord: coord,
+                        _internal_label: priceScale._internal_formatLogical(logical),
+                    });
+                }
+                targetIndex++;
+                prevCoord = coord;
+                if (priceScale._internal_isLog()) {
+                    // recalc span
+                    span = this._internal_tickSpan(logical * sign, low);
+                }
+            }
+            this._private__marks.length = targetIndex;
+        };
+        PriceTickMarkBuilder.prototype._internal_marks = function () {
+            return this._private__marks;
+        };
+        PriceTickMarkBuilder.prototype._private__fontHeight = function () {
+            return this._private__priceScale._internal_fontSize();
+        };
+        PriceTickMarkBuilder.prototype._private__tickMarkHeight = function () {
+            return Math.ceil(this._private__fontHeight() * TICK_DENSITY);
+        };
+        return PriceTickMarkBuilder;
+    }());
+
+    function sortSources(sources) {
+        return sources.slice().sort(function (s1, s2) {
+            return (ensureNotNull(s1._internal_zorder()) - ensureNotNull(s2._internal_zorder()));
+        });
+    }
+
+    /**
+     * Represents the price scale mode.
+     */
+    var PriceScaleMode;
+    (function (PriceScaleMode) {
+        /**
+         * Price scale shows prices. Price range changes linearly.
+         */
+        PriceScaleMode[PriceScaleMode["Normal"] = 0] = "Normal";
+        /**
+         * Price scale shows prices. Price range changes logarithmically.
+         */
+        PriceScaleMode[PriceScaleMode["Logarithmic"] = 1] = "Logarithmic";
+        /**
+         * Price scale shows percentage values according the first visible value of the price scale.
+         * The first visible value is 0% in this mode.
+         */
+        PriceScaleMode[PriceScaleMode["Percentage"] = 2] = "Percentage";
+        /**
+         * The same as percentage mode, but the first value is moved to 100.
+         */
+        PriceScaleMode[PriceScaleMode["IndexedTo100"] = 3] = "IndexedTo100";
+    })(PriceScaleMode || (PriceScaleMode = {}));
+    var percentageFormatter = new PercentageFormatter();
+    var defaultPriceFormatter = new PriceFormatter(100, 1);
+    var PriceScale = /** @class */ (function () {
+        function PriceScale(id, options, layoutOptions, localizationOptions) {
+            this._private__height = 0;
+            this._private__internalHeightCache = null;
+            this._private__priceRange = null;
+            this._private__priceRangeSnapshot = null;
+            this._private__invalidatedForRange = {
+                _internal_isValid: false,
+                _internal_visibleBars: null,
+            };
+            this._private__marginAbove = 0;
+            this._private__marginBelow = 0;
+            this._private__onMarksChanged = new Delegate();
+            this._private__modeChanged = new Delegate();
+            this._private__dataSources = [];
+            this._private__cachedOrderedSources = null;
+            this._private__marksCache = null;
+            this._private__scaleStartPoint = null;
+            this._private__scrollStartPoint = null;
+            this._private__formatter = defaultPriceFormatter;
+            this._private__logFormula = logFormulaForPriceRange(null);
+            this._private__id = id;
+            this._private__options = options;
+            this._private__layoutOptions = layoutOptions;
+            this._private__localizationOptions = localizationOptions;
+            this._private__markBuilder = new PriceTickMarkBuilder(this, 100, this._private__coordinateToLogical.bind(this), this._private__logicalToCoordinate.bind(this));
+        }
+        PriceScale.prototype._internal_id = function () {
+            return this._private__id;
+        };
+        PriceScale.prototype._internal_options = function () {
+            return this._private__options;
+        };
+        PriceScale.prototype._internal_applyOptions = function (options) {
+            merge(this._private__options, options);
+            this._internal_updateFormatter();
+            if (options.mode !== undefined) {
+                this._internal_setMode({ _internal_mode: options.mode });
+            }
+            if (options.scaleMargins !== undefined) {
+                var top_1 = ensureDefined(options.scaleMargins.top);
+                var bottom = ensureDefined(options.scaleMargins.bottom);
+                if (top_1 < 0 || top_1 > 1) {
+                    throw new Error("Invalid top margin - expect value between 0 and 1, given=".concat(top_1));
+                }
+                if (bottom < 0 || bottom > 1 || top_1 + bottom > 1) {
+                    throw new Error("Invalid bottom margin - expect value between 0 and 1, given=".concat(bottom));
+                }
+                if (top_1 + bottom > 1) {
+                    throw new Error("Invalid margins - sum of margins must be less than 1, given=".concat(top_1 + bottom));
+                }
+                this._private__invalidateInternalHeightCache();
+                this._private__marksCache = null;
+            }
+        };
+        PriceScale.prototype._internal_isAutoScale = function () {
+            return this._private__options.autoScale;
+        };
+        PriceScale.prototype._internal_isLog = function () {
+            return this._private__options.mode === 1 /* Logarithmic */;
+        };
+        PriceScale.prototype._internal_isPercentage = function () {
+            return this._private__options.mode === 2 /* Percentage */;
+        };
+        PriceScale.prototype._internal_isIndexedTo100 = function () {
+            return this._private__options.mode === 3 /* IndexedTo100 */;
+        };
+        PriceScale.prototype._internal_mode = function () {
+            return {
+                _internal_autoScale: this._private__options.autoScale,
+                _internal_isInverted: this._private__options.invertScale,
+                _internal_mode: this._private__options.mode,
+            };
+        };
+        // eslint-disable-next-line complexity
+        PriceScale.prototype._internal_setMode = function (newMode) {
+            var oldMode = this._internal_mode();
+            var priceRange = null;
+            if (newMode._internal_autoScale !== undefined) {
+                this._private__options.autoScale = newMode._internal_autoScale;
+            }
+            if (newMode._internal_mode !== undefined) {
+                this._private__options.mode = newMode._internal_mode;
+                if (newMode._internal_mode === 2 /* Percentage */ ||
+                    newMode._internal_mode === 3 /* IndexedTo100 */) {
+                    this._private__options.autoScale = true;
+                }
+                // TODO: Remove after making rebuildTickMarks lazy
+                this._private__invalidatedForRange._internal_isValid = false;
+            }
+            // define which scale converted from
+            if (oldMode._internal_mode === 1 /* Logarithmic */ &&
+                newMode._internal_mode !== oldMode._internal_mode) {
+                if (canConvertPriceRangeFromLog(this._private__priceRange, this._private__logFormula)) {
+                    priceRange = convertPriceRangeFromLog(this._private__priceRange, this._private__logFormula);
+                    if (priceRange !== null) {
+                        this._internal_setPriceRange(priceRange);
+                    }
+                }
+                else {
+                    this._private__options.autoScale = true;
+                }
+            }
+            // define which scale converted to
+            if (newMode._internal_mode === 1 /* Logarithmic */ &&
+                newMode._internal_mode !== oldMode._internal_mode) {
+                priceRange = convertPriceRangeToLog(this._private__priceRange, this._private__logFormula);
+                if (priceRange !== null) {
+                    this._internal_setPriceRange(priceRange);
+                }
+            }
+            var modeChanged = oldMode._internal_mode !== this._private__options.mode;
+            if (modeChanged &&
+                (oldMode._internal_mode === 2 /* Percentage */ || this._internal_isPercentage())) {
+                this._internal_updateFormatter();
+            }
+            if (modeChanged &&
+                (oldMode._internal_mode === 3 /* IndexedTo100 */ || this._internal_isIndexedTo100())) {
+                this._internal_updateFormatter();
+            }
+            if (newMode._internal_isInverted !== undefined &&
+                oldMode._internal_isInverted !== newMode._internal_isInverted) {
+                this._private__options.invertScale = newMode._internal_isInverted;
+                this._private__onIsInvertedChanged();
+            }
+            this._private__modeChanged._internal_fire(oldMode, this._internal_mode());
+        };
+        PriceScale.prototype._internal_modeChanged = function () {
+            return this._private__modeChanged;
+        };
+        PriceScale.prototype._internal_fontSize = function () {
+            return this._private__layoutOptions.fontSize;
+        };
+        PriceScale.prototype._internal_height = function () {
+            return this._private__height;
+        };
+        PriceScale.prototype._internal_setHeight = function (value) {
+            if (this._private__height === value) {
+                return;
+            }
+            this._private__height = value;
+            this._private__invalidateInternalHeightCache();
+            this._private__marksCache = null;
+        };
+        PriceScale.prototype._internal_internalHeight = function () {
+            if (this._private__internalHeightCache) {
+                return this._private__internalHeightCache;
+            }
+            var res = this._internal_height() - this._private__topMarginPx() - this._private__bottomMarginPx();
+            this._private__internalHeightCache = res;
+            return res;
+        };
+        PriceScale.prototype._internal_priceRange = function () {
+            this._private__makeSureItIsValid();
+            return this._private__priceRange;
+        };
+        PriceScale.prototype._internal_logFormula = function () {
+            return this._private__logFormula;
+        };
+        PriceScale.prototype._internal_setPriceRange = function (newPriceRange, isForceSetValue) {
+            var oldPriceRange = this._private__priceRange;
+            if (!isForceSetValue &&
+                !(oldPriceRange === null && newPriceRange !== null) &&
+                (oldPriceRange === null || oldPriceRange._internal_equals(newPriceRange))) {
+                return;
+            }
+            this._private__marksCache = null;
+            this._private__priceRange = newPriceRange;
+        };
+        PriceScale.prototype._internal_isEmpty = function () {
+            this._private__makeSureItIsValid();
+            return (this._private__height === 0 || !this._private__priceRange || this._private__priceRange._internal_isEmpty());
+        };
+        PriceScale.prototype._internal_invertedCoordinate = function (coordinate) {
+            return this._internal_isInverted() ? coordinate : this._internal_height() - 1 - coordinate;
+        };
+        PriceScale.prototype._internal_priceToCoordinate = function (price, baseValue) {
+            if (this._internal_isPercentage()) {
+                price = toPercent(price, baseValue);
+            }
+            else if (this._internal_isIndexedTo100()) {
+                price = toIndexedTo100(price, baseValue);
+            }
+            return this._private__logicalToCoordinate(price, baseValue);
+        };
+        PriceScale.prototype._internal_pointsArrayToCoordinates = function (points, baseValue, visibleRange) {
+            this._private__makeSureItIsValid();
+            var bh = this._private__bottomMarginPx();
+            var range = ensureNotNull(this._internal_priceRange());
+            var min = range._internal_minValue();
+            var max = range._internal_maxValue();
+            var ih = this._internal_internalHeight() - 1;
+            var isInverted = this._internal_isInverted();
+            var hmm = ih / (max - min);
+            var fromIndex = visibleRange === undefined ? 0 : visibleRange.from;
+            var toIndex = visibleRange === undefined ? points.length : visibleRange.to;
+            var transformFn = this._private__getCoordinateTransformer();
+            for (var i = fromIndex; i < toIndex; i++) {
+                var point = points[i];
+                var price = point._internal_price;
+                if (isNaN(price)) {
+                    continue;
+                }
+                var logical = price;
+                if (transformFn !== null) {
+                    logical = transformFn(point._internal_price, baseValue);
+                }
+                var invCoordinate = bh + hmm * (logical - min);
+                var coordinate = isInverted
+                    ? invCoordinate
+                    : this._private__height - 1 - invCoordinate;
+                point._internal_y = coordinate;
+            }
+        };
+        PriceScale.prototype._internal_cloudPointsArrayToCoordinates = function (points, baseValue, visibleRange) {
+            this._private__makeSureItIsValid();
+            var bh = this._private__bottomMarginPx();
+            var range = ensureNotNull(this._internal_priceRange());
+            var min = range._internal_minValue();
+            var max = range._internal_maxValue();
+            var ih = (this._internal_internalHeight() - 1);
+            var isInverted = this._internal_isInverted();
+            var hmm = ih / (max - min);
+            var fromIndex = (visibleRange === undefined) ? 0 : visibleRange.from;
+            var toIndex = (visibleRange === undefined) ? points.length : visibleRange.to;
+            var transformFn = this._private__getCoordinateTransformer();
+            for (var i = fromIndex; i < toIndex; i++) {
+                var point = points[i];
+                var higherPrice = point._internal_higherPrice;
+                var lowerPrice = point._internal_lowerPrice;
+                if (isNaN(higherPrice) || isNaN(lowerPrice)) {
+                    continue;
+                }
+                var higherLogical = higherPrice;
+                var lowerLogical = lowerPrice;
+                if (transformFn !== null) {
+                    higherLogical = transformFn(point._internal_higherPrice, baseValue);
+                    lowerLogical = transformFn(point._internal_lowerPrice, baseValue);
+                }
+                var invCoordinate = bh + hmm * (higherLogical - min);
+                var coordinate = isInverted ? invCoordinate : this._private__height - 1 - invCoordinate;
+                point._internal_higherY = coordinate;
+                invCoordinate = bh + hmm * (lowerLogical - min);
+                coordinate = isInverted ? invCoordinate : this._private__height - 1 - invCoordinate;
+                point._internal_lowerY = coordinate;
+            }
+        };
+        PriceScale.prototype._internal_barPricesToCoordinates = function (pricesList, baseValue, visibleRange) {
+            this._private__makeSureItIsValid();
+            var bh = this._private__bottomMarginPx();
+            var range = ensureNotNull(this._internal_priceRange());
+            var min = range._internal_minValue();
+            var max = range._internal_maxValue();
+            var ih = this._internal_internalHeight() - 1;
+            var isInverted = this._internal_isInverted();
+            var hmm = ih / (max - min);
+            var fromIndex = visibleRange === undefined ? 0 : visibleRange.from;
+            var toIndex = visibleRange === undefined ? pricesList.length : visibleRange.to;
+            var transformFn = this._private__getCoordinateTransformer();
+            for (var i = fromIndex; i < toIndex; i++) {
+                var bar = pricesList[i];
+                var openLogical = bar.open;
+                var highLogical = bar.high;
+                var lowLogical = bar.low;
+                var closeLogical = bar.close;
+                if (transformFn !== null) {
+                    openLogical = transformFn(bar.open, baseValue);
+                    highLogical = transformFn(bar.high, baseValue);
+                    lowLogical = transformFn(bar.low, baseValue);
+                    closeLogical = transformFn(bar.close, baseValue);
+                }
+                var invCoordinate = bh + hmm * (openLogical - min);
+                var coordinate = isInverted
+                    ? invCoordinate
+                    : this._private__height - 1 - invCoordinate;
+                bar._internal_openY = coordinate;
+                invCoordinate = bh + hmm * (highLogical - min);
+                coordinate = isInverted
+                    ? invCoordinate
+                    : this._private__height - 1 - invCoordinate;
+                bar._internal_highY = coordinate;
+                invCoordinate = bh + hmm * (lowLogical - min);
+                coordinate = isInverted
+                    ? invCoordinate
+                    : this._private__height - 1 - invCoordinate;
+                bar._internal_lowY = coordinate;
+                invCoordinate = bh + hmm * (closeLogical - min);
+                coordinate = isInverted
+                    ? invCoordinate
+                    : this._private__height - 1 - invCoordinate;
+                bar._internal_closeY = coordinate;
+            }
+        };
+        PriceScale.prototype._internal_coordinateToPrice = function (coordinate, baseValue) {
+            var logical = this._private__coordinateToLogical(coordinate, baseValue);
+            return this._internal_logicalToPrice(logical, baseValue);
+        };
+        PriceScale.prototype._internal_logicalToPrice = function (logical, baseValue) {
+            var value = logical;
+            if (this._internal_isPercentage()) {
+                value = fromPercent(value, baseValue);
+            }
+            else if (this._internal_isIndexedTo100()) {
+                value = fromIndexedTo100(value, baseValue);
+            }
+            return value;
+        };
+        PriceScale.prototype._internal_dataSources = function () {
+            return this._private__dataSources;
+        };
+        PriceScale.prototype._internal_orderedSources = function () {
+            if (this._private__cachedOrderedSources) {
+                return this._private__cachedOrderedSources;
+            }
+            var sources = [];
+            for (var i = 0; i < this._private__dataSources.length; i++) {
+                var ds = this._private__dataSources[i];
+                if (ds._internal_zorder() === null) {
+                    ds._internal_setZorder(i + 1);
+                }
+                sources.push(ds);
+            }
+            sources = sortSources(sources);
+            this._private__cachedOrderedSources = sources;
+            return this._private__cachedOrderedSources;
+        };
+        PriceScale.prototype._internal_addDataSource = function (source) {
+            if (this._private__dataSources.indexOf(source) !== -1) {
+                return;
+            }
+            this._private__dataSources.push(source);
+            this._internal_updateFormatter();
+            this._internal_invalidateSourcesCache();
+        };
+        PriceScale.prototype._internal_removeDataSource = function (source) {
+            var index = this._private__dataSources.indexOf(source);
+            if (index === -1) {
+                throw new Error('source is not attached to scale');
+            }
+            this._private__dataSources.splice(index, 1);
+            if (this._private__dataSources.length === 0) {
+                this._internal_setMode({
+                    _internal_autoScale: true,
+                });
+                // if no sources on price scale let's clear price range cache as well as enabling auto scale
+                this._internal_setPriceRange(null);
+            }
+            this._internal_updateFormatter();
+            this._internal_invalidateSourcesCache();
+        };
+        PriceScale.prototype._internal_firstValue = function () {
+            var _a;
+            // TODO: cache the result
+            var result = null;
+            for (var _i = 0, _b = this._private__dataSources; _i < _b.length; _i++) {
+                var source = _b[_i];
+                var priceSource = source;
+                var firstValue = (_a = priceSource._internal_firstValue) === null || _a === void 0 ? void 0 : _a.bind(priceSource).call(this);
+                if (!firstValue) {
+                    continue;
+                }
+                if (result === null || firstValue._internal_timePoint < result._internal_timePoint) {
+                    result = firstValue;
+                }
+            }
+            return result === null ? null : result._internal_value;
+        };
+        PriceScale.prototype._internal_isInverted = function () {
+            return this._private__options.invertScale;
+        };
+        PriceScale.prototype._internal_marks = function () {
+            var firstValueIsNull = this._internal_firstValue() === null;
+            // do not recalculate marks if firstValueIsNull is true because in this case we'll always get empty result
+            // this could happen in case when a series had some data and then you set empty data to it (in a simplified case)
+            // we could display an empty price scale, but this is not good from UX
+            // so in this case we need to keep an previous marks to display them on the scale
+            // as one of possible examples for this situation could be the following:
+            // let's say you have a study/indicator attached to a price scale and then you decide to stop it, i.e. remove its data because of its visibility
+            // a user will see the previous marks on the scale until you turn on your study back or remove it from the chart completely
+            if (this._private__marksCache !== null && (firstValueIsNull || this._private__marksCache._internal_firstValueIsNull === firstValueIsNull)) {
+                return this._private__marksCache._internal_marks;
+            }
+            this._private__markBuilder._internal_rebuildTickMarks();
+            var marks = this._private__markBuilder._internal_marks();
+            this._private__marksCache = { _internal_marks: marks, _internal_firstValueIsNull: firstValueIsNull };
+            this._private__onMarksChanged._internal_fire();
+            return marks;
+        };
+        PriceScale.prototype._internal_onMarksChanged = function () {
+            return this._private__onMarksChanged;
+        };
+        PriceScale.prototype._internal_startScale = function (x) {
+            if (this._internal_isPercentage() || this._internal_isIndexedTo100()) {
+                return;
+            }
+            if (this._private__scaleStartPoint !== null || this._private__priceRangeSnapshot !== null) {
+                return;
+            }
+            if (this._internal_isEmpty()) {
+                return;
+            }
+            // invert x
+            this._private__scaleStartPoint = this._private__height - x;
+            this._private__priceRangeSnapshot = ensureNotNull(this._internal_priceRange())._internal_clone();
+        };
+        PriceScale.prototype._internal_scaleTo = function (x) {
+            if (this._internal_isPercentage() || this._internal_isIndexedTo100()) {
+                return;
+            }
+            if (this._private__scaleStartPoint === null) {
+                return;
+            }
+            this._internal_setMode({
+                _internal_autoScale: false,
+            });
+            // invert x
+            x = this._private__height - x;
+            if (x < 0) {
+                x = 0;
+            }
+            var scaleCoeff = (this._private__scaleStartPoint + (this._private__height - 1) * 0.2) /
+                (x + (this._private__height - 1) * 0.2);
+            var newPriceRange = ensureNotNull(this._private__priceRangeSnapshot)._internal_clone();
+            scaleCoeff = Math.max(scaleCoeff, 0.1);
+            newPriceRange._internal_scaleAroundCenter(scaleCoeff);
+            this._internal_setPriceRange(newPriceRange);
+        };
+        PriceScale.prototype._internal_endScale = function () {
+            if (this._internal_isPercentage() || this._internal_isIndexedTo100()) {
+                return;
+            }
+            this._private__scaleStartPoint = null;
+            this._private__priceRangeSnapshot = null;
+        };
+        PriceScale.prototype._internal_startScroll = function (x) {
+            if (this._internal_isAutoScale()) {
+                return;
+            }
+            if (this._private__scrollStartPoint !== null || this._private__priceRangeSnapshot !== null) {
+                return;
+            }
+            if (this._internal_isEmpty()) {
+                return;
+            }
+            this._private__scrollStartPoint = x;
+            this._private__priceRangeSnapshot = ensureNotNull(this._internal_priceRange())._internal_clone();
+        };
+        PriceScale.prototype._internal_scrollTo = function (x) {
+            if (this._internal_isAutoScale()) {
+                return;
+            }
+            if (this._private__scrollStartPoint === null) {
+                return;
+            }
+            var priceUnitsPerPixel = ensureNotNull(this._internal_priceRange())._internal_length() / (this._internal_internalHeight() - 1);
+            var pixelDelta = x - this._private__scrollStartPoint;
+            if (this._internal_isInverted()) {
+                pixelDelta *= -1;
+            }
+            var priceDelta = pixelDelta * priceUnitsPerPixel;
+            var newPriceRange = ensureNotNull(this._private__priceRangeSnapshot)._internal_clone();
+            newPriceRange._internal_shift(priceDelta);
+            this._internal_setPriceRange(newPriceRange, true);
+            this._private__marksCache = null;
+        };
+        PriceScale.prototype._internal_endScroll = function () {
+            if (this._internal_isAutoScale()) {
+                return;
+            }
+            if (this._private__scrollStartPoint === null) {
+                return;
+            }
+            this._private__scrollStartPoint = null;
+            this._private__priceRangeSnapshot = null;
+        };
+        PriceScale.prototype._internal_formatter = function () {
+            if (!this._private__formatter) {
+                this._internal_updateFormatter();
+            }
+            return this._private__formatter;
+        };
+        PriceScale.prototype._internal_formatPrice = function (price, firstValue) {
+            switch (this._private__options.mode) {
+                case 2 /* Percentage */:
+                    return this._internal_formatter().format(toPercent(price, firstValue));
+                case 3 /* IndexedTo100 */:
+                    return this._internal_formatter().format(toIndexedTo100(price, firstValue));
+                default:
+                    return this._private__formatPrice(price);
+            }
+        };
+        PriceScale.prototype._internal_formatLogical = function (logical) {
+            switch (this._private__options.mode) {
+                case 2 /* Percentage */:
+                case 3 /* IndexedTo100 */:
+                    return this._internal_formatter().format(logical);
+                default:
+                    return this._private__formatPrice(logical);
+            }
+        };
+        PriceScale.prototype._internal_formatPriceAbsolute = function (price) {
+            return this._private__formatPrice(price, ensureNotNull(this._private__formatterSource())._internal_formatter());
+        };
+        PriceScale.prototype._internal_formatPricePercentage = function (price, baseValue) {
+            price = toPercent(price, baseValue);
+            return percentageFormatter.format(price);
+        };
+        PriceScale.prototype._internal_sourcesForAutoScale = function () {
+            return this._private__dataSources;
+        };
+        PriceScale.prototype._internal_recalculatePriceRange = function (visibleBars) {
+            this._private__invalidatedForRange = {
+                _internal_visibleBars: visibleBars,
+                _internal_isValid: false,
+            };
+        };
+        PriceScale.prototype._internal_updateAllViews = function () {
+            this._private__dataSources.forEach(function (source) { return source._internal_updateAllViews(); });
+        };
+        PriceScale.prototype._internal_updateFormatter = function () {
+            this._private__marksCache = null;
+            var formatterSource = this._private__formatterSource();
+            var base = 100;
+            if (formatterSource !== null) {
+                base = Math.round(1 / formatterSource._internal_minMove());
+            }
+            this._private__formatter = defaultPriceFormatter;
+            if (this._internal_isPercentage()) {
+                this._private__formatter = percentageFormatter;
+                base = 100;
+            }
+            else if (this._internal_isIndexedTo100()) {
+                this._private__formatter = new PriceFormatter(100, 1);
+                base = 100;
+            }
+            else {
+                if (formatterSource !== null) {
+                    // user
+                    this._private__formatter = formatterSource._internal_formatter();
+                }
+            }
+            this._private__markBuilder = new PriceTickMarkBuilder(this, base, this._private__coordinateToLogical.bind(this), this._private__logicalToCoordinate.bind(this));
+            this._private__markBuilder._internal_rebuildTickMarks();
+        };
+        PriceScale.prototype._internal_invalidateSourcesCache = function () {
+            this._private__cachedOrderedSources = null;
+        };
+        /**
+         * @returns The {@link IPriceDataSource} that will be used as the "formatter source" (take minMove for formatter).
+         */
+        PriceScale.prototype._private__formatterSource = function () {
+            return (this._private__dataSources[0] || null);
+        };
+        PriceScale.prototype._private__topMarginPx = function () {
+            return this._internal_isInverted()
+                ? this._private__options.scaleMargins.bottom * this._internal_height() + this._private__marginBelow
+                : this._private__options.scaleMargins.top * this._internal_height() + this._private__marginAbove;
+        };
+        PriceScale.prototype._private__bottomMarginPx = function () {
+            return this._internal_isInverted()
+                ? this._private__options.scaleMargins.top * this._internal_height() + this._private__marginAbove
+                : this._private__options.scaleMargins.bottom * this._internal_height() + this._private__marginBelow;
+        };
+        PriceScale.prototype._private__makeSureItIsValid = function () {
+            if (!this._private__invalidatedForRange._internal_isValid) {
+                this._private__invalidatedForRange._internal_isValid = true;
+                this._private__recalculatePriceRangeImpl();
+            }
+        };
+        PriceScale.prototype._private__invalidateInternalHeightCache = function () {
+            this._private__internalHeightCache = null;
+        };
+        PriceScale.prototype._private__logicalToCoordinate = function (logical, baseValue) {
+            this._private__makeSureItIsValid();
+            if (this._internal_isEmpty()) {
+                return 0;
+            }
+            logical =
+                this._internal_isLog() && logical ? toLog(logical, this._private__logFormula) : logical;
+            var range = ensureNotNull(this._internal_priceRange());
+            var invCoordinate = this._private__bottomMarginPx() +
+                ((this._internal_internalHeight() - 1) * (logical - range._internal_minValue())) /
+                    range._internal_length();
+            var coordinate = this._internal_invertedCoordinate(invCoordinate);
+            return coordinate;
+        };
+        PriceScale.prototype._private__coordinateToLogical = function (coordinate, baseValue) {
+            this._private__makeSureItIsValid();
+            if (this._internal_isEmpty()) {
+                return 0;
+            }
+            var invCoordinate = this._internal_invertedCoordinate(coordinate);
+            var range = ensureNotNull(this._internal_priceRange());
+            var logical = range._internal_minValue() +
+                range._internal_length() *
+                    ((invCoordinate - this._private__bottomMarginPx()) /
+                        (this._internal_internalHeight() - 1));
+            return this._internal_isLog() ? fromLog(logical, this._private__logFormula) : logical;
+        };
+        PriceScale.prototype._private__onIsInvertedChanged = function () {
+            this._private__marksCache = null;
+            this._private__markBuilder._internal_rebuildTickMarks();
+        };
+        // eslint-disable-next-line complexity
+        PriceScale.prototype._private__recalculatePriceRangeImpl = function () {
+            var visibleBars = this._private__invalidatedForRange._internal_visibleBars;
+            if (visibleBars === null) {
+                return;
+            }
+            var priceRange = null;
+            var sources = this._internal_sourcesForAutoScale();
+            var marginAbove = 0;
+            var marginBelow = 0;
+            for (var _i = 0, sources_1 = sources; _i < sources_1.length; _i++) {
+                var source = sources_1[_i];
+                var priceSource = source;
+                if (!priceSource._internal_visible() || !priceSource._internal_firstValue) {
+                    continue;
+                }
+                var firstValue = priceSource._internal_firstValue();
+                if (firstValue === null) {
+                    continue;
+                }
+                var autoScaleInfo = priceSource._internal_autoscaleInfo(visibleBars._internal_left(), visibleBars._internal_right());
+                var sourceRange = autoScaleInfo && autoScaleInfo._internal_priceRange();
+                if (sourceRange !== null) {
+                    switch (this._private__options.mode) {
+                        case 1 /* Logarithmic */:
+                            sourceRange = convertPriceRangeToLog(sourceRange, this._private__logFormula);
+                            break;
+                        case 2 /* Percentage */:
+                            sourceRange = toPercentRange(sourceRange, firstValue._internal_value);
+                            break;
+                        case 3 /* IndexedTo100 */:
+                            sourceRange = toIndexedTo100Range(sourceRange, firstValue._internal_value);
+                            break;
+                    }
+                    if (priceRange === null) {
+                        priceRange = sourceRange;
+                    }
+                    else {
+                        priceRange = priceRange._internal_merge(ensureNotNull(sourceRange));
+                    }
+                    if (autoScaleInfo !== null) {
+                        var margins = autoScaleInfo._internal_margins();
+                        if (margins !== null) {
+                            marginAbove = Math.max(marginAbove, margins.above);
+                            marginBelow = Math.max(marginAbove, margins.below);
+                        }
+                    }
+                }
+            }
+            if (marginAbove !== this._private__marginAbove ||
+                marginBelow !== this._private__marginBelow) {
+                this._private__marginAbove = marginAbove;
+                this._private__marginBelow = marginBelow;
+                this._private__marksCache = null;
+                this._private__invalidateInternalHeightCache();
+            }
+            if (priceRange !== null) {
+                // keep current range is new is empty
+                if (priceRange._internal_minValue() === priceRange._internal_maxValue()) {
+                    var formatterSource = this._private__formatterSource();
+                    var minMove = formatterSource === null ||
+                        this._internal_isPercentage() ||
+                        this._internal_isIndexedTo100()
+                        ? 1
+                        : formatterSource._internal_minMove();
+                    // if price range is degenerated to 1 point let's extend it by 10 min move values
+                    // to avoid incorrect range and empty (blank) scale (in case of min tick much greater than 1)
+                    var extendValue = 5 * minMove;
+                    if (this._internal_isLog()) {
+                        priceRange = convertPriceRangeFromLog(priceRange, this._private__logFormula);
+                    }
+                    priceRange = new PriceRangeImpl(priceRange._internal_minValue() - extendValue, priceRange._internal_maxValue() + extendValue);
+                    if (this._internal_isLog()) {
+                        priceRange = convertPriceRangeToLog(priceRange, this._private__logFormula);
+                    }
+                }
+                if (this._internal_isLog()) {
+                    var rawRange = convertPriceRangeFromLog(priceRange, this._private__logFormula);
+                    var newLogFormula = logFormulaForPriceRange(rawRange);
+                    if (!logFormulasAreSame(newLogFormula, this._private__logFormula)) {
+                        var rawSnapshot = this._private__priceRangeSnapshot !== null
+                            ? convertPriceRangeFromLog(this._private__priceRangeSnapshot, this._private__logFormula)
+                            : null;
+                        this._private__logFormula = newLogFormula;
+                        priceRange = convertPriceRangeToLog(rawRange, newLogFormula);
+                        if (rawSnapshot !== null) {
+                            this._private__priceRangeSnapshot = convertPriceRangeToLog(rawSnapshot, newLogFormula);
+                        }
+                    }
+                }
+                this._internal_setPriceRange(priceRange);
+            }
+            else {
+                // reset empty to default
+                if (this._private__priceRange === null) {
+                    this._internal_setPriceRange(new PriceRangeImpl(-0.5, 0.5));
+                    this._private__logFormula = logFormulaForPriceRange(null);
+                }
+            }
+            this._private__invalidatedForRange._internal_isValid = true;
+        };
+        PriceScale.prototype._private__getCoordinateTransformer = function () {
+            var _this = this;
+            if (this._internal_isPercentage()) {
+                return toPercent;
+            }
+            else if (this._internal_isIndexedTo100()) {
+                return toIndexedTo100;
+            }
+            else if (this._internal_isLog()) {
+                return function (price) { return toLog(price, _this._private__logFormula); };
+            }
+            return null;
+        };
+        PriceScale.prototype._private__formatPrice = function (price, fallbackFormatter) {
+            if (this._private__localizationOptions.priceFormatter === undefined) {
+                if (fallbackFormatter === undefined) {
+                    fallbackFormatter = this._internal_formatter();
+                }
+                return fallbackFormatter.format(price);
+            }
+            return this._private__localizationOptions.priceFormatter(price);
+        };
+        return PriceScale;
+    }());
+
+    var DEFAULT_STRETCH_FACTOR = 1000;
+    var PaneCursorType;
+    (function (PaneCursorType) {
+        PaneCursorType["_internal_Default"] = "default";
+        PaneCursorType["_internal_Crosshair"] = "crosshair";
+        PaneCursorType["_internal_Pointer"] = "pointer";
+        PaneCursorType["_internal_Grabbing"] = "grabbing";
+        PaneCursorType["_internal_ZoomIn"] = "zoom-in";
+        PaneCursorType["_internal_VerticalResize"] = "n-resize";
+        PaneCursorType["_internal_HorizontalResize"] = "e-resize";
+        PaneCursorType["_internal_DiagonalNeSwResize"] = "nesw-resize";
+        PaneCursorType["_internal_DiagonalNwSeResize"] = "nwse-resize";
+    })(PaneCursorType || (PaneCursorType = {}));
+    var Pane = /** @class */ (function () {
+        function Pane(timeScale, model, initialPaneIndex) {
+            if (initialPaneIndex === void 0) { initialPaneIndex = 0; }
+            this._private__dataSources = [];
+            this._private__overlaySourcesByScaleId = new Map();
+            this._private__height = 0;
+            this._private__width = 0;
+            this._private__stretchFactor = DEFAULT_STRETCH_FACTOR;
+            this._private__cachedOrderedSources = null;
+            this._private__destroyed = new Delegate();
+            this._private__timeScale = timeScale;
+            this._private__model = model;
+            this._private__grid = new Grid(this);
+            var options = model._internal_options();
+            this._private__leftPriceScale = this._private__createPriceScale("left" /* Left */, options.leftPriceScale);
+            if (initialPaneIndex === 0) {
+                this._private__rightPriceScale = this._private__createPriceScale("right" /* Right */, options.rightPriceScale);
+            }
+            else {
+                this._private__rightPriceScale = this._private__createPriceScale("non-primary" /* NonPrimary */, options.nonPrimaryPriceScale);
+            }
+            this._private__leftPriceScale._internal_modeChanged()._internal_subscribe(this._private__onPriceScaleModeChanged.bind(this, this._private__leftPriceScale), this);
+            this._private__rightPriceScale._internal_modeChanged()._internal_subscribe(this._private__onPriceScaleModeChanged.bind(this, this._private__rightPriceScale), this);
+            this._internal_applyScaleOptions(options);
+        }
+        Pane.prototype._internal_applyScaleOptions = function (options) {
+            if (options.leftPriceScale) {
+                this._private__leftPriceScale._internal_applyOptions(options.leftPriceScale);
+            }
+            if (this._private__rightPriceScale._internal_id() === "right" /* Right */ && options.rightPriceScale) {
+                this._private__rightPriceScale._internal_applyOptions(options.rightPriceScale);
+            }
+            if (this._private__rightPriceScale._internal_id() === "non-primary" /* NonPrimary */ && options.nonPrimaryPriceScale) {
+                this._private__rightPriceScale._internal_applyOptions(options.nonPrimaryPriceScale);
+            }
+            if (options.localization) {
+                this._private__leftPriceScale._internal_updateFormatter();
+                this._private__rightPriceScale._internal_updateFormatter();
+            }
+            if (options.overlayPriceScales) {
+                var sourceArrays = Array.from(this._private__overlaySourcesByScaleId.values());
+                for (var _i = 0, sourceArrays_1 = sourceArrays; _i < sourceArrays_1.length; _i++) {
+                    var arr = sourceArrays_1[_i];
+                    var priceScale = ensureNotNull(arr[0]._internal_priceScale());
+                    priceScale._internal_applyOptions(options.overlayPriceScales);
+                    if (options.localization) {
+                        priceScale._internal_updateFormatter();
+                    }
+                }
+            }
+        };
+        Pane.prototype._internal_priceScaleById = function (id) {
+            switch (id) {
+                case "left" /* Left */: {
+                    return this._private__leftPriceScale;
+                }
+                case "right" /* Right */: {
+                    return this._private__rightPriceScale;
+                }
+            }
+            if (this._private__overlaySourcesByScaleId.has(id)) {
+                return ensureDefined(this._private__overlaySourcesByScaleId.get(id))[0]._internal_priceScale();
+            }
+            return null;
+        };
+        Pane.prototype._internal_destroy = function () {
+            this._internal_model()._internal_priceScalesOptionsChanged()._internal_unsubscribeAll(this);
+            this._private__leftPriceScale._internal_modeChanged()._internal_unsubscribeAll(this);
+            this._private__rightPriceScale._internal_modeChanged()._internal_unsubscribeAll(this);
+            this._private__dataSources.forEach(function (source) {
+                if (source._internal_destroy) {
+                    source._internal_destroy();
+                }
+            });
+            this._private__destroyed._internal_fire();
+        };
+        Pane.prototype._internal_stretchFactor = function () {
+            return this._private__stretchFactor;
+        };
+        Pane.prototype._internal_setStretchFactor = function (factor) {
+            this._private__stretchFactor = factor;
+        };
+        Pane.prototype._internal_model = function () {
+            return this._private__model;
+        };
+        Pane.prototype._internal_width = function () {
+            return this._private__width;
+        };
+        Pane.prototype._internal_height = function () {
+            return this._private__height;
+        };
+        Pane.prototype._internal_setWidth = function (width) {
+            this._private__width = width;
+            this._internal_updateAllSources();
+        };
+        Pane.prototype._internal_setHeight = function (height) {
+            var _this = this;
+            this._private__height = height;
+            this._private__leftPriceScale._internal_setHeight(height);
+            this._private__rightPriceScale._internal_setHeight(height);
+            // process overlays
+            this._private__dataSources.forEach(function (ds) {
+                if (_this._internal_isOverlay(ds)) {
+                    var priceScale = ds._internal_priceScale();
+                    if (priceScale !== null) {
+                        priceScale._internal_setHeight(height);
+                    }
+                }
+            });
+            this._internal_updateAllSources();
+        };
+        Pane.prototype._internal_dataSources = function () {
+            return this._private__dataSources;
+        };
+        Pane.prototype._internal_isOverlay = function (source) {
+            var priceScale = source._internal_priceScale();
+            if (priceScale === null) {
+                return true;
+            }
+            return this._private__leftPriceScale !== priceScale && this._private__rightPriceScale !== priceScale;
+        };
+        Pane.prototype._internal_addDataSource = function (source, targetScaleId, zOrder) {
+            var targetZOrder = (zOrder !== undefined) ? zOrder : this._private__getZOrderMinMax()._internal_maxZOrder + 1;
+            this._private__insertDataSource(source, targetScaleId, targetZOrder);
+        };
+        Pane.prototype._internal_removeDataSource = function (source) {
+            var index = this._private__dataSources.indexOf(source);
+            assert(index !== -1, 'removeDataSource: invalid data source');
+            this._private__dataSources.splice(index, 1);
+            var priceScaleId = ensureNotNull(source._internal_priceScale())._internal_id();
+            if (this._private__overlaySourcesByScaleId.has(priceScaleId)) {
+                var overlaySources = ensureDefined(this._private__overlaySourcesByScaleId.get(priceScaleId));
+                var overlayIndex = overlaySources.indexOf(source);
+                if (overlayIndex !== -1) {
+                    overlaySources.splice(overlayIndex, 1);
+                    if (overlaySources.length === 0) {
+                        this._private__overlaySourcesByScaleId.delete(priceScaleId);
+                    }
+                }
+            }
+            var priceScale = source._internal_priceScale();
+            // if source has owner, it returns owner's price scale
+            // and it does not have source in their list
+            if (priceScale && priceScale._internal_dataSources().indexOf(source) >= 0) {
+                priceScale._internal_removeDataSource(source);
+            }
+            if (priceScale !== null) {
+                priceScale._internal_invalidateSourcesCache();
+                this._internal_recalculatePriceScale(priceScale);
+            }
+            this._private__cachedOrderedSources = null;
+        };
+        Pane.prototype._internal_priceScalePosition = function (priceScale) {
+            if (priceScale === this._private__leftPriceScale) {
+                return 'left';
+            }
+            if (priceScale === this._private__rightPriceScale) {
+                return 'right';
+            }
+            return 'overlay';
+        };
+        Pane.prototype._internal_leftPriceScale = function () {
+            return this._private__leftPriceScale;
+        };
+        Pane.prototype._internal_rightPriceScale = function () {
+            return this._private__rightPriceScale;
+        };
+        Pane.prototype._internal_startScalePrice = function (priceScale, x) {
+            priceScale._internal_startScale(x);
+        };
+        Pane.prototype._internal_scalePriceTo = function (priceScale, x) {
+            priceScale._internal_scaleTo(x);
+            // TODO: be more smart and update only affected views
+            this._internal_updateAllSources();
+        };
+        Pane.prototype._internal_endScalePrice = function (priceScale) {
+            priceScale._internal_endScale();
+        };
+        Pane.prototype._internal_startScrollPrice = function (priceScale, x) {
+            priceScale._internal_startScroll(x);
+        };
+        Pane.prototype._internal_scrollPriceTo = function (priceScale, x) {
+            priceScale._internal_scrollTo(x);
+            this._internal_updateAllSources();
+        };
+        Pane.prototype._internal_endScrollPrice = function (priceScale) {
+            priceScale._internal_endScroll();
+        };
+        Pane.prototype._internal_updateAllSources = function () {
+            this._private__dataSources.forEach(function (source) {
+                source._internal_updateAllViews();
+            });
+        };
+        Pane.prototype._internal_defaultPriceScale = function () {
+            var priceScale = null;
+            if (this._private__model._internal_options().rightPriceScale.visible && this._private__rightPriceScale._internal_dataSources().length !== 0) {
+                priceScale = this._private__rightPriceScale;
+            }
+            else if (this._private__model._internal_options().leftPriceScale.visible && this._private__leftPriceScale._internal_dataSources().length !== 0) {
+                priceScale = this._private__leftPriceScale;
+            }
+            else if (this._private__dataSources.length !== 0) {
+                priceScale = this._private__dataSources[0]._internal_priceScale();
+            }
+            if (priceScale === null) {
+                priceScale = this._private__rightPriceScale;
+            }
+            return priceScale;
+        };
+        Pane.prototype._internal_defaultVisiblePriceScale = function () {
+            var priceScale = null;
+            if (this._private__model._internal_options().rightPriceScale.visible) {
+                priceScale = this._private__rightPriceScale;
+            }
+            else if (this._private__model._internal_options().leftPriceScale.visible) {
+                priceScale = this._private__leftPriceScale;
+            }
+            return priceScale;
+        };
+        Pane.prototype._internal_recalculatePriceScale = function (priceScale) {
+            if (priceScale === null || !priceScale._internal_isAutoScale()) {
+                return;
+            }
+            this._private__recalculatePriceScaleImpl(priceScale);
+        };
+        Pane.prototype._internal_resetPriceScale = function (priceScale) {
+            var visibleBars = this._private__timeScale._internal_visibleStrictRange();
+            priceScale._internal_setMode({ _internal_autoScale: true });
+            if (visibleBars !== null) {
+                priceScale._internal_recalculatePriceRange(visibleBars);
+            }
+            this._internal_updateAllSources();
+        };
+        Pane.prototype._internal_momentaryAutoScale = function () {
+            this._private__recalculatePriceScaleImpl(this._private__leftPriceScale);
+            this._private__recalculatePriceScaleImpl(this._private__rightPriceScale);
+        };
+        Pane.prototype._internal_recalculate = function () {
+            var _this = this;
+            this._internal_recalculatePriceScale(this._private__leftPriceScale);
+            this._internal_recalculatePriceScale(this._private__rightPriceScale);
+            this._private__dataSources.forEach(function (ds) {
+                if (_this._internal_isOverlay(ds)) {
+                    _this._internal_recalculatePriceScale(ds._internal_priceScale());
+                }
+            });
+            this._internal_updateAllSources();
+            this._private__model._internal_lightUpdate();
+        };
+        Pane.prototype._internal_orderedSources = function () {
+            if (this._private__cachedOrderedSources === null) {
+                this._private__cachedOrderedSources = sortSources(this._private__dataSources);
+            }
+            return this._private__cachedOrderedSources;
+        };
+        Pane.prototype._internal_onDestroyed = function () {
+            return this._private__destroyed;
+        };
+        Pane.prototype._internal_grid = function () {
+            return this._private__grid;
+        };
+        Pane.prototype._private__recalculatePriceScaleImpl = function (priceScale) {
+            // TODO: can use this checks
+            var sourceForAutoScale = priceScale._internal_sourcesForAutoScale();
+            if (sourceForAutoScale && sourceForAutoScale.length > 0 && !this._private__timeScale._internal_isEmpty()) {
+                var visibleBars = this._private__timeScale._internal_visibleStrictRange();
+                if (visibleBars !== null) {
+                    priceScale._internal_recalculatePriceRange(visibleBars);
+                }
+            }
+            priceScale._internal_updateAllViews();
+        };
+        Pane.prototype._private__getZOrderMinMax = function () {
+            var sources = this._internal_orderedSources();
+            if (sources.length === 0) {
+                return { _internal_minZOrder: 0, _internal_maxZOrder: 0 };
+            }
+            var minZOrder = 0;
+            var maxZOrder = 0;
+            for (var j = 0; j < sources.length; j++) {
+                var ds = sources[j];
+                var zOrder = ds._internal_zorder();
+                if (zOrder !== null) {
+                    if (zOrder < minZOrder) {
+                        minZOrder = zOrder;
+                    }
+                    if (zOrder > maxZOrder) {
+                        maxZOrder = zOrder;
+                    }
+                }
+            }
+            return { _internal_minZOrder: minZOrder, _internal_maxZOrder: maxZOrder };
+        };
+        Pane.prototype._private__insertDataSource = function (source, priceScaleId, zOrder) {
+            var priceScale = this._internal_priceScaleById(priceScaleId);
+            if (priceScale === null) {
+                priceScale = this._private__createPriceScale(priceScaleId, this._private__model._internal_options().overlayPriceScales);
+            }
+            this._private__dataSources.push(source);
+            if (!isDefaultPriceScale(priceScaleId)) {
+                var overlaySources = this._private__overlaySourcesByScaleId.get(priceScaleId) || [];
+                overlaySources.push(source);
+                this._private__overlaySourcesByScaleId.set(priceScaleId, overlaySources);
+            }
+            if (typeof source._internal_seriesType === 'undefined' || source._internal_seriesType() !== 'BrokenArea') {
+                priceScale._internal_addDataSource(source);
+            }
+            source._internal_setPriceScale(priceScale);
+            source._internal_setZorder(zOrder);
+            this._internal_recalculatePriceScale(priceScale);
+            this._private__cachedOrderedSources = null;
+        };
+        Pane.prototype._private__onPriceScaleModeChanged = function (priceScale, oldMode, newMode) {
+            if (oldMode._internal_mode === newMode._internal_mode) {
+                return;
+            }
+            // momentary auto scale if we toggle percentage/indexedTo100 mode
+            this._private__recalculatePriceScaleImpl(priceScale);
+        };
+        Pane.prototype._private__createPriceScale = function (id, options) {
+            var actualOptions = __assign({ visible: true, autoScale: true }, clone(options));
+            var priceScale = new PriceScale(id, actualOptions, this._private__model._internal_options().layout, this._private__model._internal_options().localization);
+            priceScale._internal_setHeight(this._internal_height());
+            return priceScale;
+        };
+        return Pane;
+    }());
+
+    var AnchorPoint = /** @class */ (function (_super) {
+        __extends(AnchorPoint, _super);
+        function AnchorPoint(x, y, data, square) {
+            var _this = _super.call(this, x, y) || this;
+            _this._internal_data = data;
+            _this._internal_square = square;
+            return _this;
+        }
+        AnchorPoint.prototype.clone = function () {
+            return new AnchorPoint(this.x, this.y, this._internal_data, this._internal_square);
+        };
+        return AnchorPoint;
+    }(Point));
+    var LineAnchorRenderer = /** @class */ (function () {
+        function LineAnchorRenderer(data) {
+            this._internal__data = data !== undefined ? data : null;
+        }
+        LineAnchorRenderer.prototype._internal_setData = function (data) {
+            this._internal__data = data;
+        };
+        LineAnchorRenderer.prototype._internal_updateData = function (data) {
+            this._internal__data = merge(this._internal__data, data);
+        };
+        LineAnchorRenderer.prototype._internal_draw = function (ctx, renderParams) {
+            if (this._internal__data === null || !this._internal__data._internal_visible) {
+                return;
+            }
+            var squarePoints = [];
+            var squareColors = [];
+            var circlePoints = [];
+            var circleColors = [];
+            var pixelRatio = renderParams._internal_pixelRatio;
+            for (var e = 0; e < this._internal__data._internal_points.length; ++e) {
+                var point = this._internal__data._internal_points[e];
+                var color = this._internal__data._internal_backgroundColors[e];
+                if (point._internal_square) {
+                    squarePoints.push(point);
+                    squareColors.push(color);
+                }
+                else {
+                    circlePoints.push(point);
+                    circleColors.push(color);
+                }
+            }
+            ctx.strokeStyle = this._internal__data._internal_color;
+            if (squarePoints.length) {
+                this._internal__drawPoints(ctx, pixelRatio, squarePoints, squareColors, drawRectBody, drawRectShadow);
+            }
+            if (circlePoints.length) {
+                this._internal__drawPoints(ctx, pixelRatio, circlePoints, circleColors, drawCircleBody, drawCircleShadow);
+            }
+        };
+        LineAnchorRenderer.prototype._internal_hitTest = function (position) {
+            if (null === this._internal__data) {
+                return null;
+            }
+            for (var r = 0; r < this._internal__data._internal_points.length; ++r) {
+                var point = this._internal__data._internal_points[r];
+                if (point.subtract(position).length() <= this._internal__data._internal_radius + interactionTolerance._internal_anchor) {
+                    var cursorType = this._internal__data._internal_pointsCursorType !== undefined ? this._internal__data._internal_pointsCursorType[r] : PaneCursorType._internal_Default;
+                    var pointIndex = point._internal_data;
+                    return new HitTestResult(this._internal__data._internal_hitTestType, { _internal_pointIndex: pointIndex, _internal_cursorType: cursorType });
+                }
+            }
+            return null;
+        };
+        LineAnchorRenderer.prototype._internal__drawPoints = function (ctx, pixelRatio, points, colors, drawBody, drawShadow) {
+            var data = ensureNotNull(this._internal__data);
+            var currentPoint = data._internal_currentPoint;
+            var lineWidth = Math.max(1, Math.floor((data._internal_strokeWidth || 2) * pixelRatio));
+            if (data._internal_selected) {
+                lineWidth += Math.max(1, Math.floor(pixelRatio / 2));
+            }
+            var pixelRatioInt = Math.max(1, Math.floor(pixelRatio));
+            var radius = Math.round(data._internal_radius * pixelRatio * 2);
+            if (pixelRatio % 2 !== pixelRatioInt % 2) {
+                radius += 1;
+            }
+            var shift = pixelRatioInt % 2 / 2;
+            for (var d = 0; d < points.length; ++d) {
+                var point = points[d];
+                ctx.fillStyle = colors[d];
+                if (!(Number.isInteger(point._internal_data) && data._internal_editedPointIndex === point._internal_data)) {
+                    var x = Math.round(point.x * pixelRatio) + shift;
+                    var y = Math.round(point.y * pixelRatio) + shift;
+                    drawBody(ctx, new AnchorPoint(x, y, point._internal_data, point._internal_square), radius / 2, lineWidth);
+                    if (point.subtract(currentPoint).length() <= data._internal_radius + interactionTolerance._internal_anchor) {
+                        var hoveredLineWidth = Math.max(1, Math.floor(data._internal_hoveredStrokeWidth * pixelRatio));
+                        drawShadow(ctx, new AnchorPoint(x, y, point._internal_data, point._internal_square), radius / 2, hoveredLineWidth);
+                    }
+                }
+            }
+        };
+        return LineAnchorRenderer;
+    }());
+    function drawRect(ctx, point, radius, lineWidth) {
+        ctx.lineWidth = lineWidth;
+        var n = radius + lineWidth / 2;
+        drawRoundRect(ctx, point.x - n, point.y - n, 2 * n, 2 * n, (radius + lineWidth) / 2);
+        ctx.closePath();
+    }
+    function drawRectShadow(ctx, point, radius, lineWidth) {
+        ctx.globalAlpha = 0.2;
+        drawRect(ctx, point, radius, lineWidth);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+    }
+    function drawRectBody(ctx, point, radius, lineWidth) {
+        drawRect(ctx, point, radius - lineWidth, lineWidth);
+        ctx.fill();
+        ctx.stroke();
+    }
+    function drawCircleShadow(ctx, point, radius, lineWidth) {
+        ctx.lineWidth = lineWidth;
+        ctx.globalAlpha = 0.2;
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, radius + lineWidth / 2, 0, 2 * Math.PI, true);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+    }
+    function drawCircleBody(ctx, point, radius, lineWidth) {
+        ctx.lineWidth = lineWidth;
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, radius - lineWidth / 2, 0, 2 * Math.PI, true);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+    }
+
+    var LineToolPaneView = /** @class */ (function () {
+        function LineToolPaneView(source, model) {
+            this._internal__points = [];
+            this._internal__invalidated = true;
+            this._internal__lastMovePoint = null;
+            this._internal__editedPointIndex = null;
+            this._internal__lineAnchorRenderers = [];
+            this._internal__renderer = null;
+            this._internal__source = source;
+            this._internal__model = model;
+        }
+        // eslint-disable-next-line complexity
+        LineToolPaneView.prototype._internal_onInputEvent = function (paneWidget, eventType, event) {
+            if (!event || (!this._internal__renderer || !this._internal__renderer._internal_hitTest) && this._internal__source._internal_finished()) {
+                return;
+            }
+            var crossHair = this._internal__model._internal_crosshairSource();
+            var appliedPoint = new Point(crossHair._internal_appliedX(), crossHair._internal_appliedY());
+            var originPoint = new Point(crossHair._internal_originCoordX(), crossHair._internal_originCoordY());
+            var changed = eventType === 11 /* PressedMouseMove */ && !event._internal_consumed
+                ? this._internal__onPressedMouseMove(paneWidget, originPoint, appliedPoint)
+                : eventType === 9 /* MouseMove */
+                    ? this._internal__onMouseMove(paneWidget, originPoint, appliedPoint, event)
+                    : eventType === 6 /* MouseDown */
+                        ? this._internal__onMouseDown(paneWidget, originPoint, appliedPoint, event)
+                        : eventType === 10 /* MouseUp */
+                            ? this._internal__onMouseUp()
+                            : false;
+            event._internal_consumed || (event._internal_consumed = this._internal__source._internal_editing() || !this._internal__source._internal_finished());
+            if (changed || this._internal__source._internal_hovered() || this._internal__source._internal_editing() || !this._internal__source._internal_finished()) {
+                this._internal_updateLineAnchors();
+            }
+        };
+        LineToolPaneView.prototype._internal_renderer = function (height, width, pane) {
+            if (this._internal__invalidated) {
+                this._internal__updateImpl(height, width);
+            }
+            return this._internal__source._internal_visible() ? this._internal__renderer : null;
+        };
+        LineToolPaneView.prototype._internal_priceToCoordinate = function (price) {
+            var priceScale = this._internal__source._internal_priceScale();
+            var ownerSource = this._internal__source._internal_ownerSource();
+            if (priceScale === null) {
+                return null;
+            }
+            var basePrice = ownerSource !== null ? ownerSource._internal_firstValue() : null;
+            return basePrice === null ? null : priceScale._internal_priceToCoordinate(price, basePrice._internal_value);
+        };
+        LineToolPaneView.prototype._internal_currentPoint = function () {
+            var crossHair = this._internal__model._internal_crosshairSource();
+            return new Point(crossHair._internal_originCoordX(), crossHair._internal_originCoordY());
+        };
+        LineToolPaneView.prototype._internal_editedPointIndex = function () {
+            return this._internal__source._internal_editing() ? this._internal__editedPointIndex : null;
+        };
+        LineToolPaneView.prototype._internal_areAnchorsVisible = function () {
+            return this._internal__source._internal_hovered() || this._internal__source._internal_selected() || this._internal__source._internal_editing() || !this._internal__source._internal_finished();
+        };
+        LineToolPaneView.prototype._internal_update = function () {
+            this._internal__invalidated = true;
+        };
+        LineToolPaneView.prototype._internal_addAnchors = function (renderer) {
+            renderer._internal_append(this._internal_createLineAnchor({ _internal_points: this._internal__points }, 0));
+        };
+        LineToolPaneView.prototype._internal_updateLineAnchors = function () {
+            var _this = this;
+            this._internal__lineAnchorRenderers.forEach(function (renderer) {
+                renderer._internal_updateData({
+                    _internal_points: _this._internal__points,
+                    _internal_selected: _this._internal__source._internal_selected(),
+                    _internal_visible: _this._internal_areAnchorsVisible(),
+                    _internal_currentPoint: _this._internal_currentPoint(),
+                    _internal_editedPointIndex: _this._internal_editedPointIndex(),
+                });
+            });
+            this._internal__model._internal_updateSource(this._internal__source);
+            this._internal__source._internal_updateAllViews();
+        };
+        LineToolPaneView.prototype._internal_createLineAnchor = function (data, index) {
+            var renderer = this._internal__getLineAnchorRenderer(index);
+            renderer._internal_setData(__assign(__assign({}, data), { _internal_radius: 6, _internal_strokeWidth: 1, _internal_color: '#1E53E5', _internal_hoveredStrokeWidth: 4, _internal_selected: this._internal__source._internal_selected(), _internal_visible: this._internal_areAnchorsVisible(), _internal_currentPoint: this._internal_currentPoint(), _internal_backgroundColors: this._internal__lineAnchorColors(data._internal_points), _internal_editedPointIndex: this._internal__source._internal_editing() ? this._internal_editedPointIndex() : null, _internal_hitTestType: HitTestType._internal_ChangePoint }));
+            return renderer;
+        };
+        LineToolPaneView.prototype._internal__onMouseUp = function () {
+            if (!this._internal__source._internal_finished()) {
+                this._internal__source._internal_tryFinish();
+            }
+            else if (this._internal__source._internal_editing()) {
+                this._internal__model._internal_magnet()._internal_disable();
+                this._internal__updateSourcePoints();
+                this._internal__lastMovePoint = null;
+                this._internal__editedPointIndex = null;
+                this._internal__source._internal_setEditing(false);
+                return true;
+            }
+            return false;
+        };
+        LineToolPaneView.prototype._internal__onPressedMouseMove = function (paneWidget, originPoint, appliedPoint) {
+            var _a;
+            if (!this._internal__source._internal_finished()) {
+                if (this._internal__source._internal_lineDrawnWithPressedButton()) {
+                    this._internal__source._internal_addPoint(this._internal__source._internal_screenPointToPoint(appliedPoint));
+                }
+                return false;
+            }
+            if (!this._internal__source._internal_selected()) {
+                return false;
+            }
+            if (!this._internal__source._internal_editing()) {
+                var hitResult = this._internal__hitTest(paneWidget, originPoint);
+                var hitData = hitResult === null || hitResult === void 0 ? void 0 : hitResult._internal_data();
+                this._internal__source._internal_setEditing(this._internal__source._internal_hovered() || !!hitResult);
+                this._internal__lastMovePoint = appliedPoint;
+                this._internal__editedPointIndex = (_a = hitData === null || hitData === void 0 ? void 0 : hitData._internal_pointIndex) !== null && _a !== void 0 ? _a : this._internal__editedPointIndex;
+                if (hitData) {
+                    this._internal__model._internal_magnet()._internal_enable();
+                }
+            }
+            else {
+                paneWidget._internal_setCursor(this._internal__editedPointIndex !== null ? PaneCursorType._internal_Default : PaneCursorType._internal_Grabbing);
+                if (this._internal__editedPointIndex !== null) {
+                    this._internal__source._internal_setPoint(this._internal__editedPointIndex, this._internal__source._internal_screenPointToPoint(appliedPoint));
+                }
+                else if (this._internal__lastMovePoint) {
+                    var diff_1 = appliedPoint.subtract(this._internal__lastMovePoint);
+                    this._internal__points.forEach(function (point) {
+                        point.x = (point.x + diff_1.x);
+                        point.y = (point.y + diff_1.y);
+                    });
+                    this._internal__lastMovePoint = appliedPoint;
+                    this._internal__updateSourcePoints();
+                }
+            }
+            return false;
+        };
+        LineToolPaneView.prototype._internal__onMouseMove = function (paneWidget, originPoint, appliedPoint, event) {
+            var _a, _b, _c;
+            if (!this._internal__source._internal_finished()) {
+                if (this._internal__source._internal_hasMagnet()) {
+                    this._internal__model._internal_magnet()._internal_enable();
+                }
+                this._internal__source._internal_setLastPoint(this._internal__source._internal_screenPointToPoint(appliedPoint));
+            }
+            else {
+                var hitResult = this._internal__hitTest(paneWidget, originPoint);
+                var changed = this._internal__source._internal_setHovered(hitResult !== null && !event._internal_consumed);
+                if (this._internal__source._internal_hovered() && !event._internal_consumed) {
+                    paneWidget._internal_setCursor(((_a = hitResult === null || hitResult === void 0 ? void 0 : hitResult._internal_data()) === null || _a === void 0 ? void 0 : _a._internal_cursorType) || PaneCursorType._internal_Pointer);
+                    this._internal__editedPointIndex = (_c = (_b = hitResult === null || hitResult === void 0 ? void 0 : hitResult._internal_data()) === null || _b === void 0 ? void 0 : _b._internal_pointIndex) !== null && _c !== void 0 ? _c : null;
+                }
+                return changed;
+            }
+            return false;
+        };
+        LineToolPaneView.prototype._internal__onMouseDown = function (paneWidget, originPoint, appliedPoint, event) {
+            if (!this._internal__source._internal_finished()) {
+                this._internal__source._internal_addPoint(this._internal__source._internal_screenPointToPoint(appliedPoint));
+                return false;
+            }
+            else {
+                var hitResult = this._internal__hitTest(paneWidget, originPoint);
+                return this._internal__source._internal_setSelected(hitResult !== null && !event._internal_consumed);
+            }
+        };
+        LineToolPaneView.prototype._internal__updateSourcePoints = function () {
+            var _this = this;
+            this._internal__source._internal_setPoints(this._internal__points.map(function (point) { return _this._internal__source._internal_screenPointToPoint(point); }));
+        };
+        LineToolPaneView.prototype._internal__hitTest = function (paneWidget, point) {
+            var _a;
+            if (!((_a = this._internal__renderer) === null || _a === void 0 ? void 0 : _a._internal_hitTest)) {
+                return null;
+            }
+            var renderParams = paneWidget._internal_canvasRenderParams();
+            return this._internal__renderer._internal_hitTest(point, renderParams);
+        };
+        LineToolPaneView.prototype._internal__lineAnchorColors = function (points) {
+            var _this = this;
+            var height = ensureNotNull(this._internal__model._internal_paneForSource(this._internal__source))._internal_height();
+            return points.map(function (point) { return _this._internal__model._internal_backgroundColorAtYPercentFromTop(point.y / height); });
+        };
+        LineToolPaneView.prototype._internal__updateImpl = function (height, width) {
+            this._internal__invalidated = false;
+            if (this._internal__model._internal_timeScale()._internal_isEmpty()) {
+                return;
+            }
+            if (!this._internal__validatePriceScale()) {
+                return;
+            }
+            this._internal__points = [];
+            var sourcePoints = this._internal__source._internal_points();
+            for (var i = 0; i < sourcePoints.length; i++) {
+                var point = this._internal__source._internal_pointToScreenPoint(sourcePoints[i]);
+                if (!point) {
+                    return;
+                }
+                point._internal_data = i;
+                this._internal__points.push(point);
+            }
+        };
+        LineToolPaneView.prototype._internal__validatePriceScale = function () {
+            var priceScale = this._internal__source._internal_priceScale();
+            return null !== priceScale && !priceScale._internal_isEmpty();
+        };
+        LineToolPaneView.prototype._internal__getLineAnchorRenderer = function (index) {
+            for (; this._internal__lineAnchorRenderers.length <= index;) {
+                this._internal__lineAnchorRenderers.push(new LineAnchorRenderer());
+            }
+            return this._internal__lineAnchorRenderers[index];
+        };
+        return LineToolPaneView;
+    }());
+
+    var TrendLinePaneView = /** @class */ (function (_super) {
+        __extends(TrendLinePaneView, _super);
+        function TrendLinePaneView(source, model) {
+            var _this = _super.call(this, source, model) || this;
+            _this._internal__lineRenderer = new SegmentRenderer();
+            _this._internal__labelRenderer = new TextRenderer();
+            _this._internal__renderer = null;
+            return _this;
+        }
+        // eslint-disable-next-line complexity
+        TrendLinePaneView.prototype._internal__updateImpl = function () {
+            this._internal__renderer = null;
+            this._internal__invalidated = false;
+            var priceScale = this._internal__source._internal_priceScale();
+            var timeScale = this._internal__model._internal_timeScale();
+            if (!priceScale || priceScale._internal_isEmpty() || timeScale._internal_isEmpty()) {
+                return;
+            }
+            var strictRange = timeScale._internal_visibleTimeRange();
+            if (strictRange === null) {
+                return;
+            }
+            var points = this._internal__source._internal_points();
+            if (points.length < 2) {
+                return;
+            }
+            var options = this._internal__source._internal_options();
+            var isOutsideView = Math.max(points[0].timestamp, points[1].timestamp) < strictRange.from._internal_timestamp;
+            if (!isOutsideView || options.line.extend.left || options.line.extend.right) {
+                _super.prototype._internal__updateImpl.call(this);
+                if (this._internal__points.length < 2) {
+                    return;
+                }
+                var compositeRenderer = new CompositeRenderer();
+                this._internal__lineRenderer._internal_setData({ _internal_line: options.line, _internal_points: this._internal__points });
+                compositeRenderer._internal_append(this._internal__lineRenderer);
+                if (options.text.value) {
+                    var point0 = this._internal__points[0];
+                    var point1 = this._internal__points[1];
+                    var start = point0.x < point1.x ? point0 : point1;
+                    var end = start === point0 ? point1 : point0;
+                    var angle = Math.atan((end.y - start.y) / (end.x - start.x));
+                    var align = options.text.box.alignment.horizontal;
+                    var pivot = align === "left" /* Left */
+                        ? start.clone() : align === "right" /* Right */
+                        ? end.clone() : new Point((point0.x + point1.x) / 2, (point0.y + point1.y) / 2);
+                    var labelOptions = deepCopy(options.text);
+                    labelOptions.box = __assign(__assign({}, labelOptions.box), { angle: angle });
+                    this._internal__labelRenderer._internal_setData({ _internal_text: labelOptions, _internal_points: [pivot] });
+                    compositeRenderer._internal_append(this._internal__labelRenderer);
+                }
+                this._internal_addAnchors(compositeRenderer);
+                this._internal__renderer = compositeRenderer;
+            }
+        };
+        return TrendLinePaneView;
+    }(LineToolPaneView));
+
+    var LineToolTrendLine = /** @class */ (function (_super) {
+        __extends(LineToolTrendLine, _super);
+        function LineToolTrendLine(model, options, points) {
+            if (points === void 0) { points = []; }
+            var _this = _super.call(this, model, options, points) || this;
+            _this._internal__toolType = 'TrendLine';
+            _this._internal__setPaneViews([new TrendLinePaneView(_this, model)]);
+            return _this;
+        }
+        LineToolTrendLine.prototype._internal_pointsCount = function () {
+            return 2;
+        };
+        return LineToolTrendLine;
+    }(LineTool));
+
+    var LineToolArrow = /** @class */ (function (_super) {
+        __extends(LineToolArrow, _super);
+        function LineToolArrow() {
+            var _this = _super !== null && _super.apply(this, arguments) || this;
+            _this._internal__toolType = 'Arrow';
+            return _this;
+        }
+        return LineToolArrow;
+    }(LineToolTrendLine));
+
+    var PolygonRenderer = /** @class */ (function (_super) {
+        __extends(PolygonRenderer, _super);
+        function PolygonRenderer(hitTest) {
+            var _this = _super.call(this) || this;
+            _this._internal__backHitTest = new HitTestResult(HitTestType._internal_MovePointBackground);
+            _this._internal__hitTest = hitTest || new HitTestResult(HitTestType._internal_MovePoint);
+            _this._internal__data = null;
+            return _this;
+        }
+        PolygonRenderer.prototype._internal_setData = function (data) {
+            this._internal__data = data;
+        };
+        PolygonRenderer.prototype._internal_hitTest = function (point) {
+            if (this._internal__data === null) {
+                return null;
+            }
+            var lineWidth = this._internal__data._internal_line.width || 1;
+            var distance = Math.max(interactionTolerance._internal_line, Math.ceil(lineWidth / 2));
+            var pointsCount = this._internal__data._internal_points.length;
+            if (pointsCount === 1) {
+                return pointInCircle(point, this._internal__data._internal_points[0], distance) ? this._internal__hitTest : null;
+            }
+            for (var n = 1; n < pointsCount; n++) {
+                if (distanceToSegment(this._internal__data._internal_points[n - 1], this._internal__data._internal_points[n], point)._internal_distance <= distance) {
+                    return this._internal__hitTest;
+                }
+            }
+            if (this._internal__data._internal_background && pointsCount > 0) {
+                if (distanceToSegment(this._internal__data._internal_points[0], this._internal__data._internal_points[pointsCount - 1], point)._internal_distance <= distance) {
+                    return this._internal__hitTest;
+                }
+            }
+            return this._internal__data._internal_background && pointInPolygon(point, this._internal__data._internal_points) ? this._internal__backHitTest : null;
+        };
+        // eslint-disable-next-line complexity
+        PolygonRenderer.prototype._internal__drawImpl = function (ctx, renderParams) {
+            var _a, _b;
+            if (this._internal__data === null || !this._internal__data._internal_points) {
+                return;
+            }
+            var pointsCount = this._internal__data._internal_points.length;
+            var lineStyle = this._internal__data._internal_line.style || 0 /* Solid */;
+            var lineJoin = this._internal__data._internal_line.join || "round" /* Round */;
+            var lineCap = this._internal__data._internal_line.cap || "butt" /* Butt */;
+            var lineColor = this._internal__data._internal_line.color || 'white';
+            var lineWidth = this._internal__data._internal_line.width || 1;
+            if (pointsCount === 1) {
+                return this._internal__drawPoint(ctx, this._internal__data._internal_points[0], pointsCount / 2, lineColor);
+            }
+            ctx.beginPath();
+            ctx.lineCap = lineCap;
+            ctx.lineJoin = lineJoin;
+            ctx.lineWidth = lineWidth;
+            ctx.strokeStyle = lineColor;
+            setLineStyle(ctx, lineStyle);
+            ctx.moveTo(this._internal__data._internal_points[0].x, this._internal__data._internal_points[0].y);
+            for (var _i = 0, _c = this._internal__data._internal_points; _i < _c.length; _i++) {
+                var e = _c[_i];
+                ctx.lineTo(e.x, e.y);
+            }
+            if (this._internal__data._internal_background) {
+                ctx.fillStyle = this._internal__data._internal_background.color;
+                ctx.fill();
+            }
+            if (lineWidth > 0) {
+                ctx.stroke();
+            }
+            if (pointsCount > 1) {
+                if (lineCap !== 'butt') {
+                    ctx.lineCap = 'butt';
+                }
+                if (((_a = this._internal__data._internal_line.end) === null || _a === void 0 ? void 0 : _a.left) === 1 /* Arrow */) {
+                    var points = this._internal__correctArrowPoints(this._internal__data._internal_points[1], this._internal__data._internal_points[0], lineWidth, lineCap);
+                    drawArrowEnd(points[0], points[1], ctx, lineWidth, 1);
+                }
+                if (((_b = this._internal__data._internal_line.end) === null || _b === void 0 ? void 0 : _b.right) === 1 /* Arrow */) {
+                    var points = this._internal__correctArrowPoints(this._internal__data._internal_points[pointsCount - 2], this._internal__data._internal_points[pointsCount - 1], lineWidth, lineCap);
+                    drawArrowEnd(points[0], points[1], ctx, lineWidth, 1);
+                }
+            }
+        };
+        PolygonRenderer.prototype._internal__drawPoint = function (ctx, point, lineWidth, color) {
+            if (lineWidth !== 0) {
+                return;
+            }
+            ctx.beginPath();
+            ctx.fillStyle = color;
+            ctx.arc(point.x, point.y, lineWidth, 0, 2 * Math.PI, true);
+            ctx.fill();
+            ctx.closePath();
+        };
+        PolygonRenderer.prototype._internal__correctArrowPoints = function (point0, point1, lineWidth, lineCap) {
+            var heading = point1.subtract(point0);
+            var distance = heading.length();
+            if ('butt' === lineCap || distance < 1) {
+                return [point0, point1];
+            }
+            var correctedDistance = distance + lineWidth / 2;
+            return [point0, heading.scaled(correctedDistance / distance).add(point0)];
+        };
+        return PolygonRenderer;
+    }(ScaledRenderer));
+
+    var BrushPaneView = /** @class */ (function (_super) {
+        __extends(BrushPaneView, _super);
+        function BrushPaneView(source, model) {
+            var _this = _super.call(this, source, model) || this;
+            _this._internal__polygonRenderer = new PolygonRenderer();
+            _this._internal__renderer = null;
+            return _this;
+        }
+        BrushPaneView.prototype._internal__updateImpl = function () {
+            _super.prototype._internal__updateImpl.call(this);
+            this._internal__renderer = null;
+            if (this._internal__points.length === 0) {
+                return;
+            }
+            var options = this._internal__source._internal_getBrushOptions();
+            var smooth = Math.max(1, this._internal__source._internal_smooth());
+            var computedPoints = [this._internal__points[0]];
+            for (var i = 1; i < this._internal__points.length; i++) {
+                var heading = this._internal__points[i].subtract(this._internal__points[i - 1]);
+                var distance = heading.length();
+                var iterations = Math.min(5, Math.floor(distance / smooth));
+                var segment = heading.normalized().scaled(distance / iterations);
+                for (var j = 0; j < iterations - 1; j++) {
+                    computedPoints.push(this._internal__points[i - 1].add(segment.scaled(j)));
+                }
+                computedPoints.push(this._internal__points[i]);
+            }
+            var points = this._internal__smoothArray(computedPoints, smooth);
+            this._internal__polygonRenderer._internal_setData({ _internal_line: options.line, _internal_background: options.background, _internal_points: points });
+            var compositeRenderer = new CompositeRenderer();
+            compositeRenderer._internal_append(this._internal__polygonRenderer);
+            this._internal__renderer = compositeRenderer;
+        };
+        BrushPaneView.prototype._internal__smoothArray = function (points, interval) {
+            var computedPoints = new Array(points.length);
+            if (points.length === 1) {
+                return points;
+            }
+            for (var j = 0; j < points.length; j++) {
+                var current = new Point(0, 0);
+                for (var i = 0; i < interval; i++) {
+                    var t = Math.max(j - i, 0);
+                    var r = Math.min(j + i, points.length - 1);
+                    current = current.add(points[t]);
+                    current = current.add(points[r]);
+                }
+                computedPoints[j] = current.scaled(0.5 / interval);
+            }
+            computedPoints.push(points[points.length - 1]);
+            return computedPoints;
+        };
+        return BrushPaneView;
+    }(LineToolPaneView));
+
+    var LineToolBrush = /** @class */ (function (_super) {
+        __extends(LineToolBrush, _super);
+        function LineToolBrush(model, options, points) {
+            if (points === void 0) { points = []; }
+            var _this = _super.call(this, model, options, points) || this;
+            _this._internal__toolType = 'Brush';
+            _this._internal__setPaneViews([new BrushPaneView(_this, model)]);
+            return _this;
+        }
+        LineToolBrush.prototype._internal_pointsCount = function () {
+            return -1;
+        };
+        LineToolBrush.prototype._internal_smooth = function () {
+            return 5;
+        };
+        LineToolBrush.prototype._internal_getBrushOptions = function () {
+            return this._internal_options();
+        };
+        LineToolBrush.prototype._internal_addPoint = function (point) {
+            if (this._internal__finished) {
+                return;
+            }
+            this._internal__lastPoint = null;
+            if (this._internal__points.length > 0) {
+                var endPoint = this._internal__points[this._internal__points.length - 1];
+                var endScreenPoint = ensureNotNull(this._internal_pointToScreenPoint(endPoint));
+                if (ensureNotNull(this._internal_pointToScreenPoint(point)).subtract(endScreenPoint).length() < 2) {
+                    return;
+                }
+            }
+            return _super.prototype._internal_addPoint.call(this, point);
+        };
+        LineToolBrush.prototype._internal_hasMagnet = function () {
+            return false;
+        };
+        LineToolBrush.prototype._internal_lineDrawnWithPressedButton = function () {
+            return true;
+        };
+        return LineToolBrush;
+    }(LineTool));
+
+    var CrossLinePaneView = /** @class */ (function (_super) {
+        __extends(CrossLinePaneView, _super);
+        function CrossLinePaneView(source, model) {
+            var _this = _super.call(this, source, model) || this;
+            _this._internal__verticalLineRenderer = new SegmentRenderer();
+            _this._internal__horizontalLineRenderer = new SegmentRenderer();
+            _this._internal__renderer = null;
+            _this._internal__verticalLineRenderer._internal_setHitTest(new HitTestResult(HitTestType._internal_MovePoint));
+            _this._internal__horizontalLineRenderer._internal_setHitTest(new HitTestResult(HitTestType._internal_MovePoint));
+            return _this;
+        }
+        CrossLinePaneView.prototype._internal__updateImpl = function (height, width) {
+            this._internal__renderer = null;
+            var priceScale = this._internal__source._internal_priceScale();
+            var timeScale = this._internal__model._internal_timeScale();
+            if (!priceScale || priceScale._internal_isEmpty() || timeScale._internal_isEmpty()) {
+                return;
+            }
+            var points = this._internal__source._internal_points();
+            if (points.length < 1) {
+                return;
+            }
+            _super.prototype._internal__updateImpl.call(this);
+            var options = this._internal__source._internal_options();
+            if (this._internal__points.length < 1) {
+                return;
+            }
+            var point = this._internal__points[0];
+            var startVertical = new AnchorPoint(point.x, height, 0);
+            var endVertical = new AnchorPoint(point.x, 0, 1);
+            var startHorizontal = new AnchorPoint(0, point.y, 0);
+            var endHorizontal = new AnchorPoint(width, point.y, 1);
+            var extend = { _internal_left: false, _internal_right: false };
+            var ends = { _internal_left: 0 /* Normal */, _internal_right: 0 /* Normal */ };
+            var compositeRenderer = new CompositeRenderer();
+            this._internal__verticalLineRenderer._internal_setData({ _internal_line: __assign(__assign({}, deepCopy(options.line)), { end: ends, extend: extend }), _internal_points: [startVertical, endVertical] });
+            this._internal__horizontalLineRenderer._internal_setData({ _internal_line: __assign(__assign({}, deepCopy(options.line)), { end: ends, extend: extend }), _internal_points: [startHorizontal, endHorizontal] });
+            compositeRenderer._internal_append(this._internal__verticalLineRenderer);
+            compositeRenderer._internal_append(this._internal__horizontalLineRenderer);
+            this._internal_addAnchors(compositeRenderer);
+            this._internal__renderer = compositeRenderer;
+        };
+        return CrossLinePaneView;
+    }(LineToolPaneView));
+
+    var LineToolCrossLine = /** @class */ (function (_super) {
+        __extends(LineToolCrossLine, _super);
+        function LineToolCrossLine(model, options, points) {
+            if (points === void 0) { points = []; }
+            var _this = _super.call(this, model, options, points) || this;
+            _this._internal__toolType = 'CrossLine';
+            _this._internal__setPaneViews([new CrossLinePaneView(_this, model)]);
+            return _this;
+        }
+        LineToolCrossLine.prototype._internal_pointsCount = function () {
+            return 1;
+        };
+        LineToolCrossLine.prototype._internal_timeAxisLabelColor = function () {
+            return this._internal_options().line.color;
+        };
+        LineToolCrossLine.prototype._internal_priceAxisLabelColor = function () {
+            return this._internal_options().line.color;
+        };
+        return LineToolCrossLine;
+    }(LineTool));
+
+    var LineToolExtendedLine = /** @class */ (function (_super) {
+        __extends(LineToolExtendedLine, _super);
+        function LineToolExtendedLine() {
+            var _this = _super !== null && _super.apply(this, arguments) || this;
+            _this._internal__toolType = 'ExtendedLine';
+            return _this;
+        }
+        return LineToolExtendedLine;
+    }(LineToolTrendLine));
+
+    var RectangleRenderer = /** @class */ (function () {
+        function RectangleRenderer(hitTest, backHitTest) {
+            this._internal__backHitTest = backHitTest || new HitTestResult(HitTestType._internal_MovePointBackground);
+            this._internal__hitTest = hitTest || new HitTestResult(HitTestType._internal_MovePoint);
+            this._internal__data = null;
+        }
+        RectangleRenderer.prototype._internal_setData = function (data) {
+            this._internal__data = data;
+        };
+        RectangleRenderer.prototype._internal_hitTest = function (point, renderParams) {
+            if (null === this._internal__data || this._internal__data.points.length < 2) {
+                return null;
+            }
+            var scaledPoint = new Point(point.x * renderParams._internal_pixelRatio, point.y * renderParams._internal_pixelRatio);
+            var _a = this._internal__getPointsInPhysicalSpace(renderParams), topLeft = _a[0], bottomRight = _a[1];
+            var topRight = new Point(bottomRight.x, topLeft.y);
+            var bottomLeft = new Point(topLeft.x, bottomRight.y);
+            var topLineHitResult = this._internal__extendAndHitTestLineSegment(scaledPoint, topLeft, topRight, renderParams);
+            if (topLineHitResult !== null) {
+                return topLineHitResult;
+            }
+            var bottomLineHitResult = this._internal__extendAndHitTestLineSegment(scaledPoint, bottomLeft, bottomRight, renderParams);
+            if (bottomLineHitResult !== null) {
+                return bottomLineHitResult;
+            }
+            var rightSegmentDistance = distanceToSegment(topRight, bottomRight, scaledPoint);
+            if (rightSegmentDistance._internal_distance <= 3) {
+                return this._internal__hitTest;
+            }
+            var leftSegmentDistance = distanceToSegment(topLeft, bottomLeft, scaledPoint);
+            if (leftSegmentDistance._internal_distance <= 3) {
+                return this._internal__hitTest;
+            }
+            var backgroundHitResult = this._internal__hitTestBackground(scaledPoint, topLeft, bottomRight, renderParams);
+            if (this._internal__data.hitTestBackground && backgroundHitResult !== null) {
+                return backgroundHitResult;
+            }
+            return null;
+        };
+        RectangleRenderer.prototype._internal_draw = function (ctx, renderParams) {
+            var _a, _b, _c, _d, _e, _f, _g;
+            var borderWidth = ((_b = (_a = this._internal__data) === null || _a === void 0 ? void 0 : _a.border) === null || _b === void 0 ? void 0 : _b.width) || 0;
+            var borderColor = (_d = (_c = this._internal__data) === null || _c === void 0 ? void 0 : _c.border) === null || _d === void 0 ? void 0 : _d.color;
+            var background = (_f = (_e = this._internal__data) === null || _e === void 0 ? void 0 : _e.background) === null || _f === void 0 ? void 0 : _f.color;
+            if (null === this._internal__data || this._internal__data.points.length < 2 || (borderWidth <= 0 && !background)) {
+                return;
+            }
+            ctx.save();
+            var scaledBorderWidth = borderWidth ? Math.max(1, Math.floor(borderWidth * renderParams._internal_pixelRatio)) : 0;
+            var borderStyle = ((_g = this._internal__data.border) === null || _g === void 0 ? void 0 : _g.style) || 0 /* Solid */;
+            var _h = this._internal__getPointsInPhysicalSpace(renderParams), point0 = _h[0], point1 = _h[1];
+            var _j = this._internal__data.extend || {}, left = _j.left, right = _j.right;
+            fillRectWithBorder(ctx, point0, point1, background, borderColor, scaledBorderWidth, borderStyle, 'center', !!left, !!right, renderParams._internal_physicalWidth);
+            ctx.restore();
+        };
+        RectangleRenderer.prototype._internal__getPointsInPhysicalSpace = function (renderParams) {
+            var data = ensureNotNull(this._internal__data);
+            var _a = data.points, point0 = _a[0], point1 = _a[1];
+            var pixelRatio = renderParams._internal_pixelRatio;
+            var minX = Math.min(point0.x, point1.x);
+            var maxX = Math.max(point0.x, point1.x);
+            var minY = Math.min(point0.y, point1.y);
+            var maxY = Math.max(point0.y, point1.y);
+            var scaledMinX = Math.round(minX * pixelRatio);
+            var scaledMax = Math.round(maxX * pixelRatio);
+            var scaledMinY = Math.round(minY * pixelRatio);
+            var scaledMaxY = Math.round(maxY * pixelRatio);
+            return [new Point(scaledMinX, scaledMinY), new Point(scaledMax, scaledMaxY)];
+        };
+        RectangleRenderer.prototype._internal__extendAndClipLineSegment = function (end0, end1, renderParams) {
+            var _a, _b;
+            var data = ensureNotNull(this._internal__data);
+            if (equalPoints(end0, end1)) {
+                return null;
+            }
+            var physicalWidth = renderParams._internal_physicalWidth;
+            var minX = Math.min(end0.x, end1.x);
+            var maxX = Math.max(end0.x, end1.x);
+            var x1 = ((_a = data.extend) === null || _a === void 0 ? void 0 : _a.left) ? 0 : Math.max(minX, 0);
+            var x2 = ((_b = data.extend) === null || _b === void 0 ? void 0 : _b.right) ? physicalWidth : Math.min(maxX, physicalWidth);
+            return x1 > x2 || x2 <= 0 || x1 >= physicalWidth ? null : [new Point(x1, end0.y), new Point(x2, end1.y)];
+        };
+        RectangleRenderer.prototype._internal__extendAndHitTestLineSegment = function (point, end0, end1, renderParams) {
+            var line = this._internal__extendAndClipLineSegment(end0, end1, renderParams);
+            if (line !== null && distanceToSegment(line[0], line[1], point)._internal_distance <= 3) {
+                return this._internal__hitTest;
+            }
+            return null;
+        };
+        RectangleRenderer.prototype._internal__hitTestBackground = function (point, end0, end1, renderParams) {
+            var line = this._internal__extendAndClipLineSegment(end0, end1, renderParams);
+            return line !== null && pointInBox(point, new Box(line[0], line[1])) ? this._internal__backHitTest : null;
+        };
+        return RectangleRenderer;
+    }());
+
+    var FibRetracementPaneView = /** @class */ (function (_super) {
+        __extends(FibRetracementPaneView, _super);
+        function FibRetracementPaneView(source, model) {
+            var _this = _super.call(this, source, model) || this;
+            _this._internal__rectangleRenderers = [];
+            _this._internal__labelRenderers = [];
+            _this._internal__lineRenderers = [];
+            _this._internal__renderer = null;
+            return _this;
+        }
+        // eslint-disable-next-line complexity
+        FibRetracementPaneView.prototype._internal__updateImpl = function () {
+            this._internal__renderer = null;
+            this._internal__invalidated = false;
+            var priceScale = this._internal__source._internal_priceScale();
+            var timeScale = this._internal__model._internal_timeScale();
+            if (!priceScale || priceScale._internal_isEmpty() || timeScale._internal_isEmpty()) {
+                return;
+            }
+            var strictRange = timeScale._internal_visibleTimeRange();
+            if (strictRange === null) {
+                return;
+            }
+            var points = this._internal__source._internal_points();
+            if (points.length < 2) {
+                return;
+            }
+            var options = this._internal__source._internal_options();
+            var isOutsideView = Math.max(points[0].timestamp, points[1].timestamp) < strictRange.from._internal_timestamp;
+            if (!isOutsideView || options.extend.left || options.extend.right) {
+                _super.prototype._internal__updateImpl.call(this);
+                if (this._internal__points.length < 2) {
+                    return;
+                }
+                var compositeRenderer = new CompositeRenderer();
+                var minX = Math.min(this._internal__points[0].x, this._internal__points[1].x);
+                var maxX = Math.max(this._internal__points[0].x, this._internal__points[1].x);
+                var levelCoordinates = this._internal__levelsData(this._internal__source._internal_points()[0].price, this._internal__source._internal_points()[1].price, options.levels);
+                for (var i = 0, j = -1; i < levelCoordinates.length; i++, j++) {
+                    if (!this._internal__lineRenderers[i]) {
+                        this._internal__lineRenderers.push(new SegmentRenderer());
+                        this._internal__labelRenderers.push(new TextRenderer());
+                    }
+                    var linePoints = [
+                        new AnchorPoint(minX, levelCoordinates[i]._internal_coordinate, 0),
+                        new AnchorPoint(maxX, levelCoordinates[i]._internal_coordinate, 0),
+                    ];
+                    this._internal__lineRenderers[i]._internal_setData({
+                        _internal_line: __assign(__assign({}, options.line), { extend: options.extend, color: options.levels[i].color }),
+                        _internal_points: linePoints,
+                    });
+                    this._internal__labelRenderers[i]._internal_setData({
+                        _internal_text: {
+                            alignment: "right" /* Right */,
+                            value: "".concat(options.levels[i].coeff, "(").concat(levelCoordinates[i]._internal_price, ")"),
+                            font: { color: options.levels[i].color, size: 11, family: defaultFontFamily },
+                            box: { alignment: { horizontal: "right" /* Right */, vertical: "middle" /* Middle */ } },
+                        },
+                        _internal_points: linePoints,
+                    });
+                    compositeRenderer._internal_append(this._internal__labelRenderers[i]);
+                    compositeRenderer._internal_append(this._internal__lineRenderers[i]);
+                    if (j < 0) {
+                        continue;
+                    }
+                    if (!this._internal__rectangleRenderers[j]) {
+                        this._internal__rectangleRenderers.push(new RectangleRenderer());
+                    }
+                    this._internal__rectangleRenderers[j]._internal_setData(__assign(__assign({}, options.line), { extend: options.extend, background: { color: applyAlpha(options.levels[i].color, 0.2) }, points: [new AnchorPoint(minX, levelCoordinates[i - 1]._internal_coordinate, 0), new AnchorPoint(maxX, levelCoordinates[i]._internal_coordinate, 0)] }));
+                    compositeRenderer._internal_append(this._internal__rectangleRenderers[j]);
+                }
+                this._internal_addAnchors(compositeRenderer);
+                this._internal__renderer = compositeRenderer;
+            }
+        };
+        FibRetracementPaneView.prototype._internal__levelsData = function (min, max, levels) {
+            var _a, _b;
+            var baseValue = ((_b = (_a = this._internal__source._internal_ownerSource()) === null || _a === void 0 ? void 0 : _a._internal_firstValue()) === null || _b === void 0 ? void 0 : _b._internal_value) || 0;
+            var priceScale = this._internal__source._internal_priceScale();
+            var gap = max - min;
+            if (!priceScale || !baseValue) {
+                return [];
+            }
+            return levels.map(function (level) {
+                var price = max - level.coeff * gap;
+                var coordinate = priceScale._internal_priceToCoordinate(price, baseValue);
+                return { _internal_coordinate: coordinate, _internal_price: priceScale._internal_formatPrice(price, baseValue) };
+            });
+        };
+        return FibRetracementPaneView;
+    }(LineToolPaneView));
+
+    var LineToolFibRetracement = /** @class */ (function (_super) {
+        __extends(LineToolFibRetracement, _super);
+        function LineToolFibRetracement(model, options, points) {
+            if (points === void 0) { points = []; }
+            var _this = _super.call(this, model, options, points) || this;
+            _this._internal__toolType = 'FibRetracement';
+            _this._internal__setPaneViews([new FibRetracementPaneView(_this, model)]);
+            return _this;
+        }
+        LineToolFibRetracement.prototype._internal_pointsCount = function () {
+            return 2;
+        };
+        return LineToolFibRetracement;
+    }(LineTool));
+
+    var LineToolHighlighter = /** @class */ (function (_super) {
+        __extends(LineToolHighlighter, _super);
+        function LineToolHighlighter() {
+            var _this = _super !== null && _super.apply(this, arguments) || this;
+            _this._internal__toolType = 'Highlighter';
+            return _this;
+        }
+        LineToolHighlighter.prototype._internal_getBrushOptions = function () {
+            var options = this._internal_options();
+            return {
+                visible: options.visible,
+                line: {
+                    width: 20,
+                    cap: "round" /* Round */,
+                    join: "round" /* Round */,
+                    style: 0 /* Solid */,
+                    color: options.line.color,
+                    end: { left: 0 /* Normal */, right: 0 /* Normal */ },
+                },
+            };
+        };
+        return LineToolHighlighter;
+    }(LineToolBrush));
+
+    var HorizontalLinePaneView = /** @class */ (function (_super) {
+        __extends(HorizontalLinePaneView, _super);
+        function HorizontalLinePaneView(source, model) {
+            var _this = _super.call(this, source, model) || this;
+            _this._internal__lineRenderer = new SegmentRenderer();
+            _this._internal__labelRenderer = new TextRenderer();
+            _this._internal__renderer = null;
+            _this._internal__lineRenderer._internal_setHitTest(new HitTestResult(HitTestType._internal_MovePoint));
+            return _this;
+        }
+        // eslint-disable-next-line complexity
+        HorizontalLinePaneView.prototype._internal__updateImpl = function (height, width) {
+            this._internal__renderer = null;
+            var priceScale = this._internal__source._internal_priceScale();
+            var timeScale = this._internal__model._internal_timeScale();
+            if (!priceScale || priceScale._internal_isEmpty() || timeScale._internal_isEmpty()) {
+                return;
+            }
+            var points = this._internal__source._internal_points();
+            if (points.length < 1) {
+                return;
+            }
+            var startTime = timeScale._internal_coordinateToTime(0);
+            var endTime = timeScale._internal_coordinateToTime(width);
+            var options = this._internal__source._internal_options();
+            var _a = options.line.extend || {}, left = _a.left, right = _a.right;
+            var isOutsideView = (!left && points[0].timestamp > endTime._internal_timestamp) || (!right && points[0].timestamp < startTime._internal_timestamp);
+            if (!isOutsideView) {
+                _super.prototype._internal__updateImpl.call(this);
+                if (this._internal__points.length < 1) {
+                    return;
+                }
+                var point = this._internal__points[0];
+                var start = left ? new AnchorPoint(0, point.y, 0) : new AnchorPoint(point.x, point.y, 0);
+                var end = right ? new AnchorPoint(width, point.y, 1) : new AnchorPoint(point.x, point.y, 1);
+                if (Math.floor(start.x) === Math.floor(end.x) || Math.max(start.x, end.x) <= 0 || end.x < start.x) {
+                    return;
+                }
+                if (left && right) {
+                    point.x = width / 2;
+                    point._internal_square = true;
+                }
+                var ends = { _internal_left: 0 /* Normal */, _internal_right: 0 /* Normal */ };
+                var compositeRenderer = new CompositeRenderer();
+                this._internal__lineRenderer._internal_setData({ _internal_line: __assign(__assign({}, deepCopy(options.line)), { end: ends }), _internal_points: [start, end] });
+                compositeRenderer._internal_append(this._internal__lineRenderer);
+                if (options.text.value) {
+                    var angle = Math.atan((end.y - start.y) / (end.x - start.x));
+                    var align = options.text.box.alignment.horizontal;
+                    var pivot = align === "left" /* Left */
+                        ? start.clone() : align === "right" /* Right */
+                        ? end.clone() : new Point((start.x + end.x) / 2, (start.y + end.y) / 2);
+                    var labelOptions = deepCopy(options.text);
+                    labelOptions.box = __assign(__assign({}, labelOptions.box), { angle: angle });
+                    this._internal__labelRenderer._internal_setData({ _internal_text: labelOptions, _internal_points: [pivot] });
+                    compositeRenderer._internal_append(this._internal__labelRenderer);
+                }
+                this._internal_addAnchors(compositeRenderer);
+                this._internal__renderer = compositeRenderer;
+            }
+        };
+        return HorizontalLinePaneView;
+    }(LineToolPaneView));
+
+    var LineToolHorizontalLine = /** @class */ (function (_super) {
+        __extends(LineToolHorizontalLine, _super);
+        function LineToolHorizontalLine(model, options, points) {
+            if (points === void 0) { points = []; }
+            var _this = _super.call(this, model, options, points) || this;
+            _this._internal__toolType = 'HorizontalLine';
+            _this._internal__setPaneViews([new HorizontalLinePaneView(_this, model)]);
+            return _this;
+        }
+        LineToolHorizontalLine.prototype._internal_pointsCount = function () {
+            return 1;
+        };
+        LineToolHorizontalLine.prototype._internal_timeAxisViews = function () {
+            return [];
+        };
+        LineToolHorizontalLine.prototype._internal_timeAxisPoints = function () {
+            return [];
+        };
+        LineToolHorizontalLine.prototype._internal_priceAxisLabelColor = function () {
+            return this._internal_options().line.color;
+        };
+        return LineToolHorizontalLine;
+    }(LineTool));
+
+    var LineToolHorizontalRay = /** @class */ (function (_super) {
+        __extends(LineToolHorizontalRay, _super);
+        function LineToolHorizontalRay() {
+            var _this = _super !== null && _super.apply(this, arguments) || this;
+            _this._internal__toolType = 'HorizontalRay';
+            return _this;
+        }
+        return LineToolHorizontalRay;
+    }(LineToolHorizontalLine));
+
+    var ParallelChannelRenderer = /** @class */ (function (_super) {
+        __extends(ParallelChannelRenderer, _super);
+        function ParallelChannelRenderer(hitTest, backHitTest) {
+            var _this = _super.call(this) || this;
+            _this._internal__backHitTest = backHitTest || new HitTestResult(HitTestType._internal_MovePointBackground);
+            _this._internal__hitTest = hitTest || new HitTestResult(HitTestType._internal_MovePoint);
+            _this._internal__data = null;
+            return _this;
+        }
+        ParallelChannelRenderer.prototype._internal_setData = function (data) {
+            this._internal__data = data;
+        };
+        ParallelChannelRenderer.prototype._internal_hitTest = function (point, renderParams) {
+            if (this._internal__data === null || this._internal__data.points.length < 2) {
+                return null;
+            }
+            var _a = this._internal__data.points, end0 = _a[0], end1 = _a[1];
+            var firsLineHitResult = this._internal__extendAndHitTestLineSegment(point, end0, end1, renderParams);
+            if (firsLineHitResult !== null) {
+                return firsLineHitResult;
+            }
+            if (this._internal__data.points.length === 4) {
+                var _b = this._internal__data.points, end2 = _b[2], end3 = _b[3];
+                var secondLineHitResult = this._internal__extendAndHitTestLineSegment(point, end2, end3, renderParams);
+                if (null !== secondLineHitResult) {
+                    return secondLineHitResult;
+                }
+                if (this._internal__data.showMiddleLine) {
+                    var end4 = end0.add(end2).scaled(0.5);
+                    var end5 = end1.add(end3).scaled(0.5);
+                    var middleLineHitResult = this._internal__extendAndHitTestLineSegment(point, end4, end5, renderParams);
+                    if (null !== middleLineHitResult) {
+                        return middleLineHitResult;
+                    }
+                }
+            }
+            return this._internal__data.hitTestBackground ? this._internal__hitTestBackground(point) : null;
+        };
+        ParallelChannelRenderer.prototype._internal__drawImpl = function (ctx, renderParams) {
+            var _a, _b, _c, _d, _e, _f;
+            if (null === this._internal__data || this._internal__data.points.length < 2) {
+                return;
+            }
+            setLineStyle(ctx, ((_a = this._internal__data.channelLine) === null || _a === void 0 ? void 0 : _a.style) || 0 /* Solid */);
+            ctx.strokeStyle = ((_b = this._internal__data.channelLine) === null || _b === void 0 ? void 0 : _b.color) || 'transparent';
+            ctx.lineWidth = ((_c = this._internal__data.channelLine) === null || _c === void 0 ? void 0 : _c.width) || 0;
+            ctx.lineCap = 'butt';
+            var _g = this._internal__data.points, end0 = _g[0], end1 = _g[1];
+            this._internal__extendAndDrawLineSegment(ctx, end0, end1, renderParams);
+            if (this._internal__data.points.length === 4) {
+                var _h = this._internal__data.points, end2 = _h[2], end3 = _h[3];
+                this._internal__extendAndDrawLineSegment(ctx, end2, end3, renderParams);
+                this._internal__drawBackground(ctx, this._internal__data.points, renderParams);
+                if (this._internal__data.showMiddleLine) {
+                    setLineStyle(ctx, ((_d = this._internal__data.middleLine) === null || _d === void 0 ? void 0 : _d.style) || 0 /* Solid */);
+                    ctx.strokeStyle = ((_e = this._internal__data.middleLine) === null || _e === void 0 ? void 0 : _e.color) || 'transparent';
+                    ctx.lineWidth = ((_f = this._internal__data.middleLine) === null || _f === void 0 ? void 0 : _f.width) || 0;
+                    var end4 = end0.add(end2).scaled(0.5);
+                    var end5 = end1.add(end3).scaled(0.5);
+                    this._internal__extendAndDrawLineSegment(ctx, end4, end5, renderParams);
+                }
+            }
+        };
+        ParallelChannelRenderer.prototype._internal__extendAndDrawLineSegment = function (ctx, end0, end1, renderParams) {
+            var line = this._internal__extendAndClipLineSegment(end0, end1, renderParams);
+            if (line !== null) {
+                drawLine(ctx, line[0].x, line[0].y, line[1].x, line[1].y);
+            }
+        };
+        ParallelChannelRenderer.prototype._internal__extendAndHitTestLineSegment = function (point, end0, end1, renderParams) {
+            var line = this._internal__extendAndClipLineSegment(end0, end1, renderParams);
+            if (line !== null && distanceToSegment(line[0], line[1], point)._internal_distance <= 3) {
+                return this._internal__hitTest;
+            }
+            return null;
+        };
+        ParallelChannelRenderer.prototype._internal__extendAndClipLineSegment = function (end0, end1, renderParams) {
+            var _a, _b;
+            var data = ensureNotNull(this._internal__data);
+            return extendAndClipLineSegment(end0, end1, renderParams._internal_cssWidth, renderParams._internal_cssHeight, !!((_a = data.extend) === null || _a === void 0 ? void 0 : _a.left), !!((_b = data.extend) === null || _b === void 0 ? void 0 : _b.right));
+        };
+        ParallelChannelRenderer.prototype._internal__drawBackground = function (ctx, points, renderParams) {
+            var _a, _b, _c, _d, _e, _f;
+            var data = ensureNotNull(this._internal__data);
+            var end0 = points[0], end1 = points[1], end2 = points[2], end3 = points[3];
+            if (equalPoints(end0, end1) || equalPoints(end2, end3)) {
+                return;
+            }
+            if (renderParams._internal_cssWidth <= 0 || renderParams._internal_cssHeight <= 0) {
+                return;
+            }
+            if (distanceToLine(end0, end1, end2)._internal_distance < 1e-6 || distanceToLine(end0, end1, end3)._internal_distance < 1e-6) {
+                return;
+            }
+            var width = renderParams._internal_cssWidth, height = renderParams._internal_cssHeight;
+            var computedPoints = [new Point(0, 0), new Point(width, 0), new Point(width, height), new Point(0, height)];
+            computedPoints = this._internal__computePoints(computedPoints, end0, end1, end3);
+            if (!((_a = data.extend) === null || _a === void 0 ? void 0 : _a.right)) {
+                computedPoints = this._internal__computePoints(computedPoints, end1, end3, end2);
+            }
+            computedPoints = this._internal__computePoints(computedPoints, end3, end2, end0);
+            if (!((_b = data.extend) === null || _b === void 0 ? void 0 : _b.left)) {
+                computedPoints = this._internal__computePoints(computedPoints, end2, end0, end1);
+            }
+            if (computedPoints !== null) {
+                ctx.beginPath();
+                ctx.moveTo(computedPoints[0].x, computedPoints[0].y);
+                for (var e = 1; e < computedPoints.length; e++) {
+                    ctx.lineTo(computedPoints[e].x, computedPoints[e].y);
+                }
+                ctx.fillStyle = ((_d = (_c = this._internal__data) === null || _c === void 0 ? void 0 : _c.background) === null || _d === void 0 ? void 0 : _d.color) || 'transparent';
+                if ((_f = (_e = this._internal__data) === null || _e === void 0 ? void 0 : _e.background) === null || _f === void 0 ? void 0 : _f.color) {
+                    ctx.fill();
+                }
+            }
+        };
+        ParallelChannelRenderer.prototype._internal__hitTestBackground = function (point) {
+            var _a, _b;
+            var data = ensureNotNull(this._internal__data);
+            if (data.points.length !== 4) {
+                return null;
+            }
+            var _c = data.points, end0 = _c[0], end1 = _c[1], end2 = _c[2];
+            var l = (end1.y - end0.y) / (end1.x - end0.x);
+            var pointLine1Y = end2.y + l * (point.x - end2.x);
+            var pointLine0Y = end0.y + l * (point.x - end0.x);
+            var bottom = Math.max(pointLine0Y, pointLine1Y);
+            var top = Math.min(pointLine0Y, pointLine1Y);
+            var maxX = Math.max(end0.x, end1.x);
+            var minX = Math.min(end0.x, end1.x);
+            if (!((_a = data.extend) === null || _a === void 0 ? void 0 : _a.left) && point.x < minX || !((_b = data.extend) === null || _b === void 0 ? void 0 : _b.right) && point.x > maxX) {
+                return null;
+            }
+            return point.y >= top && point.y <= bottom ? this._internal__backHitTest : null;
+        };
+        ParallelChannelRenderer.prototype._internal__computePoints = function (points, end0, end1, end2) {
+            return points !== null ? intersectPolygonAndHalfPlane(points, halfPlaneThroughPoint(lineThroughPoints(end0, end1), end2)) : null;
+        };
+        return ParallelChannelRenderer;
+    }(ScaledRenderer));
+
+    var pointsCursorType = [PaneCursorType._internal_Default, PaneCursorType._internal_Default, PaneCursorType._internal_Default, PaneCursorType._internal_Default, PaneCursorType._internal_VerticalResize, PaneCursorType._internal_VerticalResize];
+    var ParallelChannelPaneView = /** @class */ (function (_super) {
+        __extends(ParallelChannelPaneView, _super);
+        function ParallelChannelPaneView(source, model) {
+            var _this = _super.call(this, source, model) || this;
+            _this._internal__channelRenderer = new ParallelChannelRenderer();
+            _this._internal__renderer = null;
+            return _this;
+        }
+        ParallelChannelPaneView.prototype._internal__updateImpl = function () {
+            _super.prototype._internal__updateImpl.call(this);
+            this._internal__renderer = null;
+            var priceScale = this._internal__source._internal_priceScale();
+            if (!priceScale || priceScale._internal_isEmpty()) {
+                return;
+            }
+            if (this._internal__source._internal_points().length === 0) {
+                return;
+            }
+            if (this._internal__points.length <= 1) {
+                return;
+            }
+            var end0 = this._internal__points[0];
+            var end1 = this._internal__points[1];
+            var end2 = null;
+            var end3 = null;
+            if (this._internal__points.length === 3) {
+                var height = this._internal__points[2].y - this._internal__points[0].y;
+                end2 = new AnchorPoint(end0.x, end0.y + height, 2);
+                end3 = new AnchorPoint(end1.x, end1.y + height, 3);
+            }
+            var points = end2 && end3 ? [end0, end1, end2, end3] : [end0, end1];
+            var options = this._internal__source._internal_options();
+            this._internal__channelRenderer._internal_setData(__assign(__assign({}, deepCopy(options)), { points: points, hitTestBackground: false }));
+            var compositeRenderer = new CompositeRenderer();
+            compositeRenderer._internal_append(this._internal__channelRenderer);
+            var anchorPoints = [];
+            if (this._internal__points[0]) {
+                anchorPoints.push(new AnchorPoint(end0.x, end0.y, 0));
+            }
+            if (this._internal__points[1]) {
+                anchorPoints.push(new AnchorPoint(end1.x, end1.y, 1));
+            }
+            if (end2 && end3) {
+                anchorPoints.push(new AnchorPoint(end2.x, end2.y, 2), new AnchorPoint(end3.x, end3.y, 3));
+                var middle0 = end2.add(end3).scaled(0.5);
+                middle0._internal_data = 4;
+                middle0._internal_square = true;
+                anchorPoints.push(middle0);
+                var middle1 = anchorPoints[0].add(anchorPoints[1]).scaled(0.5);
+                middle1._internal_square = true;
+                middle1._internal_data = 5;
+                anchorPoints.push(middle1);
+            }
+            var anchorData = { _internal_points: anchorPoints, _internal_pointsCursorType: pointsCursorType };
+            compositeRenderer._internal_append(this._internal_createLineAnchor(anchorData, 0));
+            this._internal__renderer = compositeRenderer;
+        };
+        return ParallelChannelPaneView;
+    }(LineToolPaneView));
+
+    var LineToolParallelChannel = /** @class */ (function (_super) {
+        __extends(LineToolParallelChannel, _super);
+        function LineToolParallelChannel(model, options, points) {
+            if (points === void 0) { points = []; }
+            var _this = _super.call(this, model, options, points) || this;
+            _this._internal__toolType = 'ParallelChannel';
+            _this._internal__priceAxisViews.push(new LineToolPriceAxisLabelView(_this, 3));
+            _this._internal__setPaneViews([new ParallelChannelPaneView(_this, model)]);
+            return _this;
+        }
+        LineToolParallelChannel.prototype._internal_pointsCount = function () {
+            return 3;
+        };
+        LineToolParallelChannel.prototype._internal_addPoint = function (point) {
+            if (this._internal__points.length === 2) {
+                _super.prototype._internal_addPoint.call(this, this._internal__correctLastPoint(point));
+            }
+            else {
+                _super.prototype._internal_addPoint.call(this, point);
+            }
+        };
+        LineToolParallelChannel.prototype._internal_points = function () {
+            var points = _super.prototype._internal_points.call(this);
+            if (points.length === 3 && !this._internal_finished()) {
+                return [points[0], points[1], this._internal__correctLastPoint(points[2])];
+            }
+            else {
+                return points;
+            }
+        };
+        LineToolParallelChannel.prototype._internal_setPoint = function (index, point) {
+            if (this._internal__points[0].timestamp === this._internal__points[1].timestamp && index >= 4) {
+                return;
+            }
+            var screenPoint0 = ensureNotNull(this._internal_pointToScreenPoint(this._internal__points[0]));
+            var screenPoint1 = ensureNotNull(this._internal_pointToScreenPoint(this._internal__points[1]));
+            var screenPoint = ensureNotNull(this._internal_pointToScreenPoint(point));
+            var movingCoordOffset = this._internal__findPixelsHeight() || 0;
+            var priceScale = ensureNotNull(this._internal_priceScale());
+            var ownerSource = this._internal_ownerSource();
+            var firstValue = ensure(ownerSource === null ? undefined : ownerSource._internal_firstValue());
+            if (index === 0) {
+                _super.prototype._internal_setPoint.call(this, index, point);
+                this._internal__points[2].price = priceScale._internal_coordinateToPrice(screenPoint.y + movingCoordOffset, firstValue._internal_value);
+            }
+            else if (index === 1) {
+                _super.prototype._internal_setPoint.call(this, index, point);
+            }
+            else if (index === 2) {
+                _super.prototype._internal_setPoint.call(this, index, point);
+                this._internal__points[0].timestamp = point.timestamp;
+                this._internal__points[0].price = priceScale._internal_coordinateToPrice(screenPoint.y - movingCoordOffset, firstValue._internal_value);
+            }
+            else if (index === 3) {
+                this._internal__points[1].timestamp = point.timestamp;
+                this._internal__points[1].price = priceScale._internal_coordinateToPrice(screenPoint.y - movingCoordOffset, firstValue._internal_value);
+            }
+            else if (index === 4) {
+                var heading = screenPoint1.subtract(screenPoint0);
+                var scale = (screenPoint.x - screenPoint0.x) / heading.x;
+                var displace = screenPoint.y - screenPoint0.addScaled(heading, scale).y;
+                this._internal__points[2].price = priceScale._internal_coordinateToPrice(screenPoint0.y + displace, firstValue._internal_value);
+            }
+            else if (index === 5) {
+                var heading = screenPoint1.subtract(screenPoint0);
+                var scale = (screenPoint.x - screenPoint0.x) / heading.x;
+                var displace = screenPoint.y - screenPoint0.addScaled(heading, scale).y;
+                this._internal__points[0].price = priceScale._internal_coordinateToPrice(screenPoint0.y + displace, firstValue._internal_value);
+                this._internal__points[1].price = priceScale._internal_coordinateToPrice(screenPoint1.y + displace, firstValue._internal_value);
+            }
+        };
+        LineToolParallelChannel.prototype._internal_getPoint = function (index) {
+            if (index < 3) {
+                return _super.prototype._internal_getPoint.call(this, index);
+            }
+            var end0 = this._internal_pointToScreenPoint(this._internal__points[0]);
+            var end1 = this._internal_pointToScreenPoint(this._internal__points[1]);
+            var end2 = this._internal_pointToScreenPoint(this._internal__points[2]);
+            if (!end0 || !end1 || !end2) {
+                return null;
+            }
+            switch (index) {
+                case 3: {
+                    var height = end2.y - end0.y;
+                    var end3 = end1.add(new Point(0, height));
+                    return this._internal_screenPointToPoint(end3);
+                }
+                case 4: {
+                    var height = end2.y - end0.y;
+                    var end3 = end1.add(new Point(0, height));
+                    var middle0 = end2.add(end3).scaled(0.5);
+                    return this._internal_screenPointToPoint(middle0);
+                }
+                case 5: {
+                    var middle1 = end0.add(end1).scaled(0.5);
+                    return this._internal_screenPointToPoint(middle1);
+                }
+            }
+            return null;
+        };
+        LineToolParallelChannel.prototype._internal_priceAxisPoints = function () {
+            return this._internal__axisPoints();
+        };
+        LineToolParallelChannel.prototype._internal_timeAxisPoints = function () {
+            return this._internal__axisPoints().slice(0, 2);
+        };
+        LineToolParallelChannel.prototype._internal__findPixelsHeight = function () {
+            var end2 = this._internal_pointToScreenPoint(this._internal__points[2]);
+            var end0 = this._internal_pointToScreenPoint(this._internal__points[0]);
+            return end2 && end0 ? end2.y - end0.y : null;
+        };
+        LineToolParallelChannel.prototype._internal__axisPoints = function () {
+            var points = this._internal_points();
+            var screenPoint0 = this._internal__points[0] ? this._internal_pointToScreenPoint(this._internal__points[0]) : null;
+            var screenPoint1 = this._internal__points[1] ? this._internal_pointToScreenPoint(this._internal__points[1]) : null;
+            var screenPoint2 = this._internal__points[2] ? this._internal_pointToScreenPoint(this._internal__points[2]) : null;
+            if (screenPoint0 && screenPoint1 && screenPoint2) {
+                var height = screenPoint1.y - screenPoint0.y;
+                var screenPoint3 = screenPoint2.add(new Point(0, height));
+                points.push(ensureNotNull(this._internal_screenPointToPoint(screenPoint3)));
+            }
+            return points;
+        };
+        LineToolParallelChannel.prototype._internal__correctLastPoint = function (point2) {
+            if (this._internal__points.length < 2 || this._internal__points[1].timestamp === this._internal__points[0].timestamp) {
+                return point2;
+            }
+            var screenPoint2 = ensureNotNull(this._internal_pointToScreenPoint(point2));
+            var screenPoint1 = ensureNotNull(this._internal_pointToScreenPoint(this._internal__points[1]));
+            var screenPoint0 = ensureNotNull(this._internal_pointToScreenPoint(this._internal__points[0]));
+            var heading = screenPoint1.subtract(screenPoint0);
+            var scale = (screenPoint2.x - screenPoint0.x) / heading.x;
+            var height = screenPoint0.addScaled(heading, scale);
+            var displaceY = screenPoint2.y - height.y;
+            var correctedPoint = screenPoint0.add(new Point(0, displaceY));
+            return ensureNotNull(this._internal_screenPointToPoint(correctedPoint));
+        };
+        return LineToolParallelChannel;
+    }(LineTool));
+
+    var PathPaneView = /** @class */ (function (_super) {
+        __extends(PathPaneView, _super);
+        function PathPaneView(source, model) {
+            var _this = _super.call(this, source, model) || this;
+            _this._internal__polygonRenderer = new PolygonRenderer();
+            _this._internal__renderer = null;
+            return _this;
+        }
+        PathPaneView.prototype._internal__updateImpl = function () {
+            _super.prototype._internal__updateImpl.call(this);
+            this._internal__renderer = null;
+            var options = this._internal__source._internal_options();
+            this._internal__polygonRenderer._internal_setData({ _internal_line: deepCopy(options.line), _internal_points: this._internal__points });
+            var compositeRenderer = new CompositeRenderer();
+            compositeRenderer._internal_append(this._internal__polygonRenderer);
+            this._internal__renderer = compositeRenderer;
+            this._internal_addAnchors(compositeRenderer);
+        };
+        return PathPaneView;
+    }(LineToolPaneView));
+
+    var LineToolPath = /** @class */ (function (_super) {
+        __extends(LineToolPath, _super);
+        function LineToolPath(model, options, points) {
+            if (points === void 0) { points = []; }
+            var _this = _super.call(this, model, options, points) || this;
+            _this._internal__toolType = 'Path';
+            _this._internal__setPaneViews([new PathPaneView(_this, model)]);
+            return _this;
+        }
+        LineToolPath.prototype._internal_pointsCount = function () {
+            return -1;
+        };
+        LineToolPath.prototype._internal_tryFinish = function () {
+            if (this._internal__points.length > 0) {
+                var point0 = this._internal__points[this._internal__points.length - 1];
+                var point1 = this._internal__points[this._internal__points.length - 2];
+                var screenPoint0 = ensureNotNull(this._internal_pointToScreenPoint(point0));
+                var screenPoint1 = ensureNotNull(this._internal_pointToScreenPoint(point1));
+                if (screenPoint0.subtract(screenPoint1).length() < 10) {
+                    this._internal__points.pop();
+                    this._internal__finished = true;
+                    this._internal__selected = true;
+                    this._internal__lastPoint = null;
+                }
+            }
+        };
+        return LineToolPath;
+    }(LineTool));
+
+    var LineToolRay = /** @class */ (function (_super) {
+        __extends(LineToolRay, _super);
+        function LineToolRay() {
+            var _this = _super !== null && _super.apply(this, arguments) || this;
+            _this._internal__toolType = 'Ray';
+            return _this;
+        }
+        return LineToolRay;
+    }(LineToolTrendLine));
+
+    var RectanglePaneView = /** @class */ (function (_super) {
+        __extends(RectanglePaneView, _super);
+        function RectanglePaneView(source, model) {
+            var _this = _super.call(this, source, model) || this;
+            _this._internal__rectangleRenderer = new RectangleRenderer();
+            _this._internal__labelRenderer = new TextRenderer();
+            _this._internal__renderer = null;
+            return _this;
+        }
+        // eslint-disable-next-line complexity
+        RectanglePaneView.prototype._internal__updateImpl = function () {
+            this._internal__renderer = null;
+            this._internal__invalidated = false;
+            var priceScale = this._internal__source._internal_priceScale();
+            var timeScale = this._internal__model._internal_timeScale();
+            if (!priceScale || priceScale._internal_isEmpty() || timeScale._internal_isEmpty()) {
+                return;
+            }
+            var strictRange = timeScale._internal_visibleTimeRange();
+            if (strictRange === null) {
+                return;
+            }
+            var points = this._internal__source._internal_points();
+            if (points.length < 2) {
+                return;
+            }
+            var options = this._internal__source._internal_options();
+            var isOutsideView = Math.max(points[0].timestamp, points[1].timestamp) < strictRange.from._internal_timestamp;
+            if (!isOutsideView || options.rectangle.extend.left || options.rectangle.extend.right) {
+                _super.prototype._internal__updateImpl.call(this);
+                if (this._internal__points.length < 2) {
+                    return;
+                }
+                var compositeRenderer = new CompositeRenderer();
+                this._internal__rectangleRenderer._internal_setData(__assign(__assign({}, deepCopy(options.rectangle)), { points: this._internal__points, hitTestBackground: false }));
+                compositeRenderer._internal_append(this._internal__rectangleRenderer);
+                var point0 = this._internal__points[0];
+                var point1 = this._internal__points[1];
+                if (options.text.value) {
+                    var minX = Math.min(point0.x, point1.x);
+                    var maxX = Math.max(point0.x, point1.x);
+                    var minY = Math.min(point0.y, point1.y);
+                    var maxY = Math.max(point0.y, point1.y);
+                    var pivot = point0.clone();
+                    var textHalfSize = options.text.font.size / 3;
+                    var hoirzontalPadding = 0;
+                    switch (options.text.box.alignment.vertical) {
+                        case "middle" /* Middle */:
+                            pivot.y = (minY + maxY) / 2;
+                            hoirzontalPadding = textHalfSize;
+                            break;
+                        case "top" /* Top */:
+                            pivot.y = maxY;
+                            break;
+                        case "bottom" /* Bottom */:
+                            pivot.y = minY;
+                    }
+                    switch (options.text.box.alignment.horizontal) {
+                        case "center" /* Center */:
+                            pivot.x = (minX + maxX) / 2;
+                            break;
+                        case "left" /* Left */:
+                            pivot.x = minX;
+                            break;
+                        case "right" /* Right */:
+                            pivot.x = maxX;
+                    }
+                    var labelOptions = deepCopy(options.text);
+                    labelOptions.box = __assign(__assign({}, labelOptions.box), { padding: { y: textHalfSize, x: hoirzontalPadding } });
+                    if (options.text.box.alignment.vertical === "middle" /* Middle */) {
+                        labelOptions.wordWrapWidth = maxX - minX - 2 * hoirzontalPadding;
+                        labelOptions.box.maxHeight = maxY - minY;
+                    }
+                    this._internal__labelRenderer._internal_setData({ _internal_text: labelOptions, _internal_points: [pivot] });
+                    compositeRenderer._internal_append(this._internal__labelRenderer);
+                }
+                this._internal__addAnchors(point0, point1, compositeRenderer);
+                this._internal__renderer = compositeRenderer;
+            }
+        };
+        RectanglePaneView.prototype._internal__addAnchors = function (topLeft, bottomRight, renderer) {
+            var bottomLeft = new AnchorPoint(topLeft.x, bottomRight.y, 2);
+            var topRight = new AnchorPoint(bottomRight.x, topLeft.y, 3);
+            var middleLeft = new AnchorPoint(topLeft.x, 0.5 * (topLeft.y + bottomRight.y), 4, true);
+            var middleRight = new AnchorPoint(bottomRight.x, 0.5 * (topLeft.y + bottomRight.y), 5, true);
+            var topCenter = new AnchorPoint(0.5 * (topLeft.x + bottomRight.x), topLeft.y, 6, true);
+            var bottomCenter = new AnchorPoint(0.5 * (topLeft.x + bottomRight.x), bottomRight.y, 7, true);
+            var xDiff = topLeft.x - bottomRight.x;
+            var yDiff = topLeft.y - bottomRight.y;
+            var sign = Math.sign(xDiff * yDiff);
+            var pointsCursorType = [
+                sign < 0 ? PaneCursorType._internal_DiagonalNeSwResize : PaneCursorType._internal_DiagonalNwSeResize,
+                sign < 0 ? PaneCursorType._internal_DiagonalNeSwResize : PaneCursorType._internal_DiagonalNwSeResize,
+                sign > 0 ? PaneCursorType._internal_DiagonalNeSwResize : PaneCursorType._internal_DiagonalNwSeResize,
+                sign > 0 ? PaneCursorType._internal_DiagonalNeSwResize : PaneCursorType._internal_DiagonalNwSeResize,
+                PaneCursorType._internal_HorizontalResize,
+                PaneCursorType._internal_HorizontalResize,
+                PaneCursorType._internal_VerticalResize,
+                PaneCursorType._internal_VerticalResize,
+            ];
+            var anchorData = {
+                _internal_points: [topLeft, bottomRight, bottomLeft, topRight, middleLeft, middleRight, topCenter, bottomCenter],
+                _internal_pointsCursorType: pointsCursorType,
+            };
+            renderer._internal_append(this._internal_createLineAnchor(anchorData, 0));
+        };
+        return RectanglePaneView;
+    }(LineToolPaneView));
+
+    var LineToolRectangle = /** @class */ (function (_super) {
+        __extends(LineToolRectangle, _super);
+        function LineToolRectangle(model, options, points) {
+            if (points === void 0) { points = []; }
+            var _this = _super.call(this, model, options, points) || this;
+            _this._internal__toolType = 'Rectangle';
+            _this._internal__setPaneViews([new RectanglePaneView(_this, model)]);
+            return _this;
+        }
+        LineToolRectangle.prototype._internal_pointsCount = function () {
+            return 2;
+        };
+        LineToolRectangle.prototype._internal_setPoint = function (index, point) {
+            if (index < 2) {
+                _super.prototype._internal_setPoint.call(this, index, point);
+            }
+            switch (index) {
+                case 2:
+                    this._internal__points[1].price = point.price;
+                    this._internal__points[0].timestamp = point.timestamp;
+                    break;
+                case 3:
+                    this._internal__points[0].price = point.price;
+                    this._internal__points[1].timestamp = point.timestamp;
+                    break;
+                case 4:
+                    this._internal__points[0].timestamp = point.timestamp;
+                    break;
+                case 5:
+                    this._internal__points[1].timestamp = point.timestamp;
+                    break;
+                case 6:
+                    this._internal__points[0].price = point.price;
+                    break;
+                case 7:
+                    this._internal__points[1].price = point.price;
+            }
+        };
+        LineToolRectangle.prototype._internal_getPoint = function (index) {
+            return index < 2 ? _super.prototype._internal_getPoint.call(this, index) : this._internal__getAnchorPointForIndex(index);
+        };
+        LineToolRectangle.prototype._internal__getAnchorPointForIndex = function (index) {
+            var start = this._internal_points()[0];
+            var end = this._internal_points()[1];
+            return [
+                { _internal_price: start.price, _internal_timestamp: start.timestamp },
+                { _internal_price: end.price, _internal_timestamp: end.timestamp },
+                { _internal_price: end.price, _internal_timestamp: start.timestamp },
+                { _internal_price: start.price, _internal_timestamp: end.timestamp },
+                { _internal_price: (end.price + start.price) / 2, _internal_timestamp: start.timestamp },
+                { _internal_price: (end.price + start.price) / 2, _internal_timestamp: end.timestamp },
+                { _internal_price: start.price, _internal_timestamp: (end.timestamp + start.timestamp) / 2 },
+                { _internal_price: end.price, _internal_timestamp: (end.timestamp + start.timestamp) / 2 },
+            ][index];
+        };
+        return LineToolRectangle;
+    }(LineTool));
+
+    var TextPaneView = /** @class */ (function (_super) {
+        __extends(TextPaneView, _super);
+        function TextPaneView(source, model) {
+            var _this = _super.call(this, source, model) || this;
+            _this._internal__labelRenderer = new TextRenderer();
+            _this._internal__renderer = null;
+            return _this;
+        }
+        TextPaneView.prototype._internal__updateImpl = function (height, width) {
+            this._internal__renderer = null;
+            var priceScale = this._internal__source._internal_priceScale();
+            var timeScale = this._internal__model._internal_timeScale();
+            if (!priceScale || priceScale._internal_isEmpty() || timeScale._internal_isEmpty()) {
+                return;
+            }
+            _super.prototype._internal__updateImpl.call(this);
+            if (this._internal__points.length < 1) {
+                return;
+            }
+            var options = this._internal__source._internal_options();
+            var data = deepCopy(options.text);
+            data.box.alignment = { vertical: "bottom" /* Bottom */, horizontal: "center" /* Center */ };
+            data.alignment = "center" /* Center */;
+            var point = this._internal__points[0].clone();
+            var compositeRenderer = new CompositeRenderer();
+            this._internal__labelRenderer._internal_setData({ _internal_text: data, _internal_points: [point] });
+            compositeRenderer._internal_append(this._internal__labelRenderer);
+            this._internal_addAnchors(compositeRenderer);
+            this._internal__renderer = compositeRenderer;
+        };
+        return TextPaneView;
+    }(LineToolPaneView));
+
+    var LineToolText = /** @class */ (function (_super) {
+        __extends(LineToolText, _super);
+        function LineToolText(model, options, points) {
+            if (points === void 0) { points = []; }
+            var _this = _super.call(this, model, options, points) || this;
+            _this._internal__toolType = 'Text';
+            _this._internal__setPaneViews([new TextPaneView(_this, model)]);
+            return _this;
+        }
+        LineToolText.prototype._internal_pointsCount = function () {
+            return 1;
+        };
+        return LineToolText;
+    }(LineTool));
+
+    var TriangleRenderer = /** @class */ (function (_super) {
+        __extends(TriangleRenderer, _super);
+        function TriangleRenderer() {
+            var _this = _super !== null && _super.apply(this, arguments) || this;
+            _this._internal__data = null;
+            return _this;
+        }
+        TriangleRenderer.prototype._internal_setData = function (data) {
+            this._internal__data = data;
+        };
+        TriangleRenderer.prototype._internal_hitTest = function (point) {
+            if (null === this._internal__data || this._internal__data.points.length < 2) {
+                return null;
+            }
+            var _a = this._internal__data.points, end0 = _a[0], end1 = _a[1];
+            if (distanceToSegment(end0, end1, point)._internal_distance <= interactionTolerance._internal_line) {
+                return new HitTestResult(HitTestType._internal_MovePoint);
+            }
+            if (this._internal__data.points.length !== 3) {
+                return null;
+            }
+            var end3 = this._internal__data.points[2];
+            if (distanceToSegment(end1, end3, point)._internal_distance <= interactionTolerance._internal_line) {
+                return new HitTestResult(HitTestType._internal_MovePoint);
+            }
+            else if (distanceToSegment(end3, end0, point)._internal_distance <= interactionTolerance._internal_line) {
+                return new HitTestResult(HitTestType._internal_MovePoint);
+            }
+            if (this._internal__data.hitTestBackground && pointInTriangle(point, end0, end1, end3)) {
+                return new HitTestResult(HitTestType._internal_MovePointBackground);
+            }
+            return null;
+        };
+        TriangleRenderer.prototype._internal__drawImpl = function (ctx) {
+            var _a, _b, _c, _d;
+            if (this._internal__data === null || this._internal__data.points.length < 2) {
+                return;
+            }
+            var _e = this._internal__data.points, point0 = _e[0], point1 = _e[1];
+            var point2 = 2 === this._internal__data.points.length ? point1 : this._internal__data.points[2];
+            ctx.lineCap = 'butt';
+            ctx.lineWidth = ((_a = this._internal__data.border) === null || _a === void 0 ? void 0 : _a.width) || 0;
+            ctx.strokeStyle = ((_b = this._internal__data.border) === null || _b === void 0 ? void 0 : _b.color) || 'transparent';
+            if (((_c = this._internal__data.border) === null || _c === void 0 ? void 0 : _c.style) !== undefined) {
+                setLineStyle(ctx, this._internal__data.border.style);
+            }
+            ctx.beginPath();
+            ctx.fillStyle = ((_d = this._internal__data.background) === null || _d === void 0 ? void 0 : _d.color) || 'transparent';
+            ctx.moveTo(point0.x, point0.y);
+            ctx.lineTo(point1.x, point1.y);
+            ctx.lineTo(point2.x, point2.y);
+            ctx.lineTo(point0.x, point0.y);
+            ctx.fill();
+            ctx.stroke();
+        };
+        return TriangleRenderer;
+    }(ScaledRenderer));
+
+    var TrianglePaneView = /** @class */ (function (_super) {
+        __extends(TrianglePaneView, _super);
+        function TrianglePaneView(source, model) {
+            var _this = _super.call(this, source, model) || this;
+            _this._internal__triangleRenderer = new TriangleRenderer();
+            _this._internal__renderer = null;
+            return _this;
+        }
+        TrianglePaneView.prototype._internal__updateImpl = function () {
+            var options = this._internal__source._internal_options();
+            _super.prototype._internal__updateImpl.call(this);
+            this._internal__renderer = null;
+            this._internal__triangleRenderer._internal_setData(__assign(__assign({}, options.triangle), { points: this._internal__points, hitTestBackground: false }));
+            var compositeRenderer = new CompositeRenderer();
+            compositeRenderer._internal_append(this._internal__triangleRenderer);
+            this._internal_addAnchors(compositeRenderer);
+            this._internal__renderer = compositeRenderer;
+        };
+        return TrianglePaneView;
+    }(LineToolPaneView));
+
+    var LineToolTriangle = /** @class */ (function (_super) {
+        __extends(LineToolTriangle, _super);
+        function LineToolTriangle(model, options, points) {
+            if (points === void 0) { points = []; }
+            var _this = _super.call(this, model, options, points) || this;
+            _this._internal__toolType = 'Triangle';
+            _this._internal__setPaneViews([new TrianglePaneView(_this, model)]);
+            return _this;
+        }
+        LineToolTriangle.prototype._internal_pointsCount = function () {
+            return 3;
+        };
+        return LineToolTriangle;
+    }(LineTool));
+
+    var VerticalLinePaneView = /** @class */ (function (_super) {
+        __extends(VerticalLinePaneView, _super);
+        function VerticalLinePaneView(source, model) {
+            var _this = _super.call(this, source, model) || this;
+            _this._internal__lineRenderer = new SegmentRenderer();
+            _this._internal__labelRenderer = new TextRenderer();
+            _this._internal__renderer = null;
+            _this._internal__lineRenderer._internal_setHitTest(new HitTestResult(HitTestType._internal_MovePoint));
+            return _this;
+        }
+        VerticalLinePaneView.prototype._internal__updateImpl = function (height, width) {
+            this._internal__renderer = null;
+            var priceScale = this._internal__source._internal_priceScale();
+            var timeScale = this._internal__model._internal_timeScale();
+            if (!priceScale || priceScale._internal_isEmpty() || timeScale._internal_isEmpty()) {
+                return;
+            }
+            var points = this._internal__source._internal_points();
+            if (points.length < 1) {
+                return;
+            }
+            var startTime = timeScale._internal_coordinateToTime(0);
+            var endTime = timeScale._internal_coordinateToTime(width);
+            var options = this._internal__source._internal_options();
+            var isOutsideView = (points[0].timestamp > endTime._internal_timestamp) || (points[0].timestamp < startTime._internal_timestamp);
+            if (!isOutsideView) {
+                _super.prototype._internal__updateImpl.call(this);
+                if (this._internal__points.length < 1) {
+                    return;
+                }
+                var point = this._internal__points[0];
+                var start = new AnchorPoint(point.x, height, 0);
+                var end = new AnchorPoint(point.x, 0, 1);
+                point.y = height / 2;
+                point._internal_square = true;
+                var ends = { _internal_left: 0 /* Normal */, _internal_right: 0 /* Normal */ };
+                var extend = { _internal_left: false, _internal_right: false };
+                var compositeRenderer = new CompositeRenderer();
+                this._internal__lineRenderer._internal_setData({ _internal_line: __assign(__assign({}, deepCopy(options.line)), { end: ends, extend: extend }), _internal_points: [start, end] });
+                compositeRenderer._internal_append(this._internal__lineRenderer);
+                if (options.text.value) {
+                    var angle = Math.atan((end.y - start.y) / (end.x - start.x));
+                    var align = options.text.box.alignment.horizontal;
+                    var pivot = align === "left" /* Left */
+                        ? start.clone() : align === "right" /* Right */
+                        ? end.clone() : new Point((start.x + end.x) / 2, (start.y + end.y) / 2);
+                    var labelOptions = deepCopy(options.text);
+                    labelOptions.box = __assign(__assign({}, labelOptions.box), { angle: angle });
+                    this._internal__labelRenderer._internal_setData({ _internal_text: labelOptions, _internal_points: [pivot] });
+                    compositeRenderer._internal_append(this._internal__labelRenderer);
+                }
+                this._internal_addAnchors(compositeRenderer);
+                this._internal__renderer = compositeRenderer;
+            }
+        };
+        return VerticalLinePaneView;
+    }(LineToolPaneView));
+
+    var LineToolVerticalLine = /** @class */ (function (_super) {
+        __extends(LineToolVerticalLine, _super);
+        function LineToolVerticalLine(model, options, points) {
+            if (points === void 0) { points = []; }
+            var _this = _super.call(this, model, options, points) || this;
+            _this._internal__toolType = 'VerticalLine';
+            _this._internal__setPaneViews([new VerticalLinePaneView(_this, model)]);
+            return _this;
+        }
+        LineToolVerticalLine.prototype._internal_pointsCount = function () {
+            return 1;
+        };
+        LineToolVerticalLine.prototype._internal_priceAxisViews = function () {
+            return [];
+        };
+        LineToolVerticalLine.prototype._internal_priceAxisPoints = function () {
+            return [];
+        };
+        LineToolVerticalLine.prototype._internal_timeAxisLabelColor = function () {
+            return this._internal_options().line.color;
+        };
+        return LineToolVerticalLine;
+    }(LineTool));
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    var LineTools = {
+        FibRetracement: LineToolFibRetracement,
+        ParallelChannel: LineToolParallelChannel,
+        HorizontalLine: LineToolHorizontalLine,
+        VerticalLine: LineToolVerticalLine,
+        Highlighter: LineToolHighlighter,
+        CrossLine: LineToolCrossLine,
+        TrendLine: LineToolTrendLine,
+        Rectangle: LineToolRectangle,
+        Triangle: LineToolTriangle,
+        Brush: LineToolBrush,
+        Path: LineToolPath,
+        Text: LineToolText,
+        Ray: LineToolRay,
+        Arrow: LineToolArrow,
+        ExtendedLine: LineToolExtendedLine,
+        HorizontalRay: LineToolHorizontalRay,
+    };
+
+    var LineToolCreator = /** @class */ (function () {
+        function LineToolCreator(model) {
+            this._internal__lastLineTool = null;
+            this._internal__activeOptions = null;
+            this._internal__activeType = null;
+            this._internal__model = model;
+        }
+        LineToolCreator.prototype._internal_setActiveLineTool = function (lineToolType, options) {
+            this._internal__activeOptions = options || {};
+            this._internal__activeType = lineToolType;
+            this._internal__model._internal_dataSources().forEach(function (source) {
+                if (source instanceof LineTool) {
+                    source._internal_setSelected(false);
+                    source._internal_setHovered(false);
+                    source._internal_setEditing(false);
+                }
+            });
+            this._internal__model._internal_lightUpdate();
+        };
+        LineToolCreator.prototype._internal_hasActiveToolLine = function () {
+            return this._internal__activeType !== null;
+        };
+        LineToolCreator.prototype._internal_onInputEvent = function (paneWidget, eventType, event) {
+            var _a;
+            if (!this._internal__activeType || !this._internal__activeOptions) {
+                return;
+            }
+            event._internal_consumed = true;
+            if (eventType !== 6 /* MouseDown */) {
+                return;
+            }
+            var priceScaleId = ((_a = paneWidget._internal_state()._internal_dataSources()[0]._internal_priceScale()) === null || _a === void 0 ? void 0 : _a._internal_id()) || paneWidget._internal_state()._internal_model()._internal_defaultVisiblePriceScaleId();
+            var strictOptions = merge(clone(LineToolsOptionDefaults[this._internal__activeType]), this._internal__activeOptions || {});
+            this._internal__lastLineTool = new LineTools[this._internal__activeType](this._internal__model, strictOptions, []);
+            paneWidget._internal_state()._internal_addDataSource(this._internal__lastLineTool, priceScaleId);
+            this._internal__activeType = null;
+            this._internal__activeOptions = null;
+        };
+        return LineToolCreator;
+    }());
+
     var VolumeFormatter = /** @class */ (function () {
         function VolumeFormatter(precision) {
             this._private__precision = precision;
@@ -1729,18 +7129,42 @@
         if (points.length === 0) {
             return;
         }
-        var x = points[visibleRange.from]._internal_x;
-        var y = points[visibleRange.from]._internal_y;
-        ctx.moveTo(x, y);
-        for (var i = visibleRange.from + 1; i < visibleRange.to; ++i) {
-            var currItem = points[i];
-            //  x---x---x   or   x---x   o   or   start
-            if (lineType === 1 /* WithSteps */) {
-                var prevY = points[i - 1]._internal_y;
-                var currX = currItem._internal_x;
-                ctx.lineTo(currX, prevY);
+        var colorUsedMap = {};
+        for (var j = visibleRange.from; j < visibleRange.to; ++j) {
+            var currentColor = points[j]._internal_color;
+            if (colorUsedMap[currentColor || 'undefiend']) {
+                continue;
             }
-            ctx.lineTo(currItem._internal_x, currItem._internal_y);
+            if (Object.keys(colorUsedMap).length) {
+                ctx.stroke();
+                ctx.closePath();
+                ctx.beginPath();
+            }
+            var x = points[j]._internal_x;
+            var y = points[j]._internal_y;
+            ctx.moveTo(x, y);
+            ctx.strokeStyle = currentColor !== null && currentColor !== void 0 ? currentColor : ctx.strokeStyle;
+            colorUsedMap[currentColor || 'undefiend'] = true;
+            for (var i = j + 1; i < visibleRange.to; ++i) {
+                var currItem = points[i];
+                //  x---x---x   or   x---x   o   or   start
+                if (points[i - 1]._internal_color === currentColor) {
+                    if (lineType === 1 /* WithSteps */) {
+                        var prevY = points[i - 1]._internal_y;
+                        var currX = currItem._internal_x;
+                        ctx.lineTo(currX, prevY);
+                    }
+                    else if (lineType === 2 /* WithStepsUpsideDown */) {
+                        var prevX = points[i - 1]._internal_x;
+                        var currY = currItem._internal_y;
+                        ctx.lineTo(prevX, currY);
+                    }
+                    ctx.lineTo(currItem._internal_x, currItem._internal_y);
+                }
+                else {
+                    ctx.moveTo(currItem._internal_x, currItem._internal_y);
+                }
+            }
         }
     }
 
@@ -1755,7 +7179,9 @@
             this._internal__data = data;
         };
         PaneRendererAreaBase.prototype._internal__drawImpl = function (ctx) {
-            if (this._internal__data === null || this._internal__data._internal_items.length === 0 || this._internal__data._internal_visibleRange === null) {
+            if (this._internal__data === null ||
+                this._internal__data._internal_items.length === 0 ||
+                this._internal__data._internal_visibleRange === null) {
                 return;
             }
             ctx.lineCap = 'butt';
@@ -1815,7 +7241,9 @@
             this._internal__data = data;
         };
         PaneRendererLineBase.prototype._internal__drawImpl = function (ctx) {
-            if (this._internal__data === null || this._internal__data._internal_items.length === 0 || this._internal__data._internal_visibleRange === null) {
+            if (this._internal__data === null ||
+                this._internal__data._internal_items.length === 0 ||
+                this._internal__data._internal_visibleRange === null) {
                 return;
             }
             ctx.lineCap = 'butt';
@@ -1823,18 +7251,18 @@
             setLineStyle(ctx, this._internal__data._internal_lineStyle);
             ctx.strokeStyle = this._internal__strokeStyle(ctx);
             ctx.lineJoin = 'round';
+            ctx.beginPath();
+            // TODO: implement drawing a colored line, see https://github.com/tradingview/lightweight-charts/issues/195#issuecomment-961850692
             if (this._internal__data._internal_items.length === 1) {
-                ctx.beginPath();
                 var point = this._internal__data._internal_items[0];
                 ctx.moveTo(point._internal_x - this._internal__data._internal_barWidth / 2, point._internal_y);
                 ctx.lineTo(point._internal_x + this._internal__data._internal_barWidth / 2, point._internal_y);
                 if (point._internal_color !== undefined) {
                     ctx.strokeStyle = point._internal_color;
                 }
-                ctx.stroke();
             }
             else {
-                this._internal__drawLine(ctx, this._internal__data);
+                walkLine(ctx, this._internal__data._internal_items, this._internal__data._internal_lineType, this._internal__data._internal_visibleRange);
             }
         };
         PaneRendererLineBase.prototype._internal__drawLine = function (ctx, data) {
@@ -1933,6 +7361,9 @@
             }
         }
         return start;
+    }
+    function findLastIndex(items, callback) {
+        return items.reduce(function (acc, curr, index) { return callback(curr, index) ? index : acc; }, 0);
     }
 
     function lowerBoundItemsCompare(item, time) {
@@ -2095,25 +7526,6 @@
         return SeriesAreaPaneView;
     }(LinePaneViewBase));
 
-    function optimalBarWidth(barSpacing, pixelRatio) {
-        return Math.floor(barSpacing * 0.3 * pixelRatio);
-    }
-    function optimalCandlestickWidth(barSpacing, pixelRatio) {
-        var barSpacingSpecialCaseFrom = 2.5;
-        var barSpacingSpecialCaseTo = 4;
-        var barSpacingSpecialCaseCoeff = 3;
-        if (barSpacing >= barSpacingSpecialCaseFrom && barSpacing <= barSpacingSpecialCaseTo) {
-            return Math.floor(barSpacingSpecialCaseCoeff * pixelRatio);
-        }
-        // coeff should be 1 on small barspacing and go to 0.8 while groing bar spacing
-        var barSpacingReducingCoeff = 0.2;
-        var coeff = 1 - barSpacingReducingCoeff * Math.atan(Math.max(barSpacingSpecialCaseTo, barSpacing) - barSpacingSpecialCaseTo) / (Math.PI * 0.5);
-        var res = Math.floor(barSpacing * coeff * pixelRatio);
-        var scaledBarSpacing = Math.floor(barSpacing * pixelRatio);
-        var optimal = Math.min(res, scaledBarSpacing);
-        return Math.max(Math.floor(pixelRatio), optimal);
-    }
-
     var PaneRendererBars = /** @class */ (function () {
         function PaneRendererBars() {
             this._private__data = null;
@@ -2124,10 +7536,11 @@
             this._private__data = data;
         };
         // eslint-disable-next-line complexity
-        PaneRendererBars.prototype._internal_draw = function (ctx, pixelRatio, isHovered, hitTestData) {
+        PaneRendererBars.prototype._internal_draw = function (ctx, renderParams) {
             if (this._private__data === null || this._private__data._internal_bars.length === 0 || this._private__data._internal_visibleRange === null) {
                 return;
             }
+            var pixelRatio = renderParams._internal_pixelRatio;
             this._private__barWidth = this._private__calcBarWidth(pixelRatio);
             // grid and crosshair have line width = Math.floor(pixelRatio)
             // if this value is odd, we have to make bars' width odd
@@ -2256,53 +7669,6 @@
         return SeriesBarsPaneView;
     }(BarsPaneViewBase));
 
-    function clamp(value, minVal, maxVal) {
-        return Math.min(Math.max(value, minVal), maxVal);
-    }
-    function isBaseDecimal(value) {
-        if (value < 0) {
-            return false;
-        }
-        for (var current = value; current > 1; current /= 10) {
-            if ((current % 10) !== 0) {
-                return false;
-            }
-        }
-        return true;
-    }
-    function greaterOrEqual(x1, x2, epsilon) {
-        return (x2 - x1) <= epsilon;
-    }
-    function equal(x1, x2, epsilon) {
-        return Math.abs(x1 - x2) < epsilon;
-    }
-    function log10(x) {
-        if (x <= 0) {
-            return NaN;
-        }
-        return Math.log(x) / Math.log(10);
-    }
-    function min(arr) {
-        if (arr.length < 1) {
-            throw Error('array is empty');
-        }
-        var minVal = arr[0];
-        for (var i = 1; i < arr.length; ++i) {
-            if (arr[i] < minVal) {
-                minVal = arr[i];
-            }
-        }
-        return minVal;
-    }
-    function ceiledEven(x) {
-        var ceiled = Math.ceil(x);
-        return (ceiled % 2 !== 0) ? ceiled - 1 : ceiled;
-    }
-    function ceiledOdd(x) {
-        var ceiled = Math.ceil(x);
-        return (ceiled % 2 === 0) ? ceiled - 1 : ceiled;
-    }
-
     var PaneRendererBaselineArea = /** @class */ (function (_super) {
         __extends(PaneRendererBaselineArea, _super);
         function PaneRendererBaselineArea() {
@@ -2370,7 +7736,7 @@
                 _internal_bottomFillColor2: baselineProps.bottomFillColor2,
                 _internal_lineWidth: baselineProps.lineWidth,
                 _internal_lineStyle: baselineProps.lineStyle,
-                _internal_lineType: 0 /* Simple */,
+                _internal_lineType: baselineProps.lineType,
                 _internal_baseLevelCoordinate: baseLevelCoordinate,
                 _internal_bottom: height,
                 _internal_visibleRange: this._internal__itemsVisibleRange,
@@ -2382,7 +7748,7 @@
                 _internal_bottomColor: baselineProps.bottomLineColor,
                 _internal_lineWidth: baselineProps.lineWidth,
                 _internal_lineStyle: baselineProps.lineStyle,
-                _internal_lineType: 0 /* Simple */,
+                _internal_lineType: baselineProps.lineType,
                 _internal_baseLevelCoordinate: baseLevelCoordinate,
                 _internal_bottom: height,
                 _internal_visibleRange: this._internal__itemsVisibleRange,
@@ -2603,10 +7969,11 @@
         PaneRendererCandlesticks.prototype._internal_setData = function (data) {
             this._private__data = data;
         };
-        PaneRendererCandlesticks.prototype._internal_draw = function (ctx, pixelRatio, isHovered, hitTestData) {
+        PaneRendererCandlesticks.prototype._internal_draw = function (ctx, renderParams) {
             if (this._private__data === null || this._private__data._internal_bars.length === 0 || this._private__data._internal_visibleRange === null) {
                 return;
             }
+            var pixelRatio = renderParams._internal_pixelRatio;
             // now we know pixelRatio and we could calculate barWidth effectively
             this._private__barWidth = optimalCandlestickWidth(this._private__data._internal_barSpacing, pixelRatio);
             // grid and crosshair have line width = Math.floor(pixelRatio)
@@ -2955,10 +8322,11 @@
             this._private__data = data;
             this._private__precalculatedCache = [];
         };
-        PaneRendererHistogram.prototype._internal_draw = function (ctx, pixelRatio, isHovered, hitTestData) {
+        PaneRendererHistogram.prototype._internal_draw = function (ctx, renderParams) {
             if (this._private__data === null || this._private__data._internal_items.length === 0 || this._private__data._internal_visibleRange === null) {
                 return;
             }
+            var pixelRatio = renderParams._internal_pixelRatio;
             if (!this._private__precalculatedCache.length) {
                 this._private__fillPrecalculatedCache(pixelRatio);
             }
@@ -3184,95 +8552,31 @@
         return SeriesLinePaneView;
     }(LinePaneViewBase));
 
-    var defaultReplacementRe = /[2-9]/g;
-    var TextWidthCache = /** @class */ (function () {
-        function TextWidthCache(size) {
-            if (size === void 0) { size = 50; }
-            this._private__cache = new Map();
-            /** Current index in the "cyclic buffer" */
-            this._private__keysIndex = 0;
-            // A trick to keep array PACKED_ELEMENTS
-            this._private__keys = Array.from(new Array(size));
-        }
-        TextWidthCache.prototype._internal_reset = function () {
-            this._private__cache.clear();
-            this._private__keys.fill(undefined);
-            // We don't care where exactly the _keysIndex points,
-            // so there's no point in resetting it
-        };
-        TextWidthCache.prototype._internal_measureText = function (ctx, text, optimizationReplacementRe) {
-            var re = optimizationReplacementRe || defaultReplacementRe;
-            var cacheString = String(text).replace(re, '0');
-            var width = this._private__cache.get(cacheString);
-            if (width === undefined) {
-                width = ctx.measureText(cacheString).width;
-                if (width === 0 && text.length !== 0) {
-                    // measureText can return 0 in FF depending on a canvas size, don't cache it
-                    return 0;
-                }
-                // A cyclic buffer is used to keep track of the cache keys and to delete
-                // the oldest one before a new one is inserted.
-                // ├──────┬──────┬──────┬──────┤
-                // │ foo  │ bar  │      │      │
-                // ├──────┴──────┴──────┴──────┤
-                //                 ↑ index
-                // Eventually, the index reach the end of an array and roll-over to 0.
-                // ├──────┬──────┬──────┬──────┤
-                // │ foo  │ bar  │ baz  │ quux │
-                // ├──────┴──────┴──────┴──────┤
-                //   ↑ index = 0
-                // After that the oldest value will be overwritten.
-                // ├──────┬──────┬──────┬──────┤
-                // │ WOOT │ bar  │ baz  │ quux │
-                // ├──────┴──────┴──────┴──────┤
-                //          ↑ index = 1
-                var oldestKey = this._private__keys[this._private__keysIndex];
-                if (oldestKey !== undefined) {
-                    this._private__cache.delete(oldestKey);
-                }
-                // Set a newest key in place of the just deleted one
-                this._private__keys[this._private__keysIndex] = cacheString;
-                // Advance the index so it always points the oldest value
-                this._private__keysIndex = (this._private__keysIndex + 1) % this._private__keys.length;
-                this._private__cache.set(cacheString, width);
-            }
-            return width;
-        };
-        return TextWidthCache;
-    }());
-
-    var PanePriceAxisViewRenderer = /** @class */ (function () {
-        function PanePriceAxisViewRenderer(textWidthCache) {
+    var PanePriceAxisLabelRenderer = /** @class */ (function () {
+        function PanePriceAxisLabelRenderer() {
             this._private__priceAxisViewRenderer = null;
             this._private__rendererOptions = null;
-            this._private__align = 'right';
-            this._private__width = 0;
-            this._private__textWidthCache = textWidthCache;
         }
-        PanePriceAxisViewRenderer.prototype._internal_setParams = function (priceAxisViewRenderer, rendererOptions, width, align) {
+        PanePriceAxisLabelRenderer.prototype._internal_setParams = function (priceAxisViewRenderer, rendererOptions) {
             this._private__priceAxisViewRenderer = priceAxisViewRenderer;
             this._private__rendererOptions = rendererOptions;
-            this._private__width = width;
-            this._private__align = align;
         };
-        PanePriceAxisViewRenderer.prototype._internal_draw = function (ctx, pixelRatio) {
-            if (this._private__rendererOptions === null || this._private__priceAxisViewRenderer === null) {
+        PanePriceAxisLabelRenderer.prototype._internal_draw = function (ctx, renderParams) {
+            if (this._private__rendererOptions === null || this._private__priceAxisViewRenderer === null || !this._private__priceAxisViewRenderer._internal_draw) {
                 return;
             }
-            this._private__priceAxisViewRenderer._internal_draw(ctx, this._private__rendererOptions, this._private__textWidthCache, this._private__width, this._private__align, pixelRatio);
+            this._private__priceAxisViewRenderer._internal_draw(ctx, this._private__rendererOptions, renderParams);
         };
-        return PanePriceAxisViewRenderer;
+        return PanePriceAxisLabelRenderer;
     }());
-    var PanePriceAxisView = /** @class */ (function () {
-        function PanePriceAxisView(priceAxisView, dataSource, chartModel) {
-            this._private__priceAxisView = priceAxisView;
-            this._private__textWidthCache = new TextWidthCache(50); // when should we clear cache?
+    var PanePriceAxisLabelView = /** @class */ (function () {
+        function PanePriceAxisLabelView(priceAxisView, dataSource, chartModel) {
+            this._private__priceAxisLabelView = priceAxisView;
             this._private__dataSource = dataSource;
             this._private__chartModel = chartModel;
-            this._private__fontSize = -1;
-            this._private__renderer = new PanePriceAxisViewRenderer(this._private__textWidthCache);
+            this._private__renderer = new PanePriceAxisLabelRenderer();
         }
-        PanePriceAxisView.prototype._internal_renderer = function (height, width) {
+        PanePriceAxisLabelView.prototype._internal_renderer = function (height, width) {
             var pane = this._private__chartModel._internal_paneForSource(this._private__dataSource);
             if (pane === null) {
                 return null;
@@ -3287,14 +8591,11 @@
                 return null;
             }
             var options = this._private__chartModel._internal_priceAxisRendererOptions();
-            if (options._internal_fontSize !== this._private__fontSize) {
-                this._private__fontSize = options._internal_fontSize;
-                this._private__textWidthCache._internal_reset();
-            }
-            this._private__renderer._internal_setParams(this._private__priceAxisView._internal_paneRenderer(), options, width, position);
+            options._internal_align = position;
+            this._private__renderer._internal_setParams(this._private__priceAxisLabelView._internal_paneRenderer(), options);
             return this._private__renderer;
         };
-        return PanePriceAxisView;
+        return PanePriceAxisLabelView;
     }());
 
     var HorizontalLineRenderer = /** @class */ (function () {
@@ -3304,13 +8605,14 @@
         HorizontalLineRenderer.prototype._internal_setData = function (data) {
             this._private__data = data;
         };
-        HorizontalLineRenderer.prototype._internal_draw = function (ctx, pixelRatio, isHovered, hitTestData) {
+        HorizontalLineRenderer.prototype._internal_draw = function (ctx, renderParams) {
             if (this._private__data === null) {
                 return;
             }
             if (this._private__data._internal_visible === false) {
                 return;
             }
+            var pixelRatio = renderParams._internal_pixelRatio;
             var y = Math.round(this._private__data._internal_y * pixelRatio);
             if (y < 0 || y > Math.ceil(this._private__data._internal_height * pixelRatio)) {
                 return;
@@ -3404,12 +8706,13 @@
         SeriesLastPriceAnimationRenderer.prototype._internal_data = function () {
             return this._private__data;
         };
-        SeriesLastPriceAnimationRenderer.prototype._internal_draw = function (ctx, pixelRatio, isHovered, hitTestData) {
+        SeriesLastPriceAnimationRenderer.prototype._internal_draw = function (ctx, renderParams) {
             var data = this._private__data;
             if (data === null) {
                 return;
             }
             ctx.save();
+            var pixelRatio = renderParams._internal_pixelRatio;
             var tickWidth = Math.max(1, Math.floor(pixelRatio));
             var correction = (tickWidth % 2) / 2;
             var centerX = Math.round(data._internal_center.x * pixelRatio) + correction; // correct x coordinate only
@@ -3562,10 +8865,7 @@
             if (lastValue._internal_noData || !visibleRange._internal_contains(lastValue._internal_index)) {
                 return;
             }
-            var lastValuePoint = {
-                x: timeScale._internal_indexToCoordinate(lastValue._internal_index),
-                y: this._private__series._internal_priceScale()._internal_priceToCoordinate(lastValue._internal_price, firstValue._internal_value),
-            };
+            var lastValuePoint = new Point(timeScale._internal_indexToCoordinate(lastValue._internal_index), this._private__series._internal_priceScale()._internal_priceToCoordinate(lastValue._internal_price, firstValue._internal_value));
             var seriesLineColor = lastValue._internal_color;
             var seriesLineWidth = this._private__series._internal_options().lineWidth;
             var data = animationData(this._private__duration(), seriesLineColor);
@@ -3601,6 +8901,7 @@
         switch (shape) {
             case 'arrowDown':
             case 'arrowUp':
+            case 'triangle':
                 return size(originalSize, 1);
             case 'circle':
                 return size(originalSize, 0.8);
@@ -3621,14 +8922,6 @@
         var left = centerX - halfSize;
         var top = centerY - halfSize;
         ctx.fillRect(left, top, squareSize, squareSize);
-    }
-    function hitTestSquare(centerX, centerY, size, x, y) {
-        var squareSize = shapeSize('square', size);
-        var halfSize = (squareSize - 1) / 2;
-        var left = centerX - halfSize;
-        var top = centerY - halfSize;
-        return x >= left && x <= left + squareSize &&
-            y >= top && y <= top + squareSize;
     }
 
     function drawArrow(up, ctx, centerX, centerY, size) {
@@ -3656,10 +8949,7 @@
             ctx.lineTo(centerX - halfBaseSize, centerY);
         }
         ctx.fill();
-    }
-    function hitTestArrow(up, centerX, centerY, size, x, y) {
-        // TODO: implement arrow hit test
-        return hitTestSquare(centerX, centerY, size, x, y);
+        ctx.stroke();
     }
 
     function drawCircle(ctx, centerX, centerY, size) {
@@ -3669,22 +8959,20 @@
         ctx.arc(centerX, centerY, halfSize, 0, 2 * Math.PI, false);
         ctx.fill();
     }
-    function hitTestCircle(centerX, centerY, size, x, y) {
-        var circleSize = shapeSize('circle', size);
-        var tolerance = 2 + circleSize / 2;
-        var xOffset = centerX - x;
-        var yOffset = centerY - y;
-        var dist = Math.sqrt(xOffset * xOffset + yOffset * yOffset);
-        return dist <= tolerance;
-    }
 
     function drawText(ctx, text, x, y) {
         ctx.fillText(text, x, y);
     }
-    function hitTestText(textX, textY, textWidth, textHeight, x, y) {
-        var halfHeight = textHeight / 2;
-        return x >= textX && x <= textX + textWidth &&
-            y >= textY - halfHeight && y <= textY + halfHeight;
+
+    function drawTriangle(ctx, centerX, centerY, size) {
+        var halfArrowSize = size / 2;
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY - halfArrowSize);
+        ctx.lineTo(centerX + halfArrowSize, centerY + halfArrowSize);
+        ctx.lineTo(centerX - halfArrowSize, centerY + halfArrowSize);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
     }
 
     var SeriesMarkersRenderer = /** @class */ (function (_super) {
@@ -3709,22 +8997,23 @@
                 this._private__textWidthCache._internal_reset();
             }
         };
-        SeriesMarkersRenderer.prototype._internal_hitTest = function (x, y) {
-            if (this._private__data === null || this._private__data._internal_visibleRange === null) {
-                return null;
-            }
-            for (var i = this._private__data._internal_visibleRange.from; i < this._private__data._internal_visibleRange.to; i++) {
-                var item = this._private__data._internal_items[i];
-                if (hitTestItem(item, x, y)) {
-                    return {
-                        _internal_hitTestData: item._internal_internalId,
-                        _internal_externalId: item._internal_externalId,
-                    };
-                }
-            }
-            return null;
-        };
-        SeriesMarkersRenderer.prototype._internal__drawImpl = function (ctx, isHovered, hitTestData) {
+        // TODO: iosif check if neeeded
+        // public hitTest(point: Point): HoveredObject | null {
+        // 	if (this._data === null || this._data.visibleRange === null) {
+        // 		return null;
+        // 	}
+        // 	for (let i = this._data.visibleRange.from; i < this._data.visibleRange.to; i++) {
+        // 		const item = this._data.items[i];
+        // 		if (hitTestItem(item, point.x, point.y)) {
+        // 			return {
+        // 				hitTestData: item.internalId,
+        // 				externalId: item.externalId,
+        // 			};
+        // 		}
+        // 	}
+        // 	return null;
+        // }
+        SeriesMarkersRenderer.prototype._internal__drawImpl = function (ctx) {
             if (this._private__data === null || this._private__data._internal_visibleRange === null) {
                 return;
             }
@@ -3742,17 +9031,33 @@
         return SeriesMarkersRenderer;
     }(ScaledRenderer));
     function drawItem(item, ctx) {
+        var _a, _b;
+        var rotation = item._internal_rotation || (item._internal_anchor === 'bottom' ? 180 : item._internal_anchor === 'right' ? 90 : item._internal_anchor === 'left' ? -90 : 0);
+        ctx.strokeStyle = ((_a = item._internal_stroke) === null || _a === void 0 ? void 0 : _a.color) || 'transparent';
+        ctx.lineWidth = ((_b = item._internal_stroke) === null || _b === void 0 ? void 0 : _b.width) || 1;
         ctx.fillStyle = item._internal_color;
         if (item._internal_text !== undefined) {
             drawText(ctx, item._internal_text._internal_content, item._internal_x - item._internal_text._internal_width / 2, item._internal_text._internal_y);
         }
+        if (rotation) {
+            ctx.save();
+            ctx.translate(item._internal_x, item._internal_y);
+            ctx.rotate(rotation * (Math.PI / 180));
+            ctx.translate(-item._internal_x, -item._internal_y);
+        }
         drawShape(item, ctx);
+        if (rotation) {
+            ctx.restore();
+        }
     }
     function drawShape(item, ctx) {
         if (item._internal_size === 0) {
             return;
         }
         switch (item._internal_shape) {
+            case 'triangle':
+                drawTriangle(ctx, item._internal_x, item._internal_y, item._internal_size);
+                return;
             case 'arrowDown':
                 drawArrow(false, ctx, item._internal_x, item._internal_y, item._internal_size);
                 return;
@@ -3768,28 +9073,32 @@
         }
         ensureNever(item._internal_shape);
     }
-    function hitTestItem(item, x, y) {
-        if (item._internal_text !== undefined && hitTestText(item._internal_x, item._internal_text._internal_y, item._internal_text._internal_width, item._internal_text._internal_height, x, y)) {
-            return true;
-        }
-        return hitTestShape(item, x, y);
-    }
-    function hitTestShape(item, x, y) {
-        if (item._internal_size === 0) {
-            return false;
-        }
-        switch (item._internal_shape) {
-            case 'arrowDown':
-                return hitTestArrow(true, item._internal_x, item._internal_y, item._internal_size, x, y);
-            case 'arrowUp':
-                return hitTestArrow(false, item._internal_x, item._internal_y, item._internal_size, x, y);
-            case 'circle':
-                return hitTestCircle(item._internal_x, item._internal_y, item._internal_size, x, y);
-            case 'square':
-                return hitTestSquare(item._internal_x, item._internal_y, item._internal_size, x, y);
-        }
-    }
+    // TODO: iosif might not be needed
+    // function hitTestItem(item: SeriesMarkerRendererDataItem, x: Coordinate, y: Coordinate): boolean {
+    // 	if (item.text !== undefined && hitTestText(item.x, item.text.y, item.text.width, item.text.height, x, y)) {
+    // 		return true;
+    // 	}
+    // 	return hitTestShape(item, x, y);
+    // }
+    // function hitTestShape(item: SeriesMarkerRendererDataItem, x: Coordinate, y: Coordinate): boolean {
+    // 	if (item.size === 0) {
+    // 		return false;
+    // 	}
+    // 	switch (item.shape) {
+    // 		case 'triangle':
+    // 			return hitTestTriangle(item.x, item.y, item.size, x, y);
+    // 		case 'arrowDown':
+    // 			return hitTestArrow(true, item.x, item.y, item.size, x, y);
+    // 		case 'arrowUp':
+    // 			return hitTestArrow(false, item.x, item.y, item.size, x, y);
+    // 		case 'circle':
+    // 			return hitTestCircle(item.x, item.y, item.size, x, y);
+    // 		case 'square':
+    // 			return hitTestSquare(item.x, item.y, item.size, x, y);
+    // 	}
+    // }
 
+    /* eslint-disable complexity */
     // eslint-disable-next-line max-params
     function fillSizeAndY(rendererItem, marker, seriesData, offsets, textHeight, shapeMargin, priceScale, timeScale, firstValue) {
         var inBarPrice = isNumber(seriesData) ? seriesData : seriesData.close;
@@ -3800,17 +9109,30 @@
         var halfSize = shapeSize / 2;
         rendererItem._internal_size = shapeSize;
         switch (marker.position) {
+            case 'price': {
+                var markerPrice = marker.price || inBarPrice;
+                var anchor = marker.anchor || 'center';
+                var displaceY = anchor === 'top' ? 1 : anchor === 'bottom' ? -1 : 0;
+                var displaceX = anchor === 'left' ? 1 : anchor === 'right' ? -1 : 0;
+                rendererItem._internal_y = (priceScale._internal_priceToCoordinate(markerPrice, firstValue) + halfSize * displaceY);
+                rendererItem._internal_x = (rendererItem._internal_x + halfSize * displaceX);
+                if (rendererItem._internal_text !== undefined) {
+                    rendererItem._internal_text._internal_y = (rendererItem._internal_y + (halfSize + shapeMargin + textHeight * (0.5 + 0.1 /* TextMargin */)) * displaceY ||
+                        1);
+                }
+                return;
+            }
             case 'inBar': {
                 rendererItem._internal_y = priceScale._internal_priceToCoordinate(inBarPrice, firstValue);
                 if (rendererItem._internal_text !== undefined) {
-                    rendererItem._internal_text._internal_y = rendererItem._internal_y + halfSize + shapeMargin + textHeight * (0.5 + 0.1 /* TextMargin */);
+                    rendererItem._internal_text._internal_y = (rendererItem._internal_y + halfSize + shapeMargin + textHeight * (0.5 + 0.1 /* TextMargin */));
                 }
                 return;
             }
             case 'aboveBar': {
                 rendererItem._internal_y = (priceScale._internal_priceToCoordinate(highPrice, firstValue) - halfSize - offsets._internal_aboveBar);
                 if (rendererItem._internal_text !== undefined) {
-                    rendererItem._internal_text._internal_y = rendererItem._internal_y - halfSize - textHeight * (0.5 + 0.1 /* TextMargin */);
+                    rendererItem._internal_text._internal_y = (rendererItem._internal_y - halfSize - textHeight * (0.5 + 0.1 /* TextMargin */));
                     offsets._internal_aboveBar += textHeight * (1 + 2 * 0.1 /* TextMargin */);
                 }
                 offsets._internal_aboveBar += shapeSize + shapeMargin;
@@ -3819,7 +9141,7 @@
             case 'belowBar': {
                 rendererItem._internal_y = (priceScale._internal_priceToCoordinate(lowPrice, firstValue) + halfSize + offsets._internal_belowBar);
                 if (rendererItem._internal_text !== undefined) {
-                    rendererItem._internal_text._internal_y = rendererItem._internal_y + halfSize + shapeMargin + textHeight * (0.5 + 0.1 /* TextMargin */);
+                    rendererItem._internal_text._internal_y = (rendererItem._internal_y + halfSize + shapeMargin + textHeight * (0.5 + 0.1 /* TextMargin */));
                     offsets._internal_belowBar += textHeight * (1 + 2 * 0.1 /* TextMargin */);
                 }
                 offsets._internal_belowBar += shapeSize + shapeMargin;
@@ -3849,7 +9171,7 @@
                 this._private__dataInvalidated = true;
             }
         };
-        SeriesMarkersPaneView.prototype._internal_renderer = function (height, width, addAnchors) {
+        SeriesMarkersPaneView.prototype._internal_renderer = function (height, width, pane) {
             if (!this._private__series._internal_visible()) {
                 return null;
             }
@@ -3889,8 +9211,11 @@
                     _internal_x: 0,
                     _internal_y: 0,
                     _internal_size: 0,
+                    _internal_stroke: marker.stroke,
                     _internal_shape: marker.shape,
+                    _internal_anchor: marker.anchor,
                     _internal_color: marker.color,
+                    _internal_rotation: marker.rotation,
                     _internal_internalId: marker._internal_internalId,
                     _internal_externalId: marker.id,
                     _internal_text: undefined,
@@ -3974,14 +9299,14 @@
         return SeriesPriceLinePaneView;
     }(SeriesHorizontalLinePaneView));
 
-    var SeriesPriceAxisView = /** @class */ (function (_super) {
-        __extends(SeriesPriceAxisView, _super);
-        function SeriesPriceAxisView(source) {
+    var SeriesPriceAxisLabelView = /** @class */ (function (_super) {
+        __extends(SeriesPriceAxisLabelView, _super);
+        function SeriesPriceAxisLabelView(source) {
             var _this = _super.call(this) || this;
             _this._private__source = source;
             return _this;
         }
-        SeriesPriceAxisView.prototype._internal__updateRendererData = function (axisRendererData, paneRendererData, commonRendererData) {
+        SeriesPriceAxisLabelView.prototype._internal__updateRendererData = function (axisRendererData, paneRendererData, commonRendererData) {
             axisRendererData._internal_visible = false;
             paneRendererData._internal_visible = false;
             var source = this._private__source;
@@ -4012,7 +9337,7 @@
             paneRendererData._internal_borderColor = source._internal_model()._internal_backgroundColorAtYPercentFromTop(lastValueData._internal_coordinate / source._internal_priceScale()._internal_height());
             axisRendererData._internal_borderColor = lastValueColor;
         };
-        SeriesPriceAxisView.prototype._internal__paneText = function (lastValue, showSeriesLastValue, showSymbolLabel, showPriceAndPercentage) {
+        SeriesPriceAxisLabelView.prototype._internal__paneText = function (lastValue, showSeriesLastValue, showSymbolLabel, showPriceAndPercentage) {
             var result = '';
             var title = this._private__source._internal_title();
             if (showSymbolLabel && title.length !== 0) {
@@ -4024,7 +9349,7 @@
             }
             return result.trim();
         };
-        SeriesPriceAxisView.prototype._internal__axisText = function (lastValueData, showSeriesLastValue, showPriceAndPercentage) {
+        SeriesPriceAxisLabelView.prototype._internal__axisText = function (lastValueData, showSeriesLastValue, showPriceAndPercentage) {
             if (!showSeriesLastValue) {
                 return '';
             }
@@ -4034,75 +9359,8 @@
             return this._private__source._internal_priceScale()._internal_isPercentage() ?
                 lastValueData._internal_formattedPricePercentage : lastValueData._internal_formattedPriceAbsolute;
         };
-        return SeriesPriceAxisView;
-    }(PriceAxisView));
-
-    var PriceRangeImpl = /** @class */ (function () {
-        function PriceRangeImpl(minValue, maxValue) {
-            this._private__minValue = minValue;
-            this._private__maxValue = maxValue;
-        }
-        PriceRangeImpl.prototype._internal_equals = function (pr) {
-            if (pr === null) {
-                return false;
-            }
-            return this._private__minValue === pr._private__minValue && this._private__maxValue === pr._private__maxValue;
-        };
-        PriceRangeImpl.prototype._internal_clone = function () {
-            return new PriceRangeImpl(this._private__minValue, this._private__maxValue);
-        };
-        PriceRangeImpl.prototype._internal_minValue = function () {
-            return this._private__minValue;
-        };
-        PriceRangeImpl.prototype._internal_maxValue = function () {
-            return this._private__maxValue;
-        };
-        PriceRangeImpl.prototype._internal_length = function () {
-            return this._private__maxValue - this._private__minValue;
-        };
-        PriceRangeImpl.prototype._internal_isEmpty = function () {
-            return this._private__maxValue === this._private__minValue || Number.isNaN(this._private__maxValue) || Number.isNaN(this._private__minValue);
-        };
-        PriceRangeImpl.prototype._internal_merge = function (anotherRange) {
-            if (anotherRange === null) {
-                return this;
-            }
-            return new PriceRangeImpl(Math.min(this._internal_minValue(), anotherRange._internal_minValue()), Math.max(this._internal_maxValue(), anotherRange._internal_maxValue()));
-        };
-        PriceRangeImpl.prototype._internal_scaleAroundCenter = function (coeff) {
-            if (!isNumber(coeff)) {
-                return;
-            }
-            var delta = this._private__maxValue - this._private__minValue;
-            if (delta === 0) {
-                return;
-            }
-            var center = (this._private__maxValue + this._private__minValue) * 0.5;
-            var maxDelta = this._private__maxValue - center;
-            var minDelta = this._private__minValue - center;
-            maxDelta *= coeff;
-            minDelta *= coeff;
-            this._private__maxValue = center + maxDelta;
-            this._private__minValue = center + minDelta;
-        };
-        PriceRangeImpl.prototype._internal_shift = function (delta) {
-            if (!isNumber(delta)) {
-                return;
-            }
-            this._private__maxValue += delta;
-            this._private__minValue += delta;
-        };
-        PriceRangeImpl.prototype._internal_toRaw = function () {
-            return {
-                minValue: this._private__minValue,
-                maxValue: this._private__maxValue,
-            };
-        };
-        PriceRangeImpl._internal_fromRaw = function (raw) {
-            return (raw === null) ? null : new PriceRangeImpl(raw.minValue, raw.maxValue);
-        };
-        return PriceRangeImpl;
-    }());
+        return SeriesPriceAxisLabelView;
+    }(PriceAxisLabelView));
 
     var AutoscaleInfoImpl = /** @class */ (function () {
         function AutoscaleInfoImpl(priceRange, margins) {
@@ -4138,10 +9396,10 @@
             return _this;
         }
         CustomPriceLinePaneView.prototype._internal__updateImpl = function (height, width) {
+            var lineOptions = this._private__priceLine._internal_options();
             var data = this._internal__lineRendererData;
             data._internal_visible = false;
-            var lineOptions = this._private__priceLine._internal_options();
-            if (!this._internal__series._internal_visible() || !lineOptions.lineVisible) {
+            if (!this._internal__series._internal_visible() || (!lineOptions.visible || !lineOptions.lineVisible)) {
                 return;
             }
             var y = this._private__priceLine._internal_yCoord();
@@ -4164,22 +9422,22 @@
         return CustomPriceLinePaneView;
     }(SeriesHorizontalLinePaneView));
 
-    var CustomPriceLinePriceAxisView = /** @class */ (function (_super) {
-        __extends(CustomPriceLinePriceAxisView, _super);
-        function CustomPriceLinePriceAxisView(series, priceLine) {
+    var CustomPriceLinePriceAxisLabelView = /** @class */ (function (_super) {
+        __extends(CustomPriceLinePriceAxisLabelView, _super);
+        function CustomPriceLinePriceAxisLabelView(series, priceLine) {
             var _this = _super.call(this) || this;
             _this._private__series = series;
             _this._private__priceLine = priceLine;
             return _this;
         }
-        CustomPriceLinePriceAxisView.prototype._internal__updateRendererData = function (axisRendererData, paneRendererData, commonData) {
+        CustomPriceLinePriceAxisLabelView.prototype._internal__updateRendererData = function (axisRendererData, paneRendererData, commonData) {
             axisRendererData._internal_visible = false;
             paneRendererData._internal_visible = false;
             var options = this._private__priceLine._internal_options();
             var labelVisible = options.axisLabelVisible;
             var showPaneLabel = options.title !== '';
             var series = this._private__series;
-            if (!labelVisible || !series._internal_visible()) {
+            if (!labelVisible || !options.visible || !series._internal_visible()) {
                 return;
             }
             var y = this._private__priceLine._internal_yCoord();
@@ -4198,16 +9456,16 @@
             commonData._internal_color = colors._internal_foreground;
             commonData._internal_coordinate = y;
         };
-        return CustomPriceLinePriceAxisView;
-    }(PriceAxisView));
+        return CustomPriceLinePriceAxisLabelView;
+    }(PriceAxisLabelView));
 
     var CustomPriceLine = /** @class */ (function () {
         function CustomPriceLine(series, options) {
             this._private__series = series;
             this._private__options = options;
             this._private__priceLineView = new CustomPriceLinePaneView(series, this);
-            this._private__priceAxisView = new CustomPriceLinePriceAxisView(series, this);
-            this._private__panePriceAxisView = new PanePriceAxisView(this._private__priceAxisView, series, series._internal_model());
+            this._private__priceAxisView = new CustomPriceLinePriceAxisLabelView(series, this);
+            this._private__panePriceAxisView = new PanePriceAxisLabelView(this._private__priceAxisView, series, series._internal_model());
         }
         CustomPriceLine.prototype._internal_applyOptions = function (options) {
             merge(this._private__options, options);
@@ -4258,101 +9516,6 @@
         };
         return PriceDataSource;
     }(DataSource));
-
-    var defLogFormula = {
-        _internal_logicalOffset: 4,
-        _internal_coordOffset: 0.0001,
-    };
-    function fromPercent(value, baseValue) {
-        if (baseValue < 0) {
-            value = -value;
-        }
-        return (value / 100) * baseValue + baseValue;
-    }
-    function toPercent(value, baseValue) {
-        var result = 100 * (value - baseValue) / baseValue;
-        return (baseValue < 0 ? -result : result);
-    }
-    function toPercentRange(priceRange, baseValue) {
-        var minPercent = toPercent(priceRange._internal_minValue(), baseValue);
-        var maxPercent = toPercent(priceRange._internal_maxValue(), baseValue);
-        return new PriceRangeImpl(minPercent, maxPercent);
-    }
-    function fromIndexedTo100(value, baseValue) {
-        value -= 100;
-        if (baseValue < 0) {
-            value = -value;
-        }
-        return (value / 100) * baseValue + baseValue;
-    }
-    function toIndexedTo100(value, baseValue) {
-        var result = 100 * (value - baseValue) / baseValue + 100;
-        return (baseValue < 0 ? -result : result);
-    }
-    function toIndexedTo100Range(priceRange, baseValue) {
-        var minPercent = toIndexedTo100(priceRange._internal_minValue(), baseValue);
-        var maxPercent = toIndexedTo100(priceRange._internal_maxValue(), baseValue);
-        return new PriceRangeImpl(minPercent, maxPercent);
-    }
-    function toLog(price, logFormula) {
-        var m = Math.abs(price);
-        if (m < 1e-15) {
-            return 0;
-        }
-        var res = log10(m + logFormula._internal_coordOffset) + logFormula._internal_logicalOffset;
-        return ((price < 0) ? -res : res);
-    }
-    function fromLog(logical, logFormula) {
-        var m = Math.abs(logical);
-        if (m < 1e-15) {
-            return 0;
-        }
-        var res = Math.pow(10, m - logFormula._internal_logicalOffset) - logFormula._internal_coordOffset;
-        return (logical < 0) ? -res : res;
-    }
-    function convertPriceRangeToLog(priceRange, logFormula) {
-        if (priceRange === null) {
-            return null;
-        }
-        var min = toLog(priceRange._internal_minValue(), logFormula);
-        var max = toLog(priceRange._internal_maxValue(), logFormula);
-        return new PriceRangeImpl(min, max);
-    }
-    function canConvertPriceRangeFromLog(priceRange, logFormula) {
-        if (priceRange === null) {
-            return false;
-        }
-        var min = fromLog(priceRange._internal_minValue(), logFormula);
-        var max = fromLog(priceRange._internal_maxValue(), logFormula);
-        return isFinite(min) && isFinite(max);
-    }
-    function convertPriceRangeFromLog(priceRange, logFormula) {
-        if (priceRange === null) {
-            return null;
-        }
-        var min = fromLog(priceRange._internal_minValue(), logFormula);
-        var max = fromLog(priceRange._internal_maxValue(), logFormula);
-        return new PriceRangeImpl(min, max);
-    }
-    function logFormulaForPriceRange(range) {
-        if (range === null) {
-            return defLogFormula;
-        }
-        var diff = Math.abs(range._internal_maxValue() - range._internal_minValue());
-        if (diff >= 1 || diff < 1e-15) {
-            return defLogFormula;
-        }
-        var digits = Math.ceil(Math.abs(Math.log10(diff)));
-        var logicalOffset = defLogFormula._internal_logicalOffset + digits;
-        var coordOffset = 1 / Math.pow(10, logicalOffset);
-        return {
-            _internal_logicalOffset: logicalOffset,
-            _internal_coordOffset: coordOffset,
-        };
-    }
-    function logFormulasAreSame(f1, f2) {
-        return f1._internal_logicalOffset === f2._internal_logicalOffset && f1._internal_coordOffset === f2._internal_coordOffset;
-    }
 
     var emptyResult = {
         _internal_barColor: '',
@@ -4670,9 +9833,9 @@
             _this._private__animationTimeoutId = null;
             _this._private__options = options;
             _this._private__seriesType = seriesType;
-            var priceAxisView = new SeriesPriceAxisView(_this);
+            var priceAxisView = new SeriesPriceAxisLabelView(_this);
             _this._private__priceAxisViews = [priceAxisView];
-            _this._private__panePriceAxisView = new PanePriceAxisView(priceAxisView, _this, model);
+            _this._private__panePriceAxisLabelView = new PanePriceAxisLabelView(priceAxisView, _this, model);
             if (seriesType === 'Area' || seriesType === 'Line' || seriesType === 'Baseline') {
                 _this._private__lastPriceAnimationPaneView = new SeriesLastPriceAnimationPaneView(_this);
             }
@@ -4748,11 +9911,13 @@
             return this._private__options;
         };
         Series.prototype._internal_applyOptions = function (options) {
+            var _a;
             var targetPriceScaleId = options.priceScaleId;
             if (targetPriceScaleId !== undefined && targetPriceScaleId !== this._private__options.priceScaleId) {
                 // series cannot do it itself, ask model
                 this._internal_model()._internal_moveSeriesToScale(this, targetPriceScaleId);
             }
+            var previousPaneIndex = (_a = this._private__options.pane) !== null && _a !== void 0 ? _a : 0;
             merge(this._private__options, options);
             // eslint-disable-next-line deprecation/deprecation
             if (this._internal__priceScale !== null && options.scaleMargins !== undefined) {
@@ -4768,6 +9933,9 @@
                 // full update is quite heavy operation in terms of performance
                 // but updating formatter looks like quite rare so forcing a full update here shouldn't affect the performance a lot
                 this._internal_model()._internal_fullUpdate();
+            }
+            if (options.pane && previousPaneIndex !== options.pane) {
+                this._internal_model()._internal_moveSeriesToPane(this, previousPaneIndex, options.pane);
             }
             this._internal_model()._internal_updateSource(this);
             // a series might affect crosshair by some options (like crosshair markers)
@@ -4895,6 +10063,7 @@
                 this._private__animationTimeoutId = setTimeout(function () {
                     _this._private__animationTimeoutId = null;
                     _this._internal_model()._internal_cursorUpdate();
+                    // eslint-disable-next-line @typescript-eslint/tslint/config
                 }, 0);
             }
             animationPaneView._internal_invalidateStage();
@@ -4909,7 +10078,7 @@
                 var customPriceLine = _a[_i];
                 res.push.apply(res, customPriceLine._internal_paneViews());
             }
-            res.push(this._private__paneView, this._private__priceLineView, this._private__panePriceAxisView, this._private__markersPaneView);
+            res.push(this._private__paneView, this._private__priceLineView, this._private__panePriceAxisLabelView, this._private__markersPaneView);
             return res;
         };
         Series.prototype._internal_priceAxisViews = function (pane, priceScale) {
@@ -4928,7 +10097,7 @@
             if (this._private__options.autoscaleInfoProvider !== undefined) {
                 var autoscaleInfo = this._private__options.autoscaleInfoProvider(function () {
                     var res = _this._private__autoscaleInfoImpl(startTimePoint, endTimePoint);
-                    return (res === null) ? null : res._internal_toRaw();
+                    return res === null ? null : res._internal_toRaw();
                 });
                 return AutoscaleInfoImpl._internal_fromRaw(autoscaleInfo);
             }
@@ -5020,7 +10189,8 @@
                 case 'Line':
                 case 'Area':
                 case 'Baseline': {
-                    var crosshairMarkerBorderColor = this._private__options.crosshairMarkerBorderColor;
+                    var crosshairMarkerBorderColor = this._private__options
+                        .crosshairMarkerBorderColor;
                     if (crosshairMarkerBorderColor.length !== 0) {
                         return crosshairMarkerBorderColor;
                     }
@@ -5033,7 +10203,8 @@
                 case 'Line':
                 case 'Area':
                 case 'Baseline': {
-                    var crosshairMarkerBackgroundColor = this._private__options.crosshairMarkerBackgroundColor;
+                    var crosshairMarkerBackgroundColor = this._private__options
+                        .crosshairMarkerBackgroundColor;
                     if (crosshairMarkerBackgroundColor.length !== 0) {
                         return crosshairMarkerBackgroundColor;
                     }
@@ -5081,8 +10252,12 @@
                 return {
                     time: seriesDataIndex,
                     position: marker.position,
+                    rotation: marker.rotation,
                     shape: marker.shape,
                     color: marker.color,
+                    stroke: marker.stroke,
+                    anchor: marker.anchor,
+                    price: marker.price,
                     id: marker.id,
                     _internal_internalId: index,
                     text: marker.text,
@@ -5125,21 +10300,29 @@
                     this._private__paneView = new SeriesHistogramPaneView(this, this._internal_model());
                     break;
                 }
-                default: throw Error('Unknown chart style assigned: ' + this._private__seriesType);
+                default:
+                    throw Error('Unknown chart style assigned: ' + this._private__seriesType);
             }
         };
         return Series;
     }(PriceDataSource));
 
     var Magnet = /** @class */ (function () {
-        function Magnet(options) {
-            this._private__options = options;
+        function Magnet(threashold) {
+            this._private__enabled = false;
+            this._private__threashold = threashold;
         }
+        Magnet.prototype._internal_enable = function () {
+            this._private__enabled = true;
+        };
+        Magnet.prototype._internal_disable = function () {
+            this._private__enabled = false;
+        };
         Magnet.prototype._internal_align = function (price, index, pane) {
-            var res = price;
-            if (this._private__options.mode === 0 /* Normal */) {
-                return res;
+            if (!this._private__enabled) {
+                return price;
             }
+            var res = price;
             var defaultPriceScale = pane._internal_defaultPriceScale();
             var firstValue = defaultPriceScale._internal_firstValue();
             if (firstValue === null) {
@@ -5163,1305 +10346,20 @@
                 }
                 // convert bar to pixels
                 var firstPrice = ensure(series._internal_firstValue());
-                return acc.concat([ps._internal_priceToCoordinate(bar._internal_value[3 /* Close */], firstPrice._internal_value)]);
+                acc.push(ps._internal_priceToCoordinate(bar._internal_value[3 /* Close */], firstPrice._internal_value), ps._internal_priceToCoordinate(bar._internal_value[2 /* Low */], firstPrice._internal_value), ps._internal_priceToCoordinate(bar._internal_value[1 /* High */], firstPrice._internal_value), ps._internal_priceToCoordinate(bar._internal_value[0 /* Open */], firstPrice._internal_value));
+                return acc;
             }, []);
             if (candidates.length === 0) {
                 return res;
             }
             candidates.sort(function (y1, y2) { return Math.abs(y1 - y) - Math.abs(y2 - y); });
             var nearest = candidates[0];
-            res = defaultPriceScale._internal_coordinateToPrice(nearest, firstValue);
+            if (Math.abs(nearest - y) < this._private__threashold) {
+                res = defaultPriceScale._internal_coordinateToPrice(nearest, firstValue);
+            }
             return res;
         };
         return Magnet;
-    }());
-
-    var GridRenderer = /** @class */ (function () {
-        function GridRenderer() {
-            this._private__data = null;
-        }
-        GridRenderer.prototype._internal_setData = function (data) {
-            this._private__data = data;
-        };
-        GridRenderer.prototype._internal_draw = function (ctx, pixelRatio, isHovered, hitTestData) {
-            var _this = this;
-            if (this._private__data === null) {
-                return;
-            }
-            var lineWidth = Math.max(1, Math.floor(pixelRatio));
-            ctx.lineWidth = lineWidth;
-            var height = Math.ceil(this._private__data._internal_h * pixelRatio);
-            var width = Math.ceil(this._private__data._internal_w * pixelRatio);
-            strokeInPixel(ctx, function () {
-                var data = ensureNotNull(_this._private__data);
-                if (data._internal_vertLinesVisible) {
-                    ctx.strokeStyle = data._internal_vertLinesColor;
-                    setLineStyle(ctx, data._internal_vertLineStyle);
-                    ctx.beginPath();
-                    for (var _i = 0, _a = data._internal_timeMarks; _i < _a.length; _i++) {
-                        var timeMark = _a[_i];
-                        var x = Math.round(timeMark._internal_coord * pixelRatio);
-                        ctx.moveTo(x, -lineWidth);
-                        ctx.lineTo(x, height + lineWidth);
-                    }
-                    ctx.stroke();
-                }
-                if (data._internal_horzLinesVisible) {
-                    ctx.strokeStyle = data._internal_horzLinesColor;
-                    setLineStyle(ctx, data._internal_horzLineStyle);
-                    ctx.beginPath();
-                    for (var _b = 0, _c = data._internal_priceMarks; _b < _c.length; _b++) {
-                        var priceMark = _c[_b];
-                        var y = Math.round(priceMark._internal_coord * pixelRatio);
-                        ctx.moveTo(-lineWidth, y);
-                        ctx.lineTo(width + lineWidth, y);
-                    }
-                    ctx.stroke();
-                }
-            });
-        };
-        return GridRenderer;
-    }());
-
-    var GridPaneView = /** @class */ (function () {
-        function GridPaneView(pane) {
-            this._private__renderer = new GridRenderer();
-            this._private__invalidated = true;
-            this._private__pane = pane;
-        }
-        GridPaneView.prototype._internal_update = function () {
-            this._private__invalidated = true;
-        };
-        GridPaneView.prototype._internal_renderer = function (height, width) {
-            if (this._private__invalidated) {
-                var gridOptions = this._private__pane._internal_model()._internal_options().grid;
-                var data = {
-                    _internal_h: height,
-                    _internal_w: width,
-                    _internal_horzLinesVisible: gridOptions.horzLines.visible,
-                    _internal_vertLinesVisible: gridOptions.vertLines.visible,
-                    _internal_horzLinesColor: gridOptions.horzLines.color,
-                    _internal_vertLinesColor: gridOptions.vertLines.color,
-                    _internal_horzLineStyle: gridOptions.horzLines.style,
-                    _internal_vertLineStyle: gridOptions.vertLines.style,
-                    _internal_priceMarks: this._private__pane._internal_defaultPriceScale()._internal_marks(),
-                    _internal_timeMarks: this._private__pane._internal_model()._internal_timeScale()._internal_marks() || [],
-                };
-                this._private__renderer._internal_setData(data);
-                this._private__invalidated = false;
-            }
-            return this._private__renderer;
-        };
-        return GridPaneView;
-    }());
-
-    var Grid = /** @class */ (function () {
-        function Grid(pane) {
-            this._private__paneView = new GridPaneView(pane);
-        }
-        Grid.prototype._internal_paneView = function () {
-            return this._private__paneView;
-        };
-        return Grid;
-    }());
-
-    var PriceTickSpanCalculator = /** @class */ (function () {
-        function PriceTickSpanCalculator(base, integralDividers) {
-            this._private__base = base;
-            this._private__integralDividers = integralDividers;
-            if (isBaseDecimal(this._private__base)) {
-                this._private__fractionalDividers = [2, 2.5, 2];
-            }
-            else {
-                this._private__fractionalDividers = [];
-                for (var baseRest = this._private__base; baseRest !== 1;) {
-                    if ((baseRest % 2) === 0) {
-                        this._private__fractionalDividers.push(2);
-                        baseRest /= 2;
-                    }
-                    else if ((baseRest % 5) === 0) {
-                        this._private__fractionalDividers.push(2, 2.5);
-                        baseRest /= 5;
-                    }
-                    else {
-                        throw new Error('unexpected base');
-                    }
-                    if (this._private__fractionalDividers.length > 100) {
-                        throw new Error('something wrong with base');
-                    }
-                }
-            }
-        }
-        PriceTickSpanCalculator.prototype._internal_tickSpan = function (high, low, maxTickSpan) {
-            var minMovement = (this._private__base === 0) ? (0) : (1 / this._private__base);
-            var resultTickSpan = Math.pow(10, Math.max(0, Math.ceil(log10(high - low))));
-            var index = 0;
-            var c = this._private__integralDividers[0];
-            // eslint-disable-next-line no-constant-condition
-            while (true) {
-                // the second part is actual for small with very small values like 1e-10
-                // greaterOrEqual fails for such values
-                var resultTickSpanLargerMinMovement = greaterOrEqual(resultTickSpan, minMovement, 1e-14 /* TickSpanEpsilon */) && resultTickSpan > (minMovement + 1e-14 /* TickSpanEpsilon */);
-                var resultTickSpanLargerMaxTickSpan = greaterOrEqual(resultTickSpan, maxTickSpan * c, 1e-14 /* TickSpanEpsilon */);
-                var resultTickSpanLarger1 = greaterOrEqual(resultTickSpan, 1, 1e-14 /* TickSpanEpsilon */);
-                var haveToContinue = resultTickSpanLargerMinMovement && resultTickSpanLargerMaxTickSpan && resultTickSpanLarger1;
-                if (!haveToContinue) {
-                    break;
-                }
-                resultTickSpan /= c;
-                c = this._private__integralDividers[++index % this._private__integralDividers.length];
-            }
-            if (resultTickSpan <= (minMovement + 1e-14 /* TickSpanEpsilon */)) {
-                resultTickSpan = minMovement;
-            }
-            resultTickSpan = Math.max(1, resultTickSpan);
-            if ((this._private__fractionalDividers.length > 0) && equal(resultTickSpan, 1, 1e-14 /* TickSpanEpsilon */)) {
-                index = 0;
-                c = this._private__fractionalDividers[0];
-                while (greaterOrEqual(resultTickSpan, maxTickSpan * c, 1e-14 /* TickSpanEpsilon */) && resultTickSpan > (minMovement + 1e-14 /* TickSpanEpsilon */)) {
-                    resultTickSpan /= c;
-                    c = this._private__fractionalDividers[++index % this._private__fractionalDividers.length];
-                }
-            }
-            return resultTickSpan;
-        };
-        return PriceTickSpanCalculator;
-    }());
-
-    var TICK_DENSITY = 2.5;
-    var PriceTickMarkBuilder = /** @class */ (function () {
-        function PriceTickMarkBuilder(priceScale, base, coordinateToLogicalFunc, logicalToCoordinateFunc) {
-            this._private__marks = [];
-            this._private__priceScale = priceScale;
-            this._private__base = base;
-            this._private__coordinateToLogicalFunc = coordinateToLogicalFunc;
-            this._private__logicalToCoordinateFunc = logicalToCoordinateFunc;
-        }
-        PriceTickMarkBuilder.prototype._internal_tickSpan = function (high, low) {
-            if (high < low) {
-                throw new Error('high < low');
-            }
-            var scaleHeight = this._private__priceScale._internal_height();
-            var markHeight = this._private__tickMarkHeight();
-            var maxTickSpan = (high - low) * markHeight / scaleHeight;
-            var spanCalculator1 = new PriceTickSpanCalculator(this._private__base, [2, 2.5, 2]);
-            var spanCalculator2 = new PriceTickSpanCalculator(this._private__base, [2, 2, 2.5]);
-            var spanCalculator3 = new PriceTickSpanCalculator(this._private__base, [2.5, 2, 2]);
-            var spans = [];
-            spans.push(spanCalculator1._internal_tickSpan(high, low, maxTickSpan), spanCalculator2._internal_tickSpan(high, low, maxTickSpan), spanCalculator3._internal_tickSpan(high, low, maxTickSpan));
-            return min(spans);
-        };
-        PriceTickMarkBuilder.prototype._internal_rebuildTickMarks = function () {
-            var priceScale = this._private__priceScale;
-            var firstValue = priceScale._internal_firstValue();
-            if (firstValue === null) {
-                this._private__marks = [];
-                return;
-            }
-            var scaleHeight = priceScale._internal_height();
-            var bottom = this._private__coordinateToLogicalFunc(scaleHeight - 1, firstValue);
-            var top = this._private__coordinateToLogicalFunc(0, firstValue);
-            var extraTopBottomMargin = this._private__priceScale._internal_options().entireTextOnly ? this._private__fontHeight() / 2 : 0;
-            var minCoord = extraTopBottomMargin;
-            var maxCoord = scaleHeight - 1 - extraTopBottomMargin;
-            var high = Math.max(bottom, top);
-            var low = Math.min(bottom, top);
-            if (high === low) {
-                this._private__marks = [];
-                return;
-            }
-            var span = this._internal_tickSpan(high, low);
-            var mod = high % span;
-            mod += mod < 0 ? span : 0;
-            var sign = (high >= low) ? 1 : -1;
-            var prevCoord = null;
-            var targetIndex = 0;
-            for (var logical = high - mod; logical > low; logical -= span) {
-                var coord = this._private__logicalToCoordinateFunc(logical, firstValue, true);
-                // check if there is place for it
-                // this is required for log scale
-                if (prevCoord !== null && Math.abs(coord - prevCoord) < this._private__tickMarkHeight()) {
-                    continue;
-                }
-                // check if a tick mark is partially visible and skip it if entireTextOnly is true
-                if (coord < minCoord || coord > maxCoord) {
-                    continue;
-                }
-                if (targetIndex < this._private__marks.length) {
-                    this._private__marks[targetIndex]._internal_coord = coord;
-                    this._private__marks[targetIndex]._internal_label = priceScale._internal_formatLogical(logical);
-                }
-                else {
-                    this._private__marks.push({
-                        _internal_coord: coord,
-                        _internal_label: priceScale._internal_formatLogical(logical),
-                    });
-                }
-                targetIndex++;
-                prevCoord = coord;
-                if (priceScale._internal_isLog()) {
-                    // recalc span
-                    span = this._internal_tickSpan(logical * sign, low);
-                }
-            }
-            this._private__marks.length = targetIndex;
-        };
-        PriceTickMarkBuilder.prototype._internal_marks = function () {
-            return this._private__marks;
-        };
-        PriceTickMarkBuilder.prototype._private__fontHeight = function () {
-            return this._private__priceScale._internal_fontSize();
-        };
-        PriceTickMarkBuilder.prototype._private__tickMarkHeight = function () {
-            return Math.ceil(this._private__fontHeight() * TICK_DENSITY);
-        };
-        return PriceTickMarkBuilder;
-    }());
-
-    function sortSources(sources) {
-        return sources.slice().sort(function (s1, s2) {
-            return (ensureNotNull(s1._internal_zorder()) - ensureNotNull(s2._internal_zorder()));
-        });
-    }
-
-    /**
-     * Represents the price scale mode.
-     */
-    var PriceScaleMode;
-    (function (PriceScaleMode) {
-        /**
-         * Price scale shows prices. Price range changes linearly.
-         */
-        PriceScaleMode[PriceScaleMode["Normal"] = 0] = "Normal";
-        /**
-         * Price scale shows prices. Price range changes logarithmically.
-         */
-        PriceScaleMode[PriceScaleMode["Logarithmic"] = 1] = "Logarithmic";
-        /**
-         * Price scale shows percentage values according the first visible value of the price scale.
-         * The first visible value is 0% in this mode.
-         */
-        PriceScaleMode[PriceScaleMode["Percentage"] = 2] = "Percentage";
-        /**
-         * The same as percentage mode, but the first value is moved to 100.
-         */
-        PriceScaleMode[PriceScaleMode["IndexedTo100"] = 3] = "IndexedTo100";
-    })(PriceScaleMode || (PriceScaleMode = {}));
-    var percentageFormatter = new PercentageFormatter();
-    var defaultPriceFormatter = new PriceFormatter(100, 1);
-    var PriceScale = /** @class */ (function () {
-        function PriceScale(id, options, layoutOptions, localizationOptions) {
-            this._private__height = 0;
-            this._private__internalHeightCache = null;
-            this._private__priceRange = null;
-            this._private__priceRangeSnapshot = null;
-            this._private__invalidatedForRange = { _internal_isValid: false, _internal_visibleBars: null };
-            this._private__marginAbove = 0;
-            this._private__marginBelow = 0;
-            this._private__onMarksChanged = new Delegate();
-            this._private__modeChanged = new Delegate();
-            this._private__dataSources = [];
-            this._private__cachedOrderedSources = null;
-            this._private__marksCache = null;
-            this._private__scaleStartPoint = null;
-            this._private__scrollStartPoint = null;
-            this._private__formatter = defaultPriceFormatter;
-            this._private__logFormula = logFormulaForPriceRange(null);
-            this._private__id = id;
-            this._private__options = options;
-            this._private__layoutOptions = layoutOptions;
-            this._private__localizationOptions = localizationOptions;
-            this._private__markBuilder = new PriceTickMarkBuilder(this, 100, this._private__coordinateToLogical.bind(this), this._private__logicalToCoordinate.bind(this));
-        }
-        PriceScale.prototype._internal_id = function () {
-            return this._private__id;
-        };
-        PriceScale.prototype._internal_options = function () {
-            return this._private__options;
-        };
-        PriceScale.prototype._internal_applyOptions = function (options) {
-            merge(this._private__options, options);
-            this._internal_updateFormatter();
-            if (options.mode !== undefined) {
-                this._internal_setMode({ _internal_mode: options.mode });
-            }
-            if (options.scaleMargins !== undefined) {
-                var top_1 = ensureDefined(options.scaleMargins.top);
-                var bottom = ensureDefined(options.scaleMargins.bottom);
-                if (top_1 < 0 || top_1 > 1) {
-                    throw new Error("Invalid top margin - expect value between 0 and 1, given=".concat(top_1));
-                }
-                if (bottom < 0 || bottom > 1 || top_1 + bottom > 1) {
-                    throw new Error("Invalid bottom margin - expect value between 0 and 1, given=".concat(bottom));
-                }
-                if (top_1 + bottom > 1) {
-                    throw new Error("Invalid margins - sum of margins must be less than 1, given=".concat(top_1 + bottom));
-                }
-                this._private__invalidateInternalHeightCache();
-                this._private__marksCache = null;
-            }
-        };
-        PriceScale.prototype._internal_isAutoScale = function () {
-            return this._private__options.autoScale;
-        };
-        PriceScale.prototype._internal_isLog = function () {
-            return this._private__options.mode === 1 /* Logarithmic */;
-        };
-        PriceScale.prototype._internal_isPercentage = function () {
-            return this._private__options.mode === 2 /* Percentage */;
-        };
-        PriceScale.prototype._internal_isIndexedTo100 = function () {
-            return this._private__options.mode === 3 /* IndexedTo100 */;
-        };
-        PriceScale.prototype._internal_mode = function () {
-            return {
-                _internal_autoScale: this._private__options.autoScale,
-                _internal_isInverted: this._private__options.invertScale,
-                _internal_mode: this._private__options.mode,
-            };
-        };
-        // eslint-disable-next-line complexity
-        PriceScale.prototype._internal_setMode = function (newMode) {
-            var oldMode = this._internal_mode();
-            var priceRange = null;
-            if (newMode._internal_autoScale !== undefined) {
-                this._private__options.autoScale = newMode._internal_autoScale;
-            }
-            if (newMode._internal_mode !== undefined) {
-                this._private__options.mode = newMode._internal_mode;
-                if (newMode._internal_mode === 2 /* Percentage */ || newMode._internal_mode === 3 /* IndexedTo100 */) {
-                    this._private__options.autoScale = true;
-                }
-                // TODO: Remove after making rebuildTickMarks lazy
-                this._private__invalidatedForRange._internal_isValid = false;
-            }
-            // define which scale converted from
-            if (oldMode._internal_mode === 1 /* Logarithmic */ && newMode._internal_mode !== oldMode._internal_mode) {
-                if (canConvertPriceRangeFromLog(this._private__priceRange, this._private__logFormula)) {
-                    priceRange = convertPriceRangeFromLog(this._private__priceRange, this._private__logFormula);
-                    if (priceRange !== null) {
-                        this._internal_setPriceRange(priceRange);
-                    }
-                }
-                else {
-                    this._private__options.autoScale = true;
-                }
-            }
-            // define which scale converted to
-            if (newMode._internal_mode === 1 /* Logarithmic */ && newMode._internal_mode !== oldMode._internal_mode) {
-                priceRange = convertPriceRangeToLog(this._private__priceRange, this._private__logFormula);
-                if (priceRange !== null) {
-                    this._internal_setPriceRange(priceRange);
-                }
-            }
-            var modeChanged = oldMode._internal_mode !== this._private__options.mode;
-            if (modeChanged && (oldMode._internal_mode === 2 /* Percentage */ || this._internal_isPercentage())) {
-                this._internal_updateFormatter();
-            }
-            if (modeChanged && (oldMode._internal_mode === 3 /* IndexedTo100 */ || this._internal_isIndexedTo100())) {
-                this._internal_updateFormatter();
-            }
-            if (newMode._internal_isInverted !== undefined && oldMode._internal_isInverted !== newMode._internal_isInverted) {
-                this._private__options.invertScale = newMode._internal_isInverted;
-                this._private__onIsInvertedChanged();
-            }
-            this._private__modeChanged._internal_fire(oldMode, this._internal_mode());
-        };
-        PriceScale.prototype._internal_modeChanged = function () {
-            return this._private__modeChanged;
-        };
-        PriceScale.prototype._internal_fontSize = function () {
-            return this._private__layoutOptions.fontSize;
-        };
-        PriceScale.prototype._internal_height = function () {
-            return this._private__height;
-        };
-        PriceScale.prototype._internal_setHeight = function (value) {
-            if (this._private__height === value) {
-                return;
-            }
-            this._private__height = value;
-            this._private__invalidateInternalHeightCache();
-            this._private__marksCache = null;
-        };
-        PriceScale.prototype._internal_internalHeight = function () {
-            if (this._private__internalHeightCache) {
-                return this._private__internalHeightCache;
-            }
-            var res = this._internal_height() - this._private__topMarginPx() - this._private__bottomMarginPx();
-            this._private__internalHeightCache = res;
-            return res;
-        };
-        PriceScale.prototype._internal_priceRange = function () {
-            this._private__makeSureItIsValid();
-            return this._private__priceRange;
-        };
-        PriceScale.prototype._internal_logFormula = function () {
-            return this._private__logFormula;
-        };
-        PriceScale.prototype._internal_setPriceRange = function (newPriceRange, isForceSetValue) {
-            var oldPriceRange = this._private__priceRange;
-            if (!isForceSetValue &&
-                !(oldPriceRange === null && newPriceRange !== null) &&
-                (oldPriceRange === null || oldPriceRange._internal_equals(newPriceRange))) {
-                return;
-            }
-            this._private__marksCache = null;
-            this._private__priceRange = newPriceRange;
-        };
-        PriceScale.prototype._internal_isEmpty = function () {
-            this._private__makeSureItIsValid();
-            return this._private__height === 0 || !this._private__priceRange || this._private__priceRange._internal_isEmpty();
-        };
-        PriceScale.prototype._internal_invertedCoordinate = function (coordinate) {
-            return this._internal_isInverted() ? coordinate : this._internal_height() - 1 - coordinate;
-        };
-        PriceScale.prototype._internal_priceToCoordinate = function (price, baseValue) {
-            if (this._internal_isPercentage()) {
-                price = toPercent(price, baseValue);
-            }
-            else if (this._internal_isIndexedTo100()) {
-                price = toIndexedTo100(price, baseValue);
-            }
-            return this._private__logicalToCoordinate(price, baseValue);
-        };
-        PriceScale.prototype._internal_pointsArrayToCoordinates = function (points, baseValue, visibleRange) {
-            this._private__makeSureItIsValid();
-            var bh = this._private__bottomMarginPx();
-            var range = ensureNotNull(this._internal_priceRange());
-            var min = range._internal_minValue();
-            var max = range._internal_maxValue();
-            var ih = (this._internal_internalHeight() - 1);
-            var isInverted = this._internal_isInverted();
-            var hmm = ih / (max - min);
-            var fromIndex = (visibleRange === undefined) ? 0 : visibleRange.from;
-            var toIndex = (visibleRange === undefined) ? points.length : visibleRange.to;
-            var transformFn = this._private__getCoordinateTransformer();
-            for (var i = fromIndex; i < toIndex; i++) {
-                var point = points[i];
-                var price = point._internal_price;
-                if (isNaN(price)) {
-                    continue;
-                }
-                var logical = price;
-                if (transformFn !== null) {
-                    logical = transformFn(point._internal_price, baseValue);
-                }
-                var invCoordinate = bh + hmm * (logical - min);
-                var coordinate = isInverted ? invCoordinate : this._private__height - 1 - invCoordinate;
-                point._internal_y = coordinate;
-            }
-        };
-        PriceScale.prototype._internal_cloudPointsArrayToCoordinates = function (points, baseValue, visibleRange) {
-            this._private__makeSureItIsValid();
-            var bh = this._private__bottomMarginPx();
-            var range = ensureNotNull(this._internal_priceRange());
-            var min = range._internal_minValue();
-            var max = range._internal_maxValue();
-            var ih = (this._internal_internalHeight() - 1);
-            var isInverted = this._internal_isInverted();
-            var hmm = ih / (max - min);
-            var fromIndex = (visibleRange === undefined) ? 0 : visibleRange.from;
-            var toIndex = (visibleRange === undefined) ? points.length : visibleRange.to;
-            var transformFn = this._private__getCoordinateTransformer();
-            for (var i = fromIndex; i < toIndex; i++) {
-                var point = points[i];
-                var higherPrice = point._internal_higherPrice;
-                var lowerPrice = point._internal_lowerPrice;
-                if (isNaN(higherPrice) || isNaN(lowerPrice)) {
-                    continue;
-                }
-                var higherLogical = higherPrice;
-                var lowerLogical = lowerPrice;
-                if (transformFn !== null) {
-                    higherLogical = transformFn(point._internal_higherPrice, baseValue);
-                    lowerLogical = transformFn(point._internal_lowerPrice, baseValue);
-                }
-                var invCoordinate = bh + hmm * (higherLogical - min);
-                var coordinate = isInverted ? invCoordinate : this._private__height - 1 - invCoordinate;
-                point._internal_higherY = coordinate;
-                invCoordinate = bh + hmm * (lowerLogical - min);
-                coordinate = isInverted ? invCoordinate : this._private__height - 1 - invCoordinate;
-                point._internal_lowerY = coordinate;
-            }
-        };
-        PriceScale.prototype._internal_barPricesToCoordinates = function (pricesList, baseValue, visibleRange) {
-            this._private__makeSureItIsValid();
-            var bh = this._private__bottomMarginPx();
-            var range = ensureNotNull(this._internal_priceRange());
-            var min = range._internal_minValue();
-            var max = range._internal_maxValue();
-            var ih = (this._internal_internalHeight() - 1);
-            var isInverted = this._internal_isInverted();
-            var hmm = ih / (max - min);
-            var fromIndex = (visibleRange === undefined) ? 0 : visibleRange.from;
-            var toIndex = (visibleRange === undefined) ? pricesList.length : visibleRange.to;
-            var transformFn = this._private__getCoordinateTransformer();
-            for (var i = fromIndex; i < toIndex; i++) {
-                var bar = pricesList[i];
-                var openLogical = bar.open;
-                var highLogical = bar.high;
-                var lowLogical = bar.low;
-                var closeLogical = bar.close;
-                if (transformFn !== null) {
-                    openLogical = transformFn(bar.open, baseValue);
-                    highLogical = transformFn(bar.high, baseValue);
-                    lowLogical = transformFn(bar.low, baseValue);
-                    closeLogical = transformFn(bar.close, baseValue);
-                }
-                var invCoordinate = bh + hmm * (openLogical - min);
-                var coordinate = isInverted ? invCoordinate : this._private__height - 1 - invCoordinate;
-                bar._internal_openY = coordinate;
-                invCoordinate = bh + hmm * (highLogical - min);
-                coordinate = isInverted ? invCoordinate : this._private__height - 1 - invCoordinate;
-                bar._internal_highY = coordinate;
-                invCoordinate = bh + hmm * (lowLogical - min);
-                coordinate = isInverted ? invCoordinate : this._private__height - 1 - invCoordinate;
-                bar._internal_lowY = coordinate;
-                invCoordinate = bh + hmm * (closeLogical - min);
-                coordinate = isInverted ? invCoordinate : this._private__height - 1 - invCoordinate;
-                bar._internal_closeY = coordinate;
-            }
-        };
-        PriceScale.prototype._internal_coordinateToPrice = function (coordinate, baseValue) {
-            var logical = this._private__coordinateToLogical(coordinate, baseValue);
-            return this._internal_logicalToPrice(logical, baseValue);
-        };
-        PriceScale.prototype._internal_logicalToPrice = function (logical, baseValue) {
-            var value = logical;
-            if (this._internal_isPercentage()) {
-                value = fromPercent(value, baseValue);
-            }
-            else if (this._internal_isIndexedTo100()) {
-                value = fromIndexedTo100(value, baseValue);
-            }
-            return value;
-        };
-        PriceScale.prototype._internal_dataSources = function () {
-            return this._private__dataSources;
-        };
-        PriceScale.prototype._internal_orderedSources = function () {
-            if (this._private__cachedOrderedSources) {
-                return this._private__cachedOrderedSources;
-            }
-            var sources = [];
-            for (var i = 0; i < this._private__dataSources.length; i++) {
-                var ds = this._private__dataSources[i];
-                if (ds._internal_zorder() === null) {
-                    ds._internal_setZorder(i + 1);
-                }
-                sources.push(ds);
-            }
-            sources = sortSources(sources);
-            this._private__cachedOrderedSources = sources;
-            return this._private__cachedOrderedSources;
-        };
-        PriceScale.prototype._internal_addDataSource = function (source) {
-            if (this._private__dataSources.indexOf(source) !== -1) {
-                return;
-            }
-            this._private__dataSources.push(source);
-            this._internal_updateFormatter();
-            this._internal_invalidateSourcesCache();
-        };
-        PriceScale.prototype._internal_removeDataSource = function (source) {
-            var index = this._private__dataSources.indexOf(source);
-            if (index === -1) {
-                throw new Error('source is not attached to scale');
-            }
-            this._private__dataSources.splice(index, 1);
-            if (this._private__dataSources.length === 0) {
-                this._internal_setMode({
-                    _internal_autoScale: true,
-                });
-                // if no sources on price scale let's clear price range cache as well as enabling auto scale
-                this._internal_setPriceRange(null);
-            }
-            this._internal_updateFormatter();
-            this._internal_invalidateSourcesCache();
-        };
-        PriceScale.prototype._internal_firstValue = function () {
-            // TODO: cache the result
-            var result = null;
-            for (var _i = 0, _a = this._private__dataSources; _i < _a.length; _i++) {
-                var source = _a[_i];
-                var firstValue = source._internal_firstValue();
-                if (firstValue === null) {
-                    continue;
-                }
-                if (result === null || firstValue._internal_timePoint < result._internal_timePoint) {
-                    result = firstValue;
-                }
-            }
-            return result === null ? null : result._internal_value;
-        };
-        PriceScale.prototype._internal_isInverted = function () {
-            return this._private__options.invertScale;
-        };
-        PriceScale.prototype._internal_marks = function () {
-            var firstValueIsNull = this._internal_firstValue() === null;
-            // do not recalculate marks if firstValueIsNull is true because in this case we'll always get empty result
-            // this could happen in case when a series had some data and then you set empty data to it (in a simplified case)
-            // we could display an empty price scale, but this is not good from UX
-            // so in this case we need to keep an previous marks to display them on the scale
-            // as one of possible examples for this situation could be the following:
-            // let's say you have a study/indicator attached to a price scale and then you decide to stop it, i.e. remove its data because of its visibility
-            // a user will see the previous marks on the scale until you turn on your study back or remove it from the chart completely
-            if (this._private__marksCache !== null && (firstValueIsNull || this._private__marksCache._internal_firstValueIsNull === firstValueIsNull)) {
-                return this._private__marksCache._internal_marks;
-            }
-            this._private__markBuilder._internal_rebuildTickMarks();
-            var marks = this._private__markBuilder._internal_marks();
-            this._private__marksCache = { _internal_marks: marks, _internal_firstValueIsNull: firstValueIsNull };
-            this._private__onMarksChanged._internal_fire();
-            return marks;
-        };
-        PriceScale.prototype._internal_onMarksChanged = function () {
-            return this._private__onMarksChanged;
-        };
-        PriceScale.prototype._internal_startScale = function (x) {
-            if (this._internal_isPercentage() || this._internal_isIndexedTo100()) {
-                return;
-            }
-            if (this._private__scaleStartPoint !== null || this._private__priceRangeSnapshot !== null) {
-                return;
-            }
-            if (this._internal_isEmpty()) {
-                return;
-            }
-            // invert x
-            this._private__scaleStartPoint = this._private__height - x;
-            this._private__priceRangeSnapshot = ensureNotNull(this._internal_priceRange())._internal_clone();
-        };
-        PriceScale.prototype._internal_scaleTo = function (x) {
-            if (this._internal_isPercentage() || this._internal_isIndexedTo100()) {
-                return;
-            }
-            if (this._private__scaleStartPoint === null) {
-                return;
-            }
-            this._internal_setMode({
-                _internal_autoScale: false,
-            });
-            // invert x
-            x = this._private__height - x;
-            if (x < 0) {
-                x = 0;
-            }
-            var scaleCoeff = (this._private__scaleStartPoint + (this._private__height - 1) * 0.2) / (x + (this._private__height - 1) * 0.2);
-            var newPriceRange = ensureNotNull(this._private__priceRangeSnapshot)._internal_clone();
-            scaleCoeff = Math.max(scaleCoeff, 0.1);
-            newPriceRange._internal_scaleAroundCenter(scaleCoeff);
-            this._internal_setPriceRange(newPriceRange);
-        };
-        PriceScale.prototype._internal_endScale = function () {
-            if (this._internal_isPercentage() || this._internal_isIndexedTo100()) {
-                return;
-            }
-            this._private__scaleStartPoint = null;
-            this._private__priceRangeSnapshot = null;
-        };
-        PriceScale.prototype._internal_startScroll = function (x) {
-            if (this._internal_isAutoScale()) {
-                return;
-            }
-            if (this._private__scrollStartPoint !== null || this._private__priceRangeSnapshot !== null) {
-                return;
-            }
-            if (this._internal_isEmpty()) {
-                return;
-            }
-            this._private__scrollStartPoint = x;
-            this._private__priceRangeSnapshot = ensureNotNull(this._internal_priceRange())._internal_clone();
-        };
-        PriceScale.prototype._internal_scrollTo = function (x) {
-            if (this._internal_isAutoScale()) {
-                return;
-            }
-            if (this._private__scrollStartPoint === null) {
-                return;
-            }
-            var priceUnitsPerPixel = ensureNotNull(this._internal_priceRange())._internal_length() / (this._internal_internalHeight() - 1);
-            var pixelDelta = x - this._private__scrollStartPoint;
-            if (this._internal_isInverted()) {
-                pixelDelta *= -1;
-            }
-            var priceDelta = pixelDelta * priceUnitsPerPixel;
-            var newPriceRange = ensureNotNull(this._private__priceRangeSnapshot)._internal_clone();
-            newPriceRange._internal_shift(priceDelta);
-            this._internal_setPriceRange(newPriceRange, true);
-            this._private__marksCache = null;
-        };
-        PriceScale.prototype._internal_endScroll = function () {
-            if (this._internal_isAutoScale()) {
-                return;
-            }
-            if (this._private__scrollStartPoint === null) {
-                return;
-            }
-            this._private__scrollStartPoint = null;
-            this._private__priceRangeSnapshot = null;
-        };
-        PriceScale.prototype._internal_formatter = function () {
-            if (!this._private__formatter) {
-                this._internal_updateFormatter();
-            }
-            return this._private__formatter;
-        };
-        PriceScale.prototype._internal_formatPrice = function (price, firstValue) {
-            switch (this._private__options.mode) {
-                case 2 /* Percentage */:
-                    return this._internal_formatter().format(toPercent(price, firstValue));
-                case 3 /* IndexedTo100 */:
-                    return this._internal_formatter().format(toIndexedTo100(price, firstValue));
-                default:
-                    return this._private__formatPrice(price);
-            }
-        };
-        PriceScale.prototype._internal_formatLogical = function (logical) {
-            switch (this._private__options.mode) {
-                case 2 /* Percentage */:
-                case 3 /* IndexedTo100 */:
-                    return this._internal_formatter().format(logical);
-                default:
-                    return this._private__formatPrice(logical);
-            }
-        };
-        PriceScale.prototype._internal_formatPriceAbsolute = function (price) {
-            return this._private__formatPrice(price, ensureNotNull(this._private__formatterSource())._internal_formatter());
-        };
-        PriceScale.prototype._internal_formatPricePercentage = function (price, baseValue) {
-            price = toPercent(price, baseValue);
-            return percentageFormatter.format(price);
-        };
-        PriceScale.prototype._internal_sourcesForAutoScale = function () {
-            return this._private__dataSources;
-        };
-        PriceScale.prototype._internal_recalculatePriceRange = function (visibleBars) {
-            this._private__invalidatedForRange = {
-                _internal_visibleBars: visibleBars,
-                _internal_isValid: false,
-            };
-        };
-        PriceScale.prototype._internal_updateAllViews = function () {
-            this._private__dataSources.forEach(function (s) { return s._internal_updateAllViews(); });
-        };
-        PriceScale.prototype._internal_updateFormatter = function () {
-            this._private__marksCache = null;
-            var formatterSource = this._private__formatterSource();
-            var base = 100;
-            if (formatterSource !== null) {
-                base = Math.round(1 / formatterSource._internal_minMove());
-            }
-            this._private__formatter = defaultPriceFormatter;
-            if (this._internal_isPercentage()) {
-                this._private__formatter = percentageFormatter;
-                base = 100;
-            }
-            else if (this._internal_isIndexedTo100()) {
-                this._private__formatter = new PriceFormatter(100, 1);
-                base = 100;
-            }
-            else {
-                if (formatterSource !== null) {
-                    // user
-                    this._private__formatter = formatterSource._internal_formatter();
-                }
-            }
-            this._private__markBuilder = new PriceTickMarkBuilder(this, base, this._private__coordinateToLogical.bind(this), this._private__logicalToCoordinate.bind(this));
-            this._private__markBuilder._internal_rebuildTickMarks();
-        };
-        PriceScale.prototype._internal_invalidateSourcesCache = function () {
-            this._private__cachedOrderedSources = null;
-        };
-        /**
-         * @returns The {@link IPriceDataSource} that will be used as the "formatter source" (take minMove for formatter).
-         */
-        PriceScale.prototype._private__formatterSource = function () {
-            return this._private__dataSources[0] || null;
-        };
-        PriceScale.prototype._private__topMarginPx = function () {
-            return this._internal_isInverted()
-                ? this._private__options.scaleMargins.bottom * this._internal_height() + this._private__marginBelow
-                : this._private__options.scaleMargins.top * this._internal_height() + this._private__marginAbove;
-        };
-        PriceScale.prototype._private__bottomMarginPx = function () {
-            return this._internal_isInverted()
-                ? this._private__options.scaleMargins.top * this._internal_height() + this._private__marginAbove
-                : this._private__options.scaleMargins.bottom * this._internal_height() + this._private__marginBelow;
-        };
-        PriceScale.prototype._private__makeSureItIsValid = function () {
-            if (!this._private__invalidatedForRange._internal_isValid) {
-                this._private__invalidatedForRange._internal_isValid = true;
-                this._private__recalculatePriceRangeImpl();
-            }
-        };
-        PriceScale.prototype._private__invalidateInternalHeightCache = function () {
-            this._private__internalHeightCache = null;
-        };
-        PriceScale.prototype._private__logicalToCoordinate = function (logical, baseValue) {
-            this._private__makeSureItIsValid();
-            if (this._internal_isEmpty()) {
-                return 0;
-            }
-            logical = this._internal_isLog() && logical ? toLog(logical, this._private__logFormula) : logical;
-            var range = ensureNotNull(this._internal_priceRange());
-            var invCoordinate = this._private__bottomMarginPx() +
-                (this._internal_internalHeight() - 1) * (logical - range._internal_minValue()) / range._internal_length();
-            var coordinate = this._internal_invertedCoordinate(invCoordinate);
-            return coordinate;
-        };
-        PriceScale.prototype._private__coordinateToLogical = function (coordinate, baseValue) {
-            this._private__makeSureItIsValid();
-            if (this._internal_isEmpty()) {
-                return 0;
-            }
-            var invCoordinate = this._internal_invertedCoordinate(coordinate);
-            var range = ensureNotNull(this._internal_priceRange());
-            var logical = range._internal_minValue() + range._internal_length() *
-                ((invCoordinate - this._private__bottomMarginPx()) / (this._internal_internalHeight() - 1));
-            return this._internal_isLog() ? fromLog(logical, this._private__logFormula) : logical;
-        };
-        PriceScale.prototype._private__onIsInvertedChanged = function () {
-            this._private__marksCache = null;
-            this._private__markBuilder._internal_rebuildTickMarks();
-        };
-        // eslint-disable-next-line complexity
-        PriceScale.prototype._private__recalculatePriceRangeImpl = function () {
-            var visibleBars = this._private__invalidatedForRange._internal_visibleBars;
-            if (visibleBars === null) {
-                return;
-            }
-            var priceRange = null;
-            var sources = this._internal_sourcesForAutoScale();
-            var marginAbove = 0;
-            var marginBelow = 0;
-            for (var _i = 0, sources_1 = sources; _i < sources_1.length; _i++) {
-                var source = sources_1[_i];
-                if (!source._internal_visible()) {
-                    continue;
-                }
-                var firstValue = source._internal_firstValue();
-                if (firstValue === null) {
-                    continue;
-                }
-                var autoScaleInfo = source._internal_autoscaleInfo(visibleBars._internal_left(), visibleBars._internal_right());
-                var sourceRange = autoScaleInfo && autoScaleInfo._internal_priceRange();
-                if (sourceRange !== null) {
-                    switch (this._private__options.mode) {
-                        case 1 /* Logarithmic */:
-                            sourceRange = convertPriceRangeToLog(sourceRange, this._private__logFormula);
-                            break;
-                        case 2 /* Percentage */:
-                            sourceRange = toPercentRange(sourceRange, firstValue._internal_value);
-                            break;
-                        case 3 /* IndexedTo100 */:
-                            sourceRange = toIndexedTo100Range(sourceRange, firstValue._internal_value);
-                            break;
-                    }
-                    if (priceRange === null) {
-                        priceRange = sourceRange;
-                    }
-                    else {
-                        priceRange = priceRange._internal_merge(ensureNotNull(sourceRange));
-                    }
-                    if (autoScaleInfo !== null) {
-                        var margins = autoScaleInfo._internal_margins();
-                        if (margins !== null) {
-                            marginAbove = Math.max(marginAbove, margins.above);
-                            marginBelow = Math.max(marginAbove, margins.below);
-                        }
-                    }
-                }
-            }
-            if (marginAbove !== this._private__marginAbove || marginBelow !== this._private__marginBelow) {
-                this._private__marginAbove = marginAbove;
-                this._private__marginBelow = marginBelow;
-                this._private__marksCache = null;
-                this._private__invalidateInternalHeightCache();
-            }
-            if (priceRange !== null) {
-                // keep current range is new is empty
-                if (priceRange._internal_minValue() === priceRange._internal_maxValue()) {
-                    var formatterSource = this._private__formatterSource();
-                    var minMove = formatterSource === null || this._internal_isPercentage() || this._internal_isIndexedTo100() ? 1 : formatterSource._internal_minMove();
-                    // if price range is degenerated to 1 point let's extend it by 10 min move values
-                    // to avoid incorrect range and empty (blank) scale (in case of min tick much greater than 1)
-                    var extendValue = 5 * minMove;
-                    if (this._internal_isLog()) {
-                        priceRange = convertPriceRangeFromLog(priceRange, this._private__logFormula);
-                    }
-                    priceRange = new PriceRangeImpl(priceRange._internal_minValue() - extendValue, priceRange._internal_maxValue() + extendValue);
-                    if (this._internal_isLog()) {
-                        priceRange = convertPriceRangeToLog(priceRange, this._private__logFormula);
-                    }
-                }
-                if (this._internal_isLog()) {
-                    var rawRange = convertPriceRangeFromLog(priceRange, this._private__logFormula);
-                    var newLogFormula = logFormulaForPriceRange(rawRange);
-                    if (!logFormulasAreSame(newLogFormula, this._private__logFormula)) {
-                        var rawSnapshot = this._private__priceRangeSnapshot !== null ? convertPriceRangeFromLog(this._private__priceRangeSnapshot, this._private__logFormula) : null;
-                        this._private__logFormula = newLogFormula;
-                        priceRange = convertPriceRangeToLog(rawRange, newLogFormula);
-                        if (rawSnapshot !== null) {
-                            this._private__priceRangeSnapshot = convertPriceRangeToLog(rawSnapshot, newLogFormula);
-                        }
-                    }
-                }
-                this._internal_setPriceRange(priceRange);
-            }
-            else {
-                // reset empty to default
-                if (this._private__priceRange === null) {
-                    this._internal_setPriceRange(new PriceRangeImpl(-0.5, 0.5));
-                    this._private__logFormula = logFormulaForPriceRange(null);
-                }
-            }
-            this._private__invalidatedForRange._internal_isValid = true;
-        };
-        PriceScale.prototype._private__getCoordinateTransformer = function () {
-            var _this = this;
-            if (this._internal_isPercentage()) {
-                return toPercent;
-            }
-            else if (this._internal_isIndexedTo100()) {
-                return toIndexedTo100;
-            }
-            else if (this._internal_isLog()) {
-                return function (price) { return toLog(price, _this._private__logFormula); };
-            }
-            return null;
-        };
-        PriceScale.prototype._private__formatPrice = function (price, fallbackFormatter) {
-            if (this._private__localizationOptions.priceFormatter === undefined) {
-                if (fallbackFormatter === undefined) {
-                    fallbackFormatter = this._internal_formatter();
-                }
-                return fallbackFormatter.format(price);
-            }
-            return this._private__localizationOptions.priceFormatter(price);
-        };
-        return PriceScale;
-    }());
-
-    var DEFAULT_STRETCH_FACTOR = 1000;
-    var Pane = /** @class */ (function () {
-        function Pane(timeScale, model) {
-            this._private__dataSources = [];
-            this._private__overlaySourcesByScaleId = new Map();
-            this._private__height = 0;
-            this._private__width = 0;
-            this._private__stretchFactor = DEFAULT_STRETCH_FACTOR;
-            this._private__cachedOrderedSources = null;
-            this._private__destroyed = new Delegate();
-            this._private__timeScale = timeScale;
-            this._private__model = model;
-            this._private__grid = new Grid(this);
-            var options = model._internal_options();
-            this._private__leftPriceScale = this._private__createPriceScale("left" /* Left */, options.leftPriceScale);
-            this._private__rightPriceScale = this._private__createPriceScale("right" /* Right */, options.rightPriceScale);
-            this._private__leftPriceScale._internal_modeChanged()._internal_subscribe(this._private__onPriceScaleModeChanged.bind(this, this._private__leftPriceScale), this);
-            this._private__rightPriceScale._internal_modeChanged()._internal_subscribe(this._private__onPriceScaleModeChanged.bind(this, this._private__leftPriceScale), this);
-            this._internal_applyScaleOptions(options);
-        }
-        Pane.prototype._internal_applyScaleOptions = function (options) {
-            if (options.leftPriceScale) {
-                this._private__leftPriceScale._internal_applyOptions(options.leftPriceScale);
-            }
-            if (options.rightPriceScale) {
-                this._private__rightPriceScale._internal_applyOptions(options.rightPriceScale);
-            }
-            if (options.localization) {
-                this._private__leftPriceScale._internal_updateFormatter();
-                this._private__rightPriceScale._internal_updateFormatter();
-            }
-            if (options.overlayPriceScales) {
-                var sourceArrays = Array.from(this._private__overlaySourcesByScaleId.values());
-                for (var _i = 0, sourceArrays_1 = sourceArrays; _i < sourceArrays_1.length; _i++) {
-                    var arr = sourceArrays_1[_i];
-                    var priceScale = ensureNotNull(arr[0]._internal_priceScale());
-                    priceScale._internal_applyOptions(options.overlayPriceScales);
-                    if (options.localization) {
-                        priceScale._internal_updateFormatter();
-                    }
-                }
-            }
-        };
-        Pane.prototype._internal_priceScaleById = function (id) {
-            switch (id) {
-                case "left" /* Left */: {
-                    return this._private__leftPriceScale;
-                }
-                case "right" /* Right */: {
-                    return this._private__rightPriceScale;
-                }
-            }
-            if (this._private__overlaySourcesByScaleId.has(id)) {
-                return ensureDefined(this._private__overlaySourcesByScaleId.get(id))[0]._internal_priceScale();
-            }
-            return null;
-        };
-        Pane.prototype._internal_destroy = function () {
-            this._internal_model()._internal_priceScalesOptionsChanged()._internal_unsubscribeAll(this);
-            this._private__leftPriceScale._internal_modeChanged()._internal_unsubscribeAll(this);
-            this._private__rightPriceScale._internal_modeChanged()._internal_unsubscribeAll(this);
-            this._private__dataSources.forEach(function (source) {
-                if (source._internal_destroy) {
-                    source._internal_destroy();
-                }
-            });
-            this._private__destroyed._internal_fire();
-        };
-        Pane.prototype._internal_stretchFactor = function () {
-            return this._private__stretchFactor;
-        };
-        Pane.prototype._internal_setStretchFactor = function (factor) {
-            this._private__stretchFactor = factor;
-        };
-        Pane.prototype._internal_model = function () {
-            return this._private__model;
-        };
-        Pane.prototype._internal_width = function () {
-            return this._private__width;
-        };
-        Pane.prototype._internal_height = function () {
-            return this._private__height;
-        };
-        Pane.prototype._internal_setWidth = function (width) {
-            this._private__width = width;
-            this._internal_updateAllSources();
-        };
-        Pane.prototype._internal_setHeight = function (height) {
-            var _this = this;
-            this._private__height = height;
-            this._private__leftPriceScale._internal_setHeight(height);
-            this._private__rightPriceScale._internal_setHeight(height);
-            // process overlays
-            this._private__dataSources.forEach(function (ds) {
-                if (_this._internal_isOverlay(ds)) {
-                    var priceScale = ds._internal_priceScale();
-                    if (priceScale !== null) {
-                        priceScale._internal_setHeight(height);
-                    }
-                }
-            });
-            this._internal_updateAllSources();
-        };
-        Pane.prototype._internal_dataSources = function () {
-            return this._private__dataSources;
-        };
-        Pane.prototype._internal_isOverlay = function (source) {
-            var priceScale = source._internal_priceScale();
-            if (priceScale === null) {
-                return true;
-            }
-            return this._private__leftPriceScale !== priceScale && this._private__rightPriceScale !== priceScale;
-        };
-        Pane.prototype._internal_addDataSource = function (source, targetScaleId, zOrder) {
-            var targetZOrder = (zOrder !== undefined) ? zOrder : this._private__getZOrderMinMax()._internal_maxZOrder + 1;
-            this._private__insertDataSource(source, targetScaleId, targetZOrder);
-        };
-        Pane.prototype._internal_removeDataSource = function (source) {
-            var index = this._private__dataSources.indexOf(source);
-            assert(index !== -1, 'removeDataSource: invalid data source');
-            this._private__dataSources.splice(index, 1);
-            var priceScaleId = ensureNotNull(source._internal_priceScale())._internal_id();
-            if (this._private__overlaySourcesByScaleId.has(priceScaleId)) {
-                var overlaySources = ensureDefined(this._private__overlaySourcesByScaleId.get(priceScaleId));
-                var overlayIndex = overlaySources.indexOf(source);
-                if (overlayIndex !== -1) {
-                    overlaySources.splice(overlayIndex, 1);
-                    if (overlaySources.length === 0) {
-                        this._private__overlaySourcesByScaleId.delete(priceScaleId);
-                    }
-                }
-            }
-            var priceScale = source._internal_priceScale();
-            // if source has owner, it returns owner's price scale
-            // and it does not have source in their list
-            if (priceScale && priceScale._internal_dataSources().indexOf(source) >= 0) {
-                priceScale._internal_removeDataSource(source);
-            }
-            if (priceScale !== null) {
-                priceScale._internal_invalidateSourcesCache();
-                this._internal_recalculatePriceScale(priceScale);
-            }
-            this._private__cachedOrderedSources = null;
-        };
-        Pane.prototype._internal_priceScalePosition = function (priceScale) {
-            if (priceScale === this._private__leftPriceScale) {
-                return 'left';
-            }
-            if (priceScale === this._private__rightPriceScale) {
-                return 'right';
-            }
-            return 'overlay';
-        };
-        Pane.prototype._internal_leftPriceScale = function () {
-            return this._private__leftPriceScale;
-        };
-        Pane.prototype._internal_rightPriceScale = function () {
-            return this._private__rightPriceScale;
-        };
-        Pane.prototype._internal_startScalePrice = function (priceScale, x) {
-            priceScale._internal_startScale(x);
-        };
-        Pane.prototype._internal_scalePriceTo = function (priceScale, x) {
-            priceScale._internal_scaleTo(x);
-            // TODO: be more smart and update only affected views
-            this._internal_updateAllSources();
-        };
-        Pane.prototype._internal_endScalePrice = function (priceScale) {
-            priceScale._internal_endScale();
-        };
-        Pane.prototype._internal_startScrollPrice = function (priceScale, x) {
-            priceScale._internal_startScroll(x);
-        };
-        Pane.prototype._internal_scrollPriceTo = function (priceScale, x) {
-            priceScale._internal_scrollTo(x);
-            this._internal_updateAllSources();
-        };
-        Pane.prototype._internal_endScrollPrice = function (priceScale) {
-            priceScale._internal_endScroll();
-        };
-        Pane.prototype._internal_updateAllSources = function () {
-            this._private__dataSources.forEach(function (source) {
-                source._internal_updateAllViews();
-            });
-        };
-        Pane.prototype._internal_defaultPriceScale = function () {
-            var priceScale = null;
-            if (this._private__model._internal_options().rightPriceScale.visible && this._private__rightPriceScale._internal_dataSources().length !== 0) {
-                priceScale = this._private__rightPriceScale;
-            }
-            else if (this._private__model._internal_options().leftPriceScale.visible && this._private__leftPriceScale._internal_dataSources().length !== 0) {
-                priceScale = this._private__leftPriceScale;
-            }
-            else if (this._private__dataSources.length !== 0) {
-                priceScale = this._private__dataSources[0]._internal_priceScale();
-            }
-            if (priceScale === null) {
-                priceScale = this._private__rightPriceScale;
-            }
-            return priceScale;
-        };
-        Pane.prototype._internal_defaultVisiblePriceScale = function () {
-            var priceScale = null;
-            if (this._private__model._internal_options().rightPriceScale.visible) {
-                priceScale = this._private__rightPriceScale;
-            }
-            else if (this._private__model._internal_options().leftPriceScale.visible) {
-                priceScale = this._private__leftPriceScale;
-            }
-            return priceScale;
-        };
-        Pane.prototype._internal_recalculatePriceScale = function (priceScale) {
-            if (priceScale === null || !priceScale._internal_isAutoScale()) {
-                return;
-            }
-            this._private__recalculatePriceScaleImpl(priceScale);
-        };
-        Pane.prototype._internal_resetPriceScale = function (priceScale) {
-            var visibleBars = this._private__timeScale._internal_visibleStrictRange();
-            priceScale._internal_setMode({ _internal_autoScale: true });
-            if (visibleBars !== null) {
-                priceScale._internal_recalculatePriceRange(visibleBars);
-            }
-            this._internal_updateAllSources();
-        };
-        Pane.prototype._internal_momentaryAutoScale = function () {
-            this._private__recalculatePriceScaleImpl(this._private__leftPriceScale);
-            this._private__recalculatePriceScaleImpl(this._private__rightPriceScale);
-        };
-        Pane.prototype._internal_recalculate = function () {
-            var _this = this;
-            this._internal_recalculatePriceScale(this._private__leftPriceScale);
-            this._internal_recalculatePriceScale(this._private__rightPriceScale);
-            this._private__dataSources.forEach(function (ds) {
-                if (_this._internal_isOverlay(ds)) {
-                    _this._internal_recalculatePriceScale(ds._internal_priceScale());
-                }
-            });
-            this._internal_updateAllSources();
-            this._private__model._internal_lightUpdate();
-        };
-        Pane.prototype._internal_orderedSources = function () {
-            if (this._private__cachedOrderedSources === null) {
-                this._private__cachedOrderedSources = sortSources(this._private__dataSources);
-            }
-            return this._private__cachedOrderedSources;
-        };
-        Pane.prototype._internal_onDestroyed = function () {
-            return this._private__destroyed;
-        };
-        Pane.prototype._internal_grid = function () {
-            return this._private__grid;
-        };
-        Pane.prototype._private__recalculatePriceScaleImpl = function (priceScale) {
-            // TODO: can use this checks
-            var sourceForAutoScale = priceScale._internal_sourcesForAutoScale();
-            if (sourceForAutoScale && sourceForAutoScale.length > 0 && !this._private__timeScale._internal_isEmpty()) {
-                var visibleBars = this._private__timeScale._internal_visibleStrictRange();
-                if (visibleBars !== null) {
-                    priceScale._internal_recalculatePriceRange(visibleBars);
-                }
-            }
-            priceScale._internal_updateAllViews();
-        };
-        Pane.prototype._private__getZOrderMinMax = function () {
-            var sources = this._internal_orderedSources();
-            if (sources.length === 0) {
-                return { _internal_minZOrder: 0, _internal_maxZOrder: 0 };
-            }
-            var minZOrder = 0;
-            var maxZOrder = 0;
-            for (var j = 0; j < sources.length; j++) {
-                var ds = sources[j];
-                var zOrder = ds._internal_zorder();
-                if (zOrder !== null) {
-                    if (zOrder < minZOrder) {
-                        minZOrder = zOrder;
-                    }
-                    if (zOrder > maxZOrder) {
-                        maxZOrder = zOrder;
-                    }
-                }
-            }
-            return { _internal_minZOrder: minZOrder, _internal_maxZOrder: maxZOrder };
-        };
-        Pane.prototype._private__insertDataSource = function (source, priceScaleId, zOrder) {
-            var priceScale = this._internal_priceScaleById(priceScaleId);
-            if (priceScale === null) {
-                priceScale = this._private__createPriceScale(priceScaleId, this._private__model._internal_options().overlayPriceScales);
-            }
-            this._private__dataSources.push(source);
-            if (!isDefaultPriceScale(priceScaleId)) {
-                var overlaySources = this._private__overlaySourcesByScaleId.get(priceScaleId) || [];
-                overlaySources.push(source);
-                this._private__overlaySourcesByScaleId.set(priceScaleId, overlaySources);
-            }
-            if (typeof source._internal_seriesType === 'undefined' || source._internal_seriesType() !== 'BrokenArea') {
-                priceScale._internal_addDataSource(source);
-            }
-            source._internal_setPriceScale(priceScale);
-            source._internal_setZorder(zOrder);
-            this._internal_recalculatePriceScale(priceScale);
-            this._private__cachedOrderedSources = null;
-        };
-        Pane.prototype._private__onPriceScaleModeChanged = function (priceScale, oldMode, newMode) {
-            if (oldMode._internal_mode === newMode._internal_mode) {
-                return;
-            }
-            // momentary auto scale if we toggle percentage/indexedTo100 mode
-            this._private__recalculatePriceScaleImpl(priceScale);
-        };
-        Pane.prototype._private__createPriceScale = function (id, options) {
-            var actualOptions = __assign({ visible: true, autoScale: true }, clone(options));
-            var priceScale = new PriceScale(id, actualOptions, this._private__model._internal_options().layout, this._private__model._internal_options().localization);
-            priceScale._internal_setHeight(this._internal_height());
-            return priceScale;
-        };
-        return Pane;
     }());
 
     var getMonth = function (date) { return date.getUTCMonth() + 1; };
@@ -6610,6 +10508,9 @@
         };
         RangeImpl.prototype._internal_right = function () {
             return this._private__right;
+        };
+        RangeImpl.prototype._internal_valueAt = function (position) {
+            return (this._private__left + (this._private__right - this._private__left) * position);
         };
         RangeImpl.prototype._internal_count = function () {
             return this._private__right - this._private__left + 1;
@@ -6776,6 +10677,20 @@
          */
         TickMarkType[TickMarkType["TimeWithSeconds"] = 4] = "TimeWithSeconds";
     })(TickMarkType || (TickMarkType = {}));
+    /**
+     * Represents the time scale mode.
+     */
+    var TimeScaleMode;
+    (function (TimeScaleMode) {
+        /**
+         * Time scale shows every signle time on a new bar
+         */
+        TimeScaleMode[TimeScaleMode["Normal"] = 0] = "Normal";
+        /**
+         * Price range changes based on the distance between the different time points
+         */
+        TimeScaleMode[TimeScaleMode["Euclidean"] = 1] = "Euclidean";
+    })(TimeScaleMode || (TimeScaleMode = {}));
     var TimeScale = /** @class */ (function () {
         function TimeScale(model, options, localizationOptions) {
             this._private__width = 0;
@@ -6786,6 +10701,7 @@
             this._private__tickMarks = new TickMarks();
             this._private__formattedByWeight = new Map();
             this._private__visibleRange = TimeScaleVisibleRange._internal_invalid();
+            this._private__visibleValueRange = TimeScaleVisibleRange._internal_invalid();
             this._private__visibleRangeInvalidated = true;
             this._private__visibleBarsChanged = new Delegate();
             this._private__logicalRangeChanged = new Delegate();
@@ -6838,6 +10754,28 @@
             var _a;
             return ((_a = this._private__points[index]) === null || _a === void 0 ? void 0 : _a._internal_time) || null;
         };
+        TimeScale.prototype._internal_floatIndexToTime = function (index) {
+            var _a, _b, _c, _d;
+            var index1 = Math.floor(index);
+            var index2 = Math.ceil(index);
+            var time1 = (_a = this._private__points[index1]) === null || _a === void 0 ? void 0 : _a._internal_time._internal_timestamp;
+            var time2 = (_b = this._private__points[index2]) === null || _b === void 0 ? void 0 : _b._internal_time._internal_timestamp;
+            var firstTime = (_c = this._private__points[0]) === null || _c === void 0 ? void 0 : _c._internal_time._internal_timestamp;
+            var lastTime = (_d = this._private__points[this._private__points.length - 1]) === null || _d === void 0 ? void 0 : _d._internal_time._internal_timestamp;
+            var interval = this._private__points[1]._internal_time._internal_timestamp - this._private__points[0]._internal_time._internal_timestamp;
+            if (index >= this._private__points.length - 1) {
+                return lastTime + interval * (index - this._private__points.length + 1);
+            }
+            else if (index < 0) {
+                return firstTime - interval * -index;
+            }
+            else if (time1 && time2) {
+                return time1 + (time2 - time1) * (index - index1);
+            }
+            else {
+                return null;
+            }
+        };
         TimeScale.prototype._internal_timeToIndex = function (time, findNearest) {
             if (this._private__points.length < 1) {
                 // no time points available
@@ -6852,6 +10790,16 @@
                 return findNearest ? index : null;
             }
             return index;
+        };
+        TimeScale.prototype._internal_timeToFloatIndex = function (time, findNearest) {
+            var toIndex = this._internal_timeToIndex(time, findNearest);
+            if (toIndex === null) {
+                return null;
+            }
+            var fromIndex = Math.max(toIndex - 1, 0);
+            var fromValue = this._private__points[fromIndex]._internal_time._internal_timestamp;
+            var toValue = this._private__points[toIndex]._internal_time._internal_timestamp;
+            return (fromIndex + (1 - (toValue - time._internal_timestamp) / (toValue - fromValue)));
         };
         TimeScale.prototype._internal_isEmpty = function () {
             return this._private__width === 0 || this._private__points.length === 0 || this._private__baseIndexOrNull === null;
@@ -6888,8 +10836,8 @@
         };
         TimeScale.prototype._internal_logicalRangeForTimeRange = function (range) {
             return {
-                from: ensureNotNull(this._internal_timeToIndex(range.from, true)),
-                to: ensureNotNull(this._internal_timeToIndex(range.to, true)),
+                from: ensureNotNull(this._internal_timeToFloatIndex(range.from, true)),
+                to: ensureNotNull(this._internal_timeToFloatIndex(range.to, true)),
             };
         };
         TimeScale.prototype._internal_width = function () {
@@ -6931,23 +10879,73 @@
             this._private__correctOffset();
         };
         TimeScale.prototype._internal_indexToCoordinate = function (index) {
-            if (this._internal_isEmpty() || !isInteger(index)) {
+            if (this._internal_isEmpty()) {
                 return 0;
             }
-            var baseIndex = this._internal_baseIndex();
-            var deltaFromRight = baseIndex + this._private__rightOffset - index;
-            var coordinate = this._private__width - (deltaFromRight + 0.5) * this._private__barSpacing - 1;
-            return coordinate;
-        };
-        TimeScale.prototype._internal_indexesToCoordinates = function (points, visibleRange) {
-            var baseIndex = this._internal_baseIndex();
-            var indexFrom = (visibleRange === undefined) ? 0 : visibleRange.from;
-            var indexTo = (visibleRange === undefined) ? points.length : visibleRange.to;
-            for (var i = indexFrom; i < indexTo; i++) {
-                var index = points[i]._internal_time;
+            if (this._private__options.mode === 1 /* Euclidean */) {
+                var time = this._internal_indexToTime(index);
+                if (!time) {
+                    return 0;
+                }
+                return this._internal_timeToCoordinate(time);
+            }
+            else {
+                if (!isInteger(index)) {
+                    return 0;
+                }
+                var baseIndex = this._internal_baseIndex();
                 var deltaFromRight = baseIndex + this._private__rightOffset - index;
                 var coordinate = this._private__width - (deltaFromRight + 0.5) * this._private__barSpacing - 1;
-                points[i]._internal_x = coordinate;
+                return coordinate;
+            }
+        };
+        TimeScale.prototype._internal_indexesToCoordinates = function (points, visibleRange) {
+            var _a;
+            if (this._private__options.mode === 1 /* Euclidean */) {
+                var intervalRange = this._private__visibleValueRange._internal_logicalRange();
+                var start = (intervalRange === null || intervalRange === void 0 ? void 0 : intervalRange._internal_left()) || 0;
+                var end = (intervalRange === null || intervalRange === void 0 ? void 0 : intervalRange._internal_right()) || 0;
+                for (var i = 0; i < points.length; i++) {
+                    var utc = (((_a = this._internal_indexToTime(points[i]._internal_time)) === null || _a === void 0 ? void 0 : _a._internal_timestamp) || 0);
+                    points[i]._internal_x = this._private__width * ((utc - start) / (end - start));
+                }
+            }
+            else {
+                var baseIndex = this._internal_baseIndex();
+                var indexFrom = (visibleRange === undefined) ? 0 : visibleRange.from;
+                var indexTo = (visibleRange === undefined) ? points.length : visibleRange.to;
+                for (var i = indexFrom; i < indexTo; i++) {
+                    var index = points[i]._internal_time;
+                    var deltaFromRight = baseIndex + this._private__rightOffset - index;
+                    var coordinate = this._private__width - (deltaFromRight + 0.5) * this._private__barSpacing - 1;
+                    points[i]._internal_x = coordinate;
+                }
+            }
+        };
+        TimeScale.prototype._internal_timeToCoordinate = function (timePoint) {
+            if (this._private__options.mode === 1 /* Euclidean */) {
+                var intervalRange = this._private__visibleValueRange._internal_logicalRange();
+                var start = (intervalRange === null || intervalRange === void 0 ? void 0 : intervalRange._internal_left()) || 0;
+                var end = (intervalRange === null || intervalRange === void 0 ? void 0 : intervalRange._internal_right()) || 0;
+                var utc = timePoint._internal_timestamp;
+                return this._private__width * ((utc - start) / (end - start));
+            }
+            else {
+                var index = this._internal_timeToIndex(timePoint, true);
+                var timestamp = this._private__points[index]._internal_time._internal_timestamp;
+                var x = this._internal_indexToCoordinate(index);
+                if (timestamp === timePoint._internal_timestamp) {
+                    return x;
+                }
+                else if (index === 0 || index === this._private__points.length - 1) {
+                    var interval = this._private__points[1]._internal_time._internal_timestamp - this._private__points[0]._internal_time._internal_timestamp;
+                    var timeDiff = timePoint._internal_timestamp - timestamp;
+                    var bars = timeDiff / interval;
+                    return x + (bars * this._internal_barSpacing());
+                }
+                else {
+                    return x;
+                }
             }
         };
         TimeScale.prototype._internal_indexesToCoordinatesExtensions = function (points, extensionsBoundaries, visibleRange) {
@@ -6971,6 +10969,19 @@
         };
         TimeScale.prototype._internal_coordinateToIndex = function (x) {
             return Math.ceil(this._private__coordinateToFloatIndex(x));
+        };
+        TimeScale.prototype._internal_coordinateToTime = function (x) {
+            var interval = this._private__points[1]._internal_time._internal_timestamp - this._private__points[0]._internal_time._internal_timestamp;
+            var index = this._internal_coordinateToIndex(x);
+            if (index >= this._private__points.length) {
+                var extraTime = interval * (index - this._private__points.length + 1);
+                return { _internal_timestamp: this._private__points[this._private__points.length - 1]._internal_time._internal_timestamp + extraTime };
+            }
+            else if (index < 0) {
+                var extraTime = interval * -index;
+                return { _internal_timestamp: this._private__points[0]._internal_time._internal_timestamp - extraTime };
+            }
+            return this._private__points[index]._internal_time;
         };
         TimeScale.prototype._internal_setRightOffset = function (offset) {
             this._private__visibleRangeInvalidated = true;
@@ -7002,7 +11013,7 @@
             }
             var spacing = this._private__barSpacing;
             var fontSize = this._private__model._internal_options().layout.fontSize;
-            var maxLabelWidth = (fontSize + 4) * 5;
+            var maxLabelWidth = (fontSize + 4) * (this._private__options.mode === 1 /* Euclidean */ ? 12 : 5);
             var indexPerLabel = Math.round(maxLabelWidth / spacing);
             var visibleBars = ensureNotNull(this._internal_visibleStrictRange());
             var firstBar = Math.max(visibleBars._internal_left(), visibleBars._internal_left() - indexPerLabel);
@@ -7018,22 +11029,29 @@
             var targetIndex = 0;
             for (var _i = 0, items_1 = items; _i < items_1.length; _i++) {
                 var tm = items_1[_i];
-                if (!(firstBar <= tm._internal_index && tm._internal_index <= lastBar)) {
+                var index = this._private__options.mode === 1 /* Euclidean */
+                    ? this._internal_timeToFloatIndex(tm._internal_time, true)
+                    : tm._internal_index;
+                if (!(firstBar <= index && index <= lastBar)) {
                     continue;
                 }
                 var label = void 0;
                 if (targetIndex < this._private__labels.length) {
                     label = this._private__labels[targetIndex];
-                    label._internal_coord = this._internal_indexToCoordinate(tm._internal_index);
                     label._internal_label = this._private__formatLabel(tm._internal_time, tm._internal_weight);
                     label._internal_weight = tm._internal_weight;
+                    label._internal_coord = this._private__options.mode === 1 /* Euclidean */
+                        ? this._internal_timeToCoordinate(tm._internal_time)
+                        : this._internal_indexToCoordinate(index);
                 }
                 else {
                     label = {
                         _internal_needAlignCoordinate: false,
-                        _internal_coord: this._internal_indexToCoordinate(tm._internal_index),
                         _internal_label: this._private__formatLabel(tm._internal_time, tm._internal_weight),
                         _internal_weight: tm._internal_weight,
+                        _internal_coord: this._private__options.mode === 1 /* Euclidean */
+                            ? this._internal_timeToCoordinate(tm._internal_time)
+                            : this._internal_indexToCoordinate(index),
                     };
                     this._private__labels.push(label);
                 }
@@ -7168,7 +11186,22 @@
         TimeScale.prototype._internal_update = function (newPoints, firstChangedPointIndex) {
             this._private__visibleRangeInvalidated = true;
             this._private__points = newPoints;
-            this._private__tickMarks._internal_setTimeScalePoints(newPoints, firstChangedPointIndex);
+            if (this._private__options.mode === 1 /* Euclidean */) {
+                var to = newPoints[newPoints.length - 1]._internal_time._internal_timestamp;
+                var from = newPoints[0]._internal_time._internal_timestamp;
+                var tickSize = (to - from) / newPoints.length;
+                var interval = Math.pow(10, Math.floor(Math.log10(tickSize)));
+                var start = Math.floor(from / interval) * interval;
+                var end = Math.ceil(to / interval) * interval;
+                var points = [];
+                for (var index = start; index < end; index += interval) {
+                    points.push({ _internal_time: { _internal_timestamp: index }, _internal_timeWeight: 50 /* Day */ });
+                }
+                this._private__tickMarks._internal_setTimeScalePoints(points, 0);
+            }
+            else {
+                this._private__tickMarks._internal_setTimeScalePoints(newPoints, firstChangedPointIndex);
+            }
             this._private__correctOffset();
         };
         TimeScale.prototype._internal_visibleBarsChanged = function () {
@@ -7188,9 +11221,28 @@
             return this._private__baseIndexOrNull || 0;
         };
         TimeScale.prototype._internal_setVisibleRange = function (range) {
-            var length = range._internal_count();
-            this._private__setBarSpacing(this._private__width / length);
-            this._private__rightOffset = range._internal_right() - this._internal_baseIndex();
+            if (this._private__options.mode === 1 /* Euclidean */) {
+                var leftValue = this._internal_floatIndexToTime(range._internal_left());
+                var rightValue = this._internal_floatIndexToTime(range._internal_right());
+                if (!leftValue || !rightValue) {
+                    return;
+                }
+                var lastValue = this._private__points[this._private__points.length - 1]._internal_time._internal_timestamp;
+                var firstValue = this._private__points[0]._internal_time._internal_timestamp;
+                var avg = (lastValue - firstValue) / this._private__points.length;
+                var right = (rightValue - firstValue) / avg;
+                var left = (leftValue - firstValue) / avg;
+                var offset = right - this._internal_baseIndex();
+                var barsLength = right - left + 1;
+                var space = this._private__width / barsLength;
+                this._private__setBarSpacing(space);
+                this._private__rightOffset = (offset);
+            }
+            else {
+                var length_1 = range._internal_count();
+                this._private__setBarSpacing(this._private__width / length_1);
+                this._private__rightOffset = range._internal_right() - this._internal_baseIndex();
+            }
             this._private__correctOffset();
             this._private__visibleRangeInvalidated = true;
             this._private__model._internal_recalculateAllPanes();
@@ -7235,12 +11287,19 @@
             return (this._private__width - 1 - x) / this._private__barSpacing;
         };
         TimeScale.prototype._private__coordinateToFloatIndex = function (x) {
-            var deltaFromRight = this._private__rightOffsetForCoordinate(x);
-            var baseIndex = this._internal_baseIndex();
-            var index = baseIndex + this._private__rightOffset - deltaFromRight;
-            // JavaScript uses very strange rounding
-            // we need rounding to avoid problems with calculation errors
-            return Math.round(index * 1000000) / 1000000;
+            var valueRange = this._private__visibleValueRange._internal_logicalRange();
+            if (this._private__options.mode === 1 /* Euclidean */ && valueRange) {
+                var value = valueRange._internal_valueAt(x / this._private__width);
+                return this._internal_timeToFloatIndex({ _internal_timestamp: value }, true) || 0;
+            }
+            else {
+                var deltaFromRight = this._private__rightOffsetForCoordinate(x);
+                var baseIndex = this._internal_baseIndex();
+                var index = baseIndex + this._private__rightOffset - deltaFromRight;
+                // JavaScript uses very strange rounding
+                // we need rounding to avoid problems with calculation errors
+                return Math.round(index * 1000000) / 1000000;
+            }
         };
         TimeScale.prototype._private__setBarSpacing = function (newBarSpacing) {
             var oldBarSpacing = this._private__barSpacing;
@@ -7253,6 +11312,7 @@
             }
         };
         TimeScale.prototype._private__updateVisibleRange = function () {
+            var _this = this;
             if (!this._private__visibleRangeInvalidated) {
                 return;
             }
@@ -7265,6 +11325,20 @@
             var newBarsLength = this._private__width / this._private__barSpacing;
             var rightBorder = this._private__rightOffset + baseIndex;
             var leftBorder = rightBorder - newBarsLength + 1;
+            if (this._private__options.mode === 1 /* Euclidean */ && this._private__points.length) {
+                var lastValue = this._private__points[this._private__points.length - 1]._internal_time._internal_timestamp;
+                var firstValue = this._private__points[0]._internal_time._internal_timestamp;
+                var avg = (lastValue - firstValue) / this._private__points.length;
+                var leftValue_1 = firstValue + leftBorder * avg;
+                var rightValue_1 = firstValue + rightBorder * avg;
+                this._private__visibleValueRange = new TimeScaleVisibleRange(new RangeImpl(leftValue_1, rightValue_1));
+                leftBorder = leftValue_1 < firstValue
+                    ? (leftValue_1 - firstValue) / avg
+                    : this._private__points.findIndex(function (e, i) { return _this._private__points[i + 1]._internal_time._internal_timestamp >= leftValue_1; });
+                rightBorder = rightValue_1 > lastValue
+                    ? this._private__points.length - 1 + (rightValue_1 - lastValue) / avg
+                    : findLastIndex(this._private__points, function (e) { return e._internal_time._internal_timestamp <= rightValue_1; });
+            }
             var logicalRange = new RangeImpl(leftBorder, rightBorder);
             this._private__setVisibleRange(new TimeScaleVisibleRange(logicalRange));
         };
@@ -7624,20 +11698,23 @@
     var ChartModel = /** @class */ (function () {
         function ChartModel(invalidateHandler, options) {
             this._private__panes = [];
+            this._private__panesToIndex = new Map();
             this._private__serieses = [];
             this._private__width = 0;
             this._private__initialTimeScrollPos = null;
             this._private__hoveredSource = null;
             this._private__priceScalesOptionsChanged = new Delegate();
             this._private__crosshairMoved = new Delegate();
+            this._private__suppressSeriesMoving = false;
             this._private__gradientColorsCache = null;
             this._private__invalidateHandler = invalidateHandler;
             this._private__options = options;
             this._private__rendererOptionsProvider = new PriceAxisRendererOptionsProvider(this);
             this._private__timeScale = new TimeScale(this, options.timeScale, this._private__options.localization);
             this._private__crosshair = new Crosshair(this, options.crosshair);
-            this._private__magnet = new Magnet(options.crosshair);
             this._private__watermark = new Watermark(this, options.watermark);
+            this._private__magnet = new Magnet(options.crosshair.magnetThreshold);
+            this._private__lineToolCreator = new LineToolCreator(this);
             this._internal_createPane();
             this._private__panes[0]._internal_setStretchFactor(DEFAULT_STRETCH_FACTOR * 2);
             this._private__backgroundTopColor = this._private__getBackgroundColor(0 /* Top */);
@@ -7658,6 +11735,17 @@
         };
         ChartModel.prototype._internal_hoveredSource = function () {
             return this._private__hoveredSource;
+        };
+        ChartModel.prototype._internal_dataSources = function () {
+            var sources = [];
+            for (var _i = 0, _a = this._private__panes; _i < _a.length; _i++) {
+                var pane = _a[_i];
+                for (var _b = 0, _c = pane._internal_dataSources(); _b < _c.length; _b++) {
+                    var paneSource = _c[_b];
+                    sources.push(paneSource);
+                }
+            }
+            return sources;
         };
         ChartModel.prototype._internal_setHoveredSource = function (source) {
             var prevSource = this._private__hoveredSource;
@@ -7732,8 +11820,14 @@
         ChartModel.prototype._internal_watermarkSource = function () {
             return this._private__watermark;
         };
+        ChartModel.prototype._internal_lineToolCreator = function () {
+            return this._private__lineToolCreator;
+        };
         ChartModel.prototype._internal_crosshairSource = function () {
             return this._private__crosshair;
+        };
+        ChartModel.prototype._internal_magnet = function () {
+            return this._private__magnet;
         };
         ChartModel.prototype._internal_crosshairMoved = function () {
             return this._private__crosshairMoved;
@@ -7749,7 +11843,18 @@
             this._internal_recalculateAllPanes();
         };
         ChartModel.prototype._internal_createPane = function (index) {
-            var pane = new Pane(this._private__timeScale, this);
+            if (index !== undefined) {
+                if (index > this._private__panes.length) {
+                    for (var i = this._private__panes.length; i < index; i++) {
+                        this._internal_createPane(i);
+                    }
+                }
+                else if (index < this._private__panes.length) {
+                    return this._private__panes[index];
+                }
+            }
+            var actualIndex = (index === undefined) ? (this._private__panes.length - 1) + 1 : index;
+            var pane = new Pane(this._private__timeScale, this, actualIndex);
             if (index !== undefined) {
                 this._private__panes.splice(index, 0, pane);
             }
@@ -7757,7 +11862,7 @@
                 // adding to the end - common case
                 this._private__panes.push(pane);
             }
-            var actualIndex = (index === undefined) ? this._private__panes.length - 1 : index;
+            this._private__buildPaneIndexMapping();
             // we always do autoscaling on the creation
             // if autoscale option is true, it is ok, just recalculate by invalidation mask
             // if autoscale option is false, autoscale anyway on the first draw
@@ -7769,6 +11874,60 @@
             });
             this._private__invalidate(mask);
             return pane;
+        };
+        ChartModel.prototype._internal_removePane = function (index) {
+            var _this = this;
+            if (index === 0) {
+                // we don't support removing the first pane.
+                return;
+            }
+            var paneToRemove = this._private__panes[index];
+            paneToRemove._internal_orderedSources().forEach(function (source) {
+                if (source instanceof Series) {
+                    _this._internal_removeSeries(source);
+                }
+            });
+            this._private__suppressSeriesMoving = true;
+            if (index !== this._private__panes.length - 1) {
+                var _loop_1 = function (i) {
+                    var pane = this_1._private__panes[i];
+                    pane._internal_orderedSources().forEach(function (source) {
+                        if (source instanceof Series) {
+                            source._internal_applyOptions({ pane: i - 1 });
+                        }
+                    });
+                };
+                var this_1 = this;
+                // this is not the last pane
+                for (var i = index + 1; i < this._private__panes.length; i++) {
+                    _loop_1(i);
+                }
+            }
+            this._private__panes.splice(index, 1);
+            this._private__suppressSeriesMoving = false;
+            this._private__buildPaneIndexMapping();
+            var mask = new InvalidateMask(3 /* Full */);
+            this._private__invalidate(mask);
+        };
+        ChartModel.prototype._internal_swapPane = function (first, second) {
+            var firstPane = this._private__panes[first];
+            var secondPane = this._private__panes[second];
+            this._private__suppressSeriesMoving = true;
+            firstPane._internal_orderedSources().forEach(function (source) {
+                if (source instanceof Series) {
+                    source._internal_applyOptions({ pane: second });
+                }
+            });
+            secondPane._internal_orderedSources().forEach(function (source) {
+                if (source instanceof Series) {
+                    source._internal_applyOptions({ pane: first });
+                }
+            });
+            this._private__panes[first] = secondPane;
+            this._private__panes[second] = firstPane;
+            this._private__suppressSeriesMoving = false;
+            this._private__buildPaneIndexMapping();
+            this._private__invalidate(new InvalidateMask(3 /* Full */));
         };
         ChartModel.prototype._internal_startScalePrice = function (pane, priceScale, x) {
             pane._internal_startScalePrice(priceScale, x);
@@ -7877,7 +12036,9 @@
             price = this._private__magnet._internal_align(price, index, pane);
             this._private__crosshair._internal_setPosition(index, price, pane);
             this._internal_cursorUpdate();
-            this._private__crosshairMoved._internal_fire(this._private__crosshair._internal_appliedIndex(), { x: x, y: y });
+            var point = new Point(x, y);
+            point._internal_paneIndex = this._internal_getPaneIndex(pane);
+            this._private__crosshairMoved._internal_fire(this._private__crosshair._internal_appliedIndex(), point);
         };
         ChartModel.prototype._internal_clearCurrentPosition = function () {
             var crosshair = this._internal_crosshairSource();
@@ -7950,7 +12111,11 @@
             return this._private__priceScalesOptionsChanged;
         };
         ChartModel.prototype._internal_createSeries = function (seriesType, options) {
-            var pane = this._private__panes[0];
+            var paneIndex = options.pane || 0;
+            if (this._private__panes.length - 1 <= paneIndex) {
+                this._internal_createPane(paneIndex);
+            }
+            var pane = this._private__panes[paneIndex];
             var series = this._private__createSeries(options, seriesType, pane);
             this._private__serieses.push(series);
             if (this._private__serieses.length === 1) {
@@ -7971,6 +12136,12 @@
             if (series._internal_destroy) {
                 series._internal_destroy();
             }
+        };
+        ChartModel.prototype._internal_createLineTool = function (lineToolType, options, points) {
+            var lineTool = new LineTools[lineToolType](this, options, points);
+            // TODO: iosif add to ownerSourceId pane
+            this._private__panes[0]._internal_addDataSource(lineTool, this._internal_defaultVisiblePriceScaleId());
+            return lineTool;
         };
         ChartModel.prototype._internal_moveSeriesToScale = function (series, targetScaleId) {
             var pane = ensureNotNull(this._internal_paneForSource(series));
@@ -8017,6 +12188,19 @@
         ChartModel.prototype._internal_defaultVisiblePriceScaleId = function () {
             return this._private__options.rightPriceScale.visible ? "right" /* Right */ : "left" /* Left */;
         };
+        ChartModel.prototype._internal_moveSeriesToPane = function (series, fromPaneIndex, newPaneIndex) {
+            if (newPaneIndex === fromPaneIndex || this._private__suppressSeriesMoving) {
+                // no change
+                return;
+            }
+            if (series._internal_options().pane !== newPaneIndex) {
+                series._internal_applyOptions({ pane: newPaneIndex });
+            }
+            var previousPane = this._internal_paneForSource(series);
+            previousPane === null || previousPane === void 0 ? void 0 : previousPane._internal_removeDataSource(series);
+            var newPane = this._internal_createPane(newPaneIndex);
+            this._private__addSeriesToPane(series, newPane);
+        };
         ChartModel.prototype._internal_backgroundBottomColor = function () {
             return this._private__backgroundBottomColor;
         };
@@ -8051,6 +12235,10 @@
             this._private__gradientColorsCache._internal_colors.set(percent, result);
             return result;
         };
+        ChartModel.prototype._internal_getPaneIndex = function (pane) {
+            var _a;
+            return (_a = this._private__panesToIndex.get(pane)) !== null && _a !== void 0 ? _a : 0;
+        };
         ChartModel.prototype._private__paneInvalidationMask = function (pane, level) {
             var inv = new InvalidateMask(level);
             if (pane !== null) {
@@ -8075,13 +12263,17 @@
         };
         ChartModel.prototype._private__createSeries = function (options, seriesType, pane) {
             var series = new Series(this, options, seriesType);
-            var targetScaleId = options.priceScaleId !== undefined ? options.priceScaleId : this._internal_defaultVisiblePriceScaleId();
+            this._private__addSeriesToPane(series, pane);
+            return series;
+        };
+        ChartModel.prototype._private__addSeriesToPane = function (series, pane) {
+            var priceScaleId = series._internal_options().priceScaleId;
+            var targetScaleId = priceScaleId !== undefined ? priceScaleId : this._internal_defaultVisiblePriceScaleId();
             pane._internal_addDataSource(series, targetScaleId);
             if (!isDefaultPriceScale(targetScaleId)) {
                 // let's apply that options again to apply margins
-                series._internal_applyOptions(options);
+                series._internal_applyOptions(series._internal_options());
             }
-            return series;
         };
         ChartModel.prototype._private__getBackgroundColor = function (side) {
             var layoutOptions = this._private__options.layout;
@@ -8091,6 +12283,12 @@
                     layoutOptions.background.bottomColor;
             }
             return layoutOptions.background.color;
+        };
+        ChartModel.prototype._private__buildPaneIndexMapping = function () {
+            this._private__panesToIndex.clear();
+            for (var i = 0; i < this._private__panes.length; i++) {
+                this._private__panesToIndex.set(this._private__panes[i], i);
+            }
         };
         return ChartModel;
     }());
@@ -8152,6 +12350,27 @@
          */
         PriceLineSource[PriceLineSource["LastVisible"] = 1] = "LastVisible";
     })(PriceLineSource || (PriceLineSource = {}));
+
+    var BoxVerticalAlignment;
+    (function (BoxVerticalAlignment) {
+        BoxVerticalAlignment["Top"] = "top";
+        BoxVerticalAlignment["Middle"] = "middle";
+        BoxVerticalAlignment["Bottom"] = "bottom";
+    })(BoxVerticalAlignment || (BoxVerticalAlignment = {}));
+    var BoxHorizontalAlignment;
+    (function (BoxHorizontalAlignment) {
+        BoxHorizontalAlignment["Left"] = "left";
+        BoxHorizontalAlignment["Center"] = "center";
+        BoxHorizontalAlignment["Right"] = "right";
+    })(BoxHorizontalAlignment || (BoxHorizontalAlignment = {}));
+    var TextAlignment;
+    (function (TextAlignment) {
+        TextAlignment["Start"] = "start";
+        TextAlignment["Center"] = "center";
+        TextAlignment["End"] = "end";
+        TextAlignment["Left"] = "left";
+        TextAlignment["Right"] = "right";
+    })(TextAlignment || (TextAlignment = {}));
 
     /**
      * Represents a type of color.
@@ -8345,115 +12564,6 @@
         return binding;
     }
 
-    function distanceBetweenPoints(pos1, pos2) {
-        return pos1._internal_position - pos2._internal_position;
-    }
-    function speedPxPerMSec(pos1, pos2, maxSpeed) {
-        var speed = (pos1._internal_position - pos2._internal_position) / (pos1._internal_time - pos2._internal_time);
-        return Math.sign(speed) * Math.min(Math.abs(speed), maxSpeed);
-    }
-    function durationMSec(speed, dumpingCoeff) {
-        var lnDumpingCoeff = Math.log(dumpingCoeff);
-        return Math.log((1 /* EpsilonDistance */ * lnDumpingCoeff) / -speed) / (lnDumpingCoeff);
-    }
-    var KineticAnimation = /** @class */ (function () {
-        function KineticAnimation(minSpeed, maxSpeed, dumpingCoeff, minMove) {
-            this._private__position1 = null;
-            this._private__position2 = null;
-            this._private__position3 = null;
-            this._private__position4 = null;
-            this._private__animationStartPosition = null;
-            this._private__durationMsecs = 0;
-            this._private__speedPxPerMsec = 0;
-            this._private__terminated = false;
-            this._private__minSpeed = minSpeed;
-            this._private__maxSpeed = maxSpeed;
-            this._private__dumpingCoeff = dumpingCoeff;
-            this._private__minMove = minMove;
-        }
-        KineticAnimation.prototype._internal_addPosition = function (position, time) {
-            if (this._private__position1 !== null) {
-                if (this._private__position1._internal_time === time) {
-                    this._private__position1._internal_position = position;
-                    return;
-                }
-                if (Math.abs(this._private__position1._internal_position - position) < this._private__minMove) {
-                    return;
-                }
-            }
-            this._private__position4 = this._private__position3;
-            this._private__position3 = this._private__position2;
-            this._private__position2 = this._private__position1;
-            this._private__position1 = { _internal_time: time, _internal_position: position };
-        };
-        KineticAnimation.prototype._internal_start = function (position, time) {
-            if (this._private__position1 === null || this._private__position2 === null) {
-                return;
-            }
-            if (time - this._private__position1._internal_time > 50 /* MaxStartDelay */) {
-                return;
-            }
-            // To calculate all the rest parameters we should calculate the speed af first
-            var totalDistance = 0;
-            var speed1 = speedPxPerMSec(this._private__position1, this._private__position2, this._private__maxSpeed);
-            var distance1 = distanceBetweenPoints(this._private__position1, this._private__position2);
-            // We're calculating weighted average speed
-            // Than more distance for a segment, than more its weight
-            var speedItems = [speed1];
-            var distanceItems = [distance1];
-            totalDistance += distance1;
-            if (this._private__position3 !== null) {
-                var speed2 = speedPxPerMSec(this._private__position2, this._private__position3, this._private__maxSpeed);
-                // stop at this moment if direction of the segment is opposite
-                if (Math.sign(speed2) === Math.sign(speed1)) {
-                    var distance2 = distanceBetweenPoints(this._private__position2, this._private__position3);
-                    speedItems.push(speed2);
-                    distanceItems.push(distance2);
-                    totalDistance += distance2;
-                    if (this._private__position4 !== null) {
-                        var speed3 = speedPxPerMSec(this._private__position3, this._private__position4, this._private__maxSpeed);
-                        if (Math.sign(speed3) === Math.sign(speed1)) {
-                            var distance3 = distanceBetweenPoints(this._private__position3, this._private__position4);
-                            speedItems.push(speed3);
-                            distanceItems.push(distance3);
-                            totalDistance += distance3;
-                        }
-                    }
-                }
-            }
-            var resultSpeed = 0;
-            for (var i = 0; i < speedItems.length; ++i) {
-                resultSpeed += distanceItems[i] / totalDistance * speedItems[i];
-            }
-            if (Math.abs(resultSpeed) < this._private__minSpeed) {
-                return;
-            }
-            this._private__animationStartPosition = { _internal_position: position, _internal_time: time };
-            this._private__speedPxPerMsec = resultSpeed;
-            this._private__durationMsecs = durationMSec(Math.abs(resultSpeed), this._private__dumpingCoeff);
-        };
-        KineticAnimation.prototype._internal_getPosition = function (time) {
-            var startPosition = ensureNotNull(this._private__animationStartPosition);
-            var durationMsecs = time - startPosition._internal_time;
-            return startPosition._internal_position + this._private__speedPxPerMsec * (Math.pow(this._private__dumpingCoeff, durationMsecs) - 1) / (Math.log(this._private__dumpingCoeff));
-        };
-        KineticAnimation.prototype._internal_finished = function (time) {
-            return this._private__animationStartPosition === null || this._private__progressDuration(time) === this._private__durationMsecs;
-        };
-        KineticAnimation.prototype._internal_terminated = function () {
-            return this._private__terminated;
-        };
-        KineticAnimation.prototype._internal_terminate = function () {
-            this._private__terminated = true;
-        };
-        KineticAnimation.prototype._private__progressDuration = function (time) {
-            var startPosition = ensureNotNull(this._private__animationStartPosition);
-            var progress = time - startPosition._internal_time;
-            return Math.min(progress, this._private__durationMsecs);
-        };
-        return KineticAnimation;
-    }());
-
     /**
      * When you're trying to use the library in server-side context (for instance in SSR)
      * you don't have some browser-specific variables like navigator or window
@@ -8499,6 +12609,11 @@
         });
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function isInputEventListener(object) {
+        // eslint-disable-next-line @typescript-eslint/tslint/config
+        return object._internal_onInputEvent !== undefined;
+    }
     // TODO: get rid of a lot of boolean flags, probably we should replace it with some enum
     var MouseEventHandler = /** @class */ (function () {
         function MouseEventHandler(target, handler, options) {
@@ -9097,6 +13212,247 @@
         return null;
     }
 
+    var SEPARATOR_HEIGHT = 1;
+    var PaneSeparator = /** @class */ (function () {
+        function PaneSeparator(chartWidget, topPaneIndex, bottomPaneIndex, disableResize) {
+            this._private__startY = 0;
+            this._private__deltaY = 0;
+            this._private__totalHeight = 0;
+            this._private__totalStretch = 0;
+            this._private__minPaneHeight = 0;
+            this._private__maxPaneHeight = 0;
+            this._private__pixelStretchFactor = 0;
+            this._private__mouseActive = false;
+            this._private__chartWidget = chartWidget;
+            this._private__paneA = chartWidget._internal_paneWidgets()[topPaneIndex];
+            this._private__paneB = chartWidget._internal_paneWidgets()[bottomPaneIndex];
+            this._private__rowElement = document.createElement('tr');
+            this._private__rowElement.style.height = SEPARATOR_HEIGHT + 'px';
+            this._private__cell = document.createElement('td');
+            this._private__cell.style.position = 'relative';
+            this._private__cell.style.padding = '0';
+            this._private__cell.style.margin = '0';
+            this._private__cell.style.height = '1.5px';
+            this._private__cell.setAttribute('colspan', '3');
+            this._private__updateBorderColor();
+            this._private__rowElement.appendChild(this._private__cell);
+            if (disableResize) {
+                this._private__handle = null;
+                this._private__mouseEventHandler = null;
+            }
+            else {
+                this._private__handle = document.createElement('div');
+                this._private__handle.style.position = 'absolute';
+                this._private__handle.style.zIndex = '50';
+                this._private__handle.style.top = '-3.75px';
+                this._private__handle.style.height = '9px';
+                this._private__handle.style.width = '100%';
+                this._private__handle.style.cursor = 'row-resize';
+                this._private__handle.style.backgroundColor = '#0092ea';
+                this._private__handle.style.opacity = '0';
+                this._private__cell.appendChild(this._private__handle);
+                var handlers = {
+                    _internal_mouseEnterEvent: this._private__mouseOverEvent.bind(this),
+                    _internal_mouseLeaveEvent: this._private__mouseLeaveEvent.bind(this),
+                    _internal_mouseDownEvent: this._private__mouseDownEvent.bind(this),
+                    _internal_touchStartEvent: this._private__mouseDownEvent.bind(this),
+                    _internal_pressedMouseMoveEvent: this._private__pressedMouseMoveEvent.bind(this),
+                    _internal_touchMoveEvent: this._private__pressedMouseMoveEvent.bind(this),
+                    _internal_mouseUpEvent: this._private__mouseUpEvent.bind(this),
+                    _internal_touchEndEvent: this._private__mouseUpEvent.bind(this),
+                };
+                this._private__mouseEventHandler = new MouseEventHandler(this._private__handle, handlers, {
+                    _internal_treatVertTouchDragAsPageScroll: function () { return false; },
+                    _internal_treatHorzTouchDragAsPageScroll: function () { return true; },
+                });
+            }
+        }
+        PaneSeparator.prototype._internal_destroy = function () {
+            if (this._private__mouseEventHandler !== null) {
+                this._private__mouseEventHandler._internal_destroy();
+            }
+        };
+        PaneSeparator.prototype._internal_getElement = function () {
+            return this._private__rowElement;
+        };
+        PaneSeparator.prototype._internal_getSize = function () {
+            return new Size(this._private__paneA._internal_getSize()._internal_w, SEPARATOR_HEIGHT);
+        };
+        PaneSeparator.prototype._internal_getImage = function () {
+            var size = this._internal_getSize();
+            var res = createPreconfiguredCanvas(document, size);
+            var ctx = getContext2D(res);
+            ctx.fillStyle = this._private__chartWidget._internal_options().timeScale.borderColor;
+            ctx.fillRect(0, 0, size._internal_w, size._internal_h);
+            return res;
+        };
+        PaneSeparator.prototype._internal_update = function () {
+            this._private__updateBorderColor();
+        };
+        PaneSeparator.prototype._private__updateBorderColor = function () {
+            this._private__cell.style.background =
+                this._private__chartWidget._internal_options().timeScale.borderColor;
+        };
+        PaneSeparator.prototype._private__mouseOverEvent = function (event) {
+            if (this._private__handle !== null) {
+                this._private__handle.style.opacity = '0.15';
+                this._private__cell.style.background = '#0092ea';
+            }
+        };
+        PaneSeparator.prototype._private__mouseLeaveEvent = function (event) {
+            if (this._private__handle !== null && !this._private__mouseActive) {
+                this._private__handle.style.opacity = '0';
+                this._private__updateBorderColor();
+            }
+        };
+        PaneSeparator.prototype._private__mouseDownEvent = function (event) {
+            this._private__startY = event._internal_pageY;
+            this._private__deltaY = 0;
+            this._private__totalHeight = this._private__paneA._internal_getSize()._internal_h + this._private__paneB._internal_getSize()._internal_h;
+            this._private__totalStretch =
+                this._private__paneA._internal_stretchFactor() + this._private__paneB._internal_stretchFactor();
+            this._private__minPaneHeight = 30;
+            this._private__maxPaneHeight = this._private__totalHeight - this._private__minPaneHeight;
+            this._private__pixelStretchFactor = this._private__totalStretch / this._private__totalHeight;
+            this._private__mouseActive = true;
+        };
+        PaneSeparator.prototype._private__pressedMouseMoveEvent = function (event) {
+            this._private__deltaY = event._internal_pageY - this._private__startY;
+            var upperHeight = this._private__paneA._internal_getSize()._internal_h;
+            var newUpperPaneHeight = clamp(upperHeight + this._private__deltaY, this._private__minPaneHeight, this._private__maxPaneHeight);
+            var newUpperPaneStretch = newUpperPaneHeight * this._private__pixelStretchFactor;
+            var newLowerPaneStretch = this._private__totalStretch - newUpperPaneStretch;
+            this._private__paneA._internal_setStretchFactor(newUpperPaneStretch);
+            this._private__paneB._internal_setStretchFactor(newLowerPaneStretch);
+            this._private__chartWidget._internal_adjustSize();
+            if (this._private__paneA._internal_getSize()._internal_h !== upperHeight) {
+                this._private__startY = event._internal_pageY;
+            }
+            this._private__chartWidget._internal_model()._internal_fullUpdate();
+        };
+        PaneSeparator.prototype._private__mouseUpEvent = function (event) {
+            this._private__startY = 0;
+            this._private__deltaY = 0;
+            this._private__totalHeight = 0;
+            this._private__totalStretch = 0;
+            this._private__minPaneHeight = 0;
+            this._private__maxPaneHeight = 0;
+            this._private__pixelStretchFactor = 0;
+            this._private__mouseActive = false;
+            this._private__mouseLeaveEvent(event);
+        };
+        return PaneSeparator;
+    }());
+
+    function distanceBetweenPoints(pos1, pos2) {
+        return pos1._internal_position - pos2._internal_position;
+    }
+    function speedPxPerMSec(pos1, pos2, maxSpeed) {
+        var speed = (pos1._internal_position - pos2._internal_position) / (pos1._internal_time - pos2._internal_time);
+        return Math.sign(speed) * Math.min(Math.abs(speed), maxSpeed);
+    }
+    function durationMSec(speed, dumpingCoeff) {
+        var lnDumpingCoeff = Math.log(dumpingCoeff);
+        return Math.log((1 /* EpsilonDistance */ * lnDumpingCoeff) / -speed) / (lnDumpingCoeff);
+    }
+    var KineticAnimation = /** @class */ (function () {
+        function KineticAnimation(minSpeed, maxSpeed, dumpingCoeff, minMove) {
+            this._private__position1 = null;
+            this._private__position2 = null;
+            this._private__position3 = null;
+            this._private__position4 = null;
+            this._private__animationStartPosition = null;
+            this._private__durationMsecs = 0;
+            this._private__speedPxPerMsec = 0;
+            this._private__terminated = false;
+            this._private__minSpeed = minSpeed;
+            this._private__maxSpeed = maxSpeed;
+            this._private__dumpingCoeff = dumpingCoeff;
+            this._private__minMove = minMove;
+        }
+        KineticAnimation.prototype._internal_addPosition = function (position, time) {
+            if (this._private__position1 !== null) {
+                if (this._private__position1._internal_time === time) {
+                    this._private__position1._internal_position = position;
+                    return;
+                }
+                if (Math.abs(this._private__position1._internal_position - position) < this._private__minMove) {
+                    return;
+                }
+            }
+            this._private__position4 = this._private__position3;
+            this._private__position3 = this._private__position2;
+            this._private__position2 = this._private__position1;
+            this._private__position1 = { _internal_time: time, _internal_position: position };
+        };
+        KineticAnimation.prototype._internal_start = function (position, time) {
+            if (this._private__position1 === null || this._private__position2 === null) {
+                return;
+            }
+            if (time - this._private__position1._internal_time > 50 /* MaxStartDelay */) {
+                return;
+            }
+            // To calculate all the rest parameters we should calculate the speed af first
+            var totalDistance = 0;
+            var speed1 = speedPxPerMSec(this._private__position1, this._private__position2, this._private__maxSpeed);
+            var distance1 = distanceBetweenPoints(this._private__position1, this._private__position2);
+            // We're calculating weighted average speed
+            // Than more distance for a segment, than more its weight
+            var speedItems = [speed1];
+            var distanceItems = [distance1];
+            totalDistance += distance1;
+            if (this._private__position3 !== null) {
+                var speed2 = speedPxPerMSec(this._private__position2, this._private__position3, this._private__maxSpeed);
+                // stop at this moment if direction of the segment is opposite
+                if (Math.sign(speed2) === Math.sign(speed1)) {
+                    var distance2 = distanceBetweenPoints(this._private__position2, this._private__position3);
+                    speedItems.push(speed2);
+                    distanceItems.push(distance2);
+                    totalDistance += distance2;
+                    if (this._private__position4 !== null) {
+                        var speed3 = speedPxPerMSec(this._private__position3, this._private__position4, this._private__maxSpeed);
+                        if (Math.sign(speed3) === Math.sign(speed1)) {
+                            var distance3 = distanceBetweenPoints(this._private__position3, this._private__position4);
+                            speedItems.push(speed3);
+                            distanceItems.push(distance3);
+                            totalDistance += distance3;
+                        }
+                    }
+                }
+            }
+            var resultSpeed = 0;
+            for (var i = 0; i < speedItems.length; ++i) {
+                resultSpeed += distanceItems[i] / totalDistance * speedItems[i];
+            }
+            if (Math.abs(resultSpeed) < this._private__minSpeed) {
+                return;
+            }
+            this._private__animationStartPosition = { _internal_position: position, _internal_time: time };
+            this._private__speedPxPerMsec = resultSpeed;
+            this._private__durationMsecs = durationMSec(Math.abs(resultSpeed), this._private__dumpingCoeff);
+        };
+        KineticAnimation.prototype._internal_getPosition = function (time) {
+            var startPosition = ensureNotNull(this._private__animationStartPosition);
+            var durationMsecs = time - startPosition._internal_time;
+            return startPosition._internal_position + this._private__speedPxPerMsec * (Math.pow(this._private__dumpingCoeff, durationMsecs) - 1) / (Math.log(this._private__dumpingCoeff));
+        };
+        KineticAnimation.prototype._internal_finished = function (time) {
+            return this._private__animationStartPosition === null || this._private__progressDuration(time) === this._private__durationMsecs;
+        };
+        KineticAnimation.prototype._internal_terminated = function () {
+            return this._private__terminated;
+        };
+        KineticAnimation.prototype._internal_terminate = function () {
+            this._private__terminated = true;
+        };
+        KineticAnimation.prototype._private__progressDuration = function (time) {
+            var startPosition = ensureNotNull(this._private__animationStartPosition);
+            var progress = time - startPosition._internal_time;
+            return Math.min(progress, this._private__durationMsecs);
+        };
+        return KineticAnimation;
+    }());
+
     var MAX_COUNT = 200;
     var LabelsImageCache = /** @class */ (function () {
         function LabelsImageCache(fontSize, color, fontFamily, fontStyle) {
@@ -9248,6 +13604,10 @@
         PriceAxisWidget.prototype._internal_getElement = function () {
             return this._private__cell;
         };
+        PriceAxisWidget.prototype._internal_floating = function () {
+            var _a;
+            return !!((_a = this._private__priceScale) === null || _a === void 0 ? void 0 : _a._internal_options().floating);
+        };
         PriceAxisWidget.prototype._internal_lineColor = function () {
             return ensureNotNull(this._private__priceScale)._internal_options().borderColor;
         };
@@ -9261,7 +13621,9 @@
             return makeFont(this._internal_fontSize(), this._private__options.fontFamily);
         };
         PriceAxisWidget.prototype._internal_rendererOptions = function () {
+            var _a;
             var options = this._private__rendererOptionsProvider._internal_options();
+            options._internal_align = this._private__isLeft ? 'right' : 'left';
             var isColorChanged = this._private__color !== options._internal_color;
             var isFontChanged = this._private__font !== options._internal_font;
             if (isColorChanged || isFontChanged) {
@@ -9272,13 +13634,32 @@
                 this._private__widthCache._internal_reset();
                 this._private__font = options._internal_font;
             }
+            if ((_a = this._private__priceScale) === null || _a === void 0 ? void 0 : _a._internal_options().floating) {
+                if (this._private__isLeft) {
+                    this._private__cell.style.bottom = '0';
+                    this._private__cell.style.zIndex = '2';
+                    this._private__cell.style.position = 'absolute';
+                }
+                else {
+                    this._private__cell.style.left = '-100%';
+                }
+                this._private__cell.style.pointerEvents = 'none';
+            }
+            else {
+                this._private__cell.style.left = 'initial';
+                this._private__cell.style.bottom = 'initial';
+                this._private__cell.style.zIndex = 'initial';
+                this._private__cell.style.position = 'relative';
+                this._private__cell.style.pointerEvents = 'initial';
+            }
             return options;
         };
         PriceAxisWidget.prototype._internal_optimalWidth = function () {
             if (this._private__priceScale === null) {
                 return 0;
             }
-            var tickMarkMaxWidth = 0;
+            // need some reasonable value for scale while initialization
+            var tickMarkMaxWidth = 34;
             var rendererOptions = this._internal_rendererOptions();
             var ctx = getContext2D(this._private__canvasBinding.canvas);
             var tickMarks = this._private__priceScale._internal_marks();
@@ -9286,7 +13667,7 @@
             if (tickMarks.length > 0) {
                 tickMarkMaxWidth = Math.max(this._private__widthCache._internal_measureText(ctx, tickMarks[0]._internal_label), this._private__widthCache._internal_measureText(ctx, tickMarks[tickMarks.length - 1]._internal_label));
             }
-            var views = this._private__backLabels();
+            var views = this._private__dataSources().filter(function (view) { return view instanceof PriceAxisLabelView; });
             for (var j = views.length; j--;) {
                 var width = this._private__widthCache._internal_measureText(ctx, views[j]._internal_text());
                 if (width > tickMarkMaxWidth) {
@@ -9352,19 +13733,22 @@
             }
             if (type !== 1 /* Cursor */) {
                 var ctx = getContext2D(this._private__canvasBinding.canvas);
+                var renderParams_1 = this._private__pane._internal_canvasRenderParams(this._private__canvasBinding);
                 this._private__alignLabels();
-                this._private__drawBackground(ctx, this._private__canvasBinding.pixelRatio);
-                this._private__drawBorder(ctx, this._private__canvasBinding.pixelRatio);
-                this._private__drawTickMarks(ctx, this._private__canvasBinding.pixelRatio);
-                this._private__drawBackLabels(ctx, this._private__canvasBinding.pixelRatio);
+                this._private__drawBackground(ctx, renderParams_1);
+                this._private__drawBorder(ctx, renderParams_1);
+                this._private__drawSources(ctx, renderParams_1, true);
+                this._private__drawTickMarks(ctx, renderParams_1);
+                this._private__drawSources(ctx, renderParams_1);
             }
             var topCtx = getContext2D(this._private__topCanvasBinding.canvas);
+            var renderParams = this._private__pane._internal_canvasRenderParams(this._private__topCanvasBinding);
             var width = this._private__size._internal_w;
             var height = this._private__size._internal_h;
-            drawScaled(topCtx, this._private__topCanvasBinding.pixelRatio, function () {
+            drawScaled(topCtx, renderParams._internal_pixelRatio, function () {
                 topCtx.clearRect(0, 0, width, height);
             });
-            this._private__drawCrosshairLabel(topCtx, this._private__topCanvasBinding.pixelRatio);
+            this._private__drawCrosshairLabel(topCtx, renderParams);
         };
         PriceAxisWidget.prototype._internal_getImage = function () {
             return this._private__canvasBinding.canvas;
@@ -9430,7 +13814,7 @@
         PriceAxisWidget.prototype._private__mouseLeaveEvent = function (e) {
             this._private__setCursor(0 /* Default */);
         };
-        PriceAxisWidget.prototype._private__backLabels = function () {
+        PriceAxisWidget.prototype._private__dataSources = function () {
             var _this = this;
             var res = [];
             var priceScale = (this._private__priceScale === null) ? undefined : this._private__priceScale;
@@ -9448,14 +13832,14 @@
             addViewsForSources(this._private__pane._internal_state()._internal_orderedSources());
             return res;
         };
-        PriceAxisWidget.prototype._private__drawBackground = function (ctx, pixelRatio) {
+        PriceAxisWidget.prototype._private__drawBackground = function (ctx, renderParams) {
             var _this = this;
             if (this._private__size === null) {
                 return;
             }
             var width = this._private__size._internal_w;
             var height = this._private__size._internal_h;
-            drawScaled(ctx, pixelRatio, function () {
+            drawScaled(ctx, renderParams._internal_pixelRatio, function () {
                 var model = _this._private__pane._internal_state()._internal_model();
                 var topColor = model._internal_backgroundTopColor();
                 var bottomColor = model._internal_backgroundBottomColor();
@@ -9467,12 +13851,13 @@
                 }
             });
         };
-        PriceAxisWidget.prototype._private__drawBorder = function (ctx, pixelRatio) {
+        PriceAxisWidget.prototype._private__drawBorder = function (ctx, renderParams) {
             if (this._private__size === null || this._private__priceScale === null || !this._private__priceScale._internal_options().borderVisible) {
                 return;
             }
             ctx.save();
             ctx.fillStyle = this._internal_lineColor();
+            var pixelRatio = renderParams._internal_pixelRatio;
             var borderSize = Math.max(1, Math.floor(this._internal_rendererOptions()._internal_borderSize * pixelRatio));
             var left;
             if (this._private__isLeft) {
@@ -9484,10 +13869,11 @@
             ctx.fillRect(left, 0, borderSize, Math.ceil(this._private__size._internal_h * pixelRatio));
             ctx.restore();
         };
-        PriceAxisWidget.prototype._private__drawTickMarks = function (ctx, pixelRatio) {
+        PriceAxisWidget.prototype._private__drawTickMarks = function (ctx, renderParams) {
             if (this._private__size === null || this._private__priceScale === null) {
                 return;
             }
+            var pixelRatio = renderParams._internal_pixelRatio;
             var tickMarks = this._private__priceScale._internal_marks();
             ctx.save();
             ctx.strokeStyle = this._internal_lineColor();
@@ -9544,10 +13930,11 @@
             var priceScale = this._private__priceScale;
             var updateForSources = function (sources) {
                 sources.forEach(function (source) {
-                    var sourceViews = source._internal_priceAxisViews(paneState, priceScale);
+                    var sourceViews = source._internal_priceAxisViews(paneState, priceScale)
+                        .filter(function (view) { return view instanceof PriceAxisLabelView; });
                     // never align selected sources
                     sourceViews.forEach(function (view) {
-                        view._internal_setFixedCoordinate(null);
+                        view._internal_setFixedCoordinate(undefined);
                         if (view._internal_isVisible()) {
                             views.push(view);
                         }
@@ -9595,33 +13982,31 @@
                 }
             }
         };
-        PriceAxisWidget.prototype._private__drawBackLabels = function (ctx, pixelRatio) {
-            var _this = this;
+        PriceAxisWidget.prototype._private__drawSources = function (ctx, renderParams, background) {
             if (this._private__size === null) {
                 return;
             }
             ctx.save();
-            var size = this._private__size;
-            var views = this._private__backLabels();
+            var views = this._private__dataSources();
             var rendererOptions = this._internal_rendererOptions();
-            var align = this._private__isLeft ? 'right' : 'left';
             views.forEach(function (view) {
-                if (view._internal_isAxisLabelVisible()) {
-                    var renderer = view._internal_renderer(ensureNotNull(_this._private__priceScale));
-                    ctx.save();
-                    renderer._internal_draw(ctx, rendererOptions, _this._private__widthCache, size._internal_w, align, pixelRatio);
-                    ctx.restore();
+                var renderer = view._internal_renderer();
+                ctx.save();
+                if (background && renderer._internal_drawBackground) {
+                    renderer._internal_drawBackground(ctx, rendererOptions, renderParams);
                 }
+                else if (renderer._internal_draw) {
+                    renderer._internal_draw(ctx, rendererOptions, renderParams);
+                }
+                ctx.restore();
             });
             ctx.restore();
         };
-        PriceAxisWidget.prototype._private__drawCrosshairLabel = function (ctx, pixelRatio) {
-            var _this = this;
+        PriceAxisWidget.prototype._private__drawCrosshairLabel = function (ctx, renderParams) {
             if (this._private__size === null || this._private__priceScale === null) {
                 return;
             }
             ctx.save();
-            var size = this._private__size;
             var model = this._private__pane._internal_chart()._internal_model();
             var views = []; // array of arrays
             var pane = this._private__pane._internal_state();
@@ -9630,11 +14015,14 @@
                 views.push(v);
             }
             var ro = this._internal_rendererOptions();
-            var align = this._private__isLeft ? 'right' : 'left';
             views.forEach(function (arr) {
                 arr.forEach(function (view) {
+                    var renderer = view._internal_renderer();
                     ctx.save();
-                    view._internal_renderer(ensureNotNull(_this._private__priceScale))._internal_draw(ctx, ro, _this._private__widthCache, size._internal_w, align, pixelRatio);
+                    if (!renderer._internal_draw) {
+                        return;
+                    }
+                    renderer._internal_draw(ctx, ro, renderParams);
                     ctx.restore();
                 });
             });
@@ -9659,16 +14047,54 @@
         return PriceAxisWidget;
     }());
 
-    function drawBackground(renderer, ctx, pixelRatio, isHovered, hitTestData) {
+    function checkTouchEvents() {
+        if (!isRunningOnClientSide) {
+            return false;
+        }
+        // eslint-disable-next-line no-restricted-syntax
+        if ('ontouchstart' in window) {
+            return true;
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any,@typescript-eslint/no-unsafe-member-access
+        return Boolean(window.DocumentTouch && document instanceof window.DocumentTouch);
+    }
+    function getMobileTouch() {
+        if (!isRunningOnClientSide) {
+            return false;
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any,@typescript-eslint/no-unsafe-member-access
+        var touch = !!navigator.maxTouchPoints || !!navigator.msMaxTouchPoints || checkTouchEvents();
+        // eslint-disable-next-line no-restricted-syntax
+        return 'onorientationchange' in window && touch;
+    }
+    var mobileTouch = getMobileTouch();
+    function getIsMobile() {
+        if (!isRunningOnClientSide) {
+            return false;
+        }
+        // actually we shouldn't check that values
+        // we even don't need to know what browser/UA/etc is (in almost all cases, except special ones)
+        // so, in MouseEventHandler/PaneWidget we should check what event happened (touch or mouse)
+        // not check current UA to detect "mobile" device
+        var android = /Android/i.test(navigator.userAgent);
+        var iOS = /iPhone|iPad|iPod|AppleWebKit.+Mobile/i.test(navigator.userAgent);
+        return android || iOS;
+    }
+    var isMobile = getIsMobile();
+
+    // actually we should check what event happened (touch or mouse)
+    // not check current UA to detect "mobile" device
+    var trackCrosshairOnlyAfterLongTap = isMobile;
+    function drawBackground(renderer, ctx, renderParams) {
         if (renderer._internal_drawBackground) {
-            renderer._internal_drawBackground(ctx, pixelRatio, isHovered, hitTestData);
+            renderer._internal_drawBackground(ctx, renderParams);
         }
     }
-    function drawForeground(renderer, ctx, pixelRatio, isHovered, hitTestData) {
-        renderer._internal_draw(ctx, pixelRatio, isHovered, hitTestData);
+    function drawForeground(renderer, ctx, renderParams) {
+        renderer._internal_draw(ctx, renderParams);
     }
     function sourcePaneViews(source, pane) {
-        return source._internal_paneViews(pane);
+        return source._internal_paneViews();
     }
     function sourceTopPaneViews(source, pane) {
         return source._internal_topPaneViews !== undefined ? source._internal_topPaneViews(pane) : [];
@@ -9688,31 +14114,28 @@
             this._private__exitTrackingModeOnNextTry = false;
             this._private__initCrosshairPosition = null;
             this._private__scrollXAnimation = null;
-            this._private__isSettingSize = false;
             this._private__canvasConfiguredHandler = function () {
-                if (_this._private__isSettingSize || _this._private__state === null) {
-                    return;
-                }
-                _this._private__model()._internal_lightUpdate();
+                return _this._private__state && _this._private__model()._internal_lightUpdate();
             };
             this._private__topCanvasConfiguredHandler = function () {
-                if (_this._private__isSettingSize || _this._private__state === null) {
-                    return;
-                }
-                _this._private__model()._internal_lightUpdate();
+                return _this._private__state && _this._private__model()._internal_lightUpdate();
             };
             this._private__chart = chart;
             this._private__state = state;
             this._private__state._internal_onDestroyed()._internal_subscribe(this._private__onStateDestroyed.bind(this), this, true);
+            var paneIndex = this._private__model()._internal_getPaneIndex(ensureNotNull(this._private__state));
             this._private__paneCell = document.createElement('td');
             this._private__paneCell.style.padding = '0';
             this._private__paneCell.style.position = 'relative';
+            this._private__paneCell.className += "pane-".concat(paneIndex);
             var paneWrapper = document.createElement('div');
             paneWrapper.style.width = '100%';
             paneWrapper.style.height = '100%';
             paneWrapper.style.position = 'relative';
             paneWrapper.style.overflow = 'hidden';
+            paneWrapper.style.transform = 'translateZ(0px)';
             this._private__leftAxisCell = document.createElement('td');
+            this._private__leftAxisCell.style.position = 'relative';
             this._private__leftAxisCell.style.padding = '0';
             this._private__rightAxisCell = document.createElement('td');
             this._private__rightAxisCell.style.padding = '0';
@@ -9769,6 +14192,12 @@
                 this._private__state._internal_onDestroyed()._internal_subscribe(PaneWidget.prototype._private__onStateDestroyed.bind(this), this, true);
             }
             this._internal_updatePriceAxisWidgetsStates();
+        };
+        PaneWidget.prototype._internal_setCursor = function (type) {
+            var cursor = type.toString();
+            if (this._private__paneCell.style.cursor !== cursor) {
+                this._private__paneCell.style.cursor = cursor;
+            }
         };
         PaneWidget.prototype._internal_chart = function () {
             return this._private__chart;
@@ -9827,47 +14256,142 @@
             if (!this._private__state) {
                 return;
             }
-            this._private__onMouseEvent();
             var x = event._internal_localX;
             var y = event._internal_localY;
-            this._private__setCrosshairPosition(x, y);
-            var hitTest = this._internal_hitTest(x, y);
-            this._private__model()._internal_setHoveredSource(hitTest && { _internal_source: hitTest._internal_source, _internal_object: hitTest._internal_object });
+            if (event) {
+                this._private__terminateKineticAnimation();
+                if (document.activeElement !== document.body &&
+                    document.activeElement !== document.documentElement) {
+                    // If any focusable element except the page itself is focused, remove the focus
+                    ensureNotNull(document.activeElement).blur();
+                }
+                else {
+                    // Clear selection
+                    var selection = document.getSelection();
+                    if (selection !== null) {
+                        selection.removeAllRanges();
+                    }
+                }
+                var model = this._private__model();
+                var priceScale = this._private__state._internal_defaultPriceScale();
+                if (priceScale._internal_isEmpty() || model._internal_timeScale()._internal_isEmpty()) {
+                    return;
+                }
+                if (this._private__startTrackPoint !== null) {
+                    var crosshair = model._internal_crosshairSource();
+                    this._private__initCrosshairPosition = new Point(crosshair._internal_appliedX(), crosshair._internal_appliedY());
+                    this._private__startTrackPoint = new Point(event._internal_localX, event._internal_localY);
+                }
+            }
+            else {
+                if (this._private__preventCrosshairMove()) {
+                    this._private__clearCrosshairPosition();
+                }
+            }
+            if (!mobileTouch) {
+                this._private__setCrosshairPosition(x, y);
+                this._private__propagateEvent(9 /* MouseMove */, event);
+            }
         };
         PaneWidget.prototype._internal_mouseClickEvent = function (event) {
             if (this._private__state === null) {
                 return;
             }
             this._private__onMouseEvent();
+            this._private__propagateEvent(3 /* MouseClick */, event);
             var x = event._internal_localX;
             var y = event._internal_localY;
             if (this._private__clicked._internal_hasListeners()) {
                 var currentTime = this._private__model()._internal_crosshairSource()._internal_appliedIndex();
-                this._private__clicked._internal_fire(currentTime, {
-                    x: x,
-                    y: y,
-                    shiftKey: event._internal_shiftKey,
-                    ctrlKey: event._internal_ctrlKey,
-                });
+                var paneIndex = this._private__model()._internal_getPaneIndex(ensureNotNull(this._private__state));
+                var point = new Point(x, y);
+                point._internal_paneIndex = paneIndex;
+                this._private__clicked._internal_fire(currentTime, point);
             }
+            this._private__tryExitTrackingMode();
         };
+        // eslint-disable-next-line complexity
         PaneWidget.prototype._internal_pressedMouseMoveEvent = function (event) {
-            this._private__onMouseEvent();
-            this._private__pressedMouseTouchMoveEvent(event);
-            this._private__setCrosshairPosition(event._internal_localX, event._internal_localY);
+            if (this._private__state === null) {
+                return;
+            }
+            var model = this._private__model();
+            var x = event._internal_localX;
+            var y = event._internal_localY;
+            if (this._private__startTrackPoint !== null) {
+                // tracking mode: move crosshair
+                this._private__exitTrackingModeOnNextTry = false;
+                var origPoint = ensureNotNull(this._private__initCrosshairPosition);
+                var newX = (origPoint.x + (x - this._private__startTrackPoint.x));
+                var newY = (origPoint.y + (y - this._private__startTrackPoint.y));
+                this._private__setCrosshairPosition(newX, newY);
+            }
+            else if (!this._private__preventCrosshairMove()) {
+                this._private__setCrosshairPosition(x, y);
+            }
+            if (this._private__startScrollingPos === null) {
+                this._private__propagateEvent(11 /* PressedMouseMove */, event);
+            }
+            if (model._internal_timeScale()._internal_isEmpty() || event._internal_consumed) {
+                return;
+            }
+            var chartOptions = this._private__chart._internal_options();
+            var scrollOptions = chartOptions.handleScroll;
+            var kineticScrollOptions = chartOptions.kineticScroll;
+            if ((!scrollOptions.pressedMouseMove || event._internal_type === 'touch') &&
+                ((!scrollOptions.horzTouchDrag && !scrollOptions.vertTouchDrag) ||
+                    event._internal_type === 'mouse')) {
+                return;
+            }
+            var priceScale = this._private__state._internal_defaultPriceScale();
+            var now = performance.now();
+            if (this._private__startScrollingPos === null && !this._private__preventScroll()) {
+                this._private__startScrollingPos = new Point(event._internal_clientX, event._internal_clientY);
+                this._private__startScrollingPos._internal_timestamp = now;
+                this._private__startScrollingPos._internal_localX = event._internal_localX;
+                this._private__startScrollingPos._internal_localY = event._internal_localY;
+            }
+            if (this._private__scrollXAnimation !== null) {
+                this._private__scrollXAnimation._internal_addPosition(event._internal_localX, now);
+            }
+            if (this._private__startScrollingPos !== null &&
+                !this._private__isScrolling &&
+                (this._private__startScrollingPos.x !== event._internal_clientX ||
+                    this._private__startScrollingPos.y !== event._internal_clientY)) {
+                if (this._private__scrollXAnimation === null &&
+                    ((event._internal_type === 'touch' && kineticScrollOptions.touch) ||
+                        (event._internal_type === 'mouse' && kineticScrollOptions.mouse))) {
+                    this._private__scrollXAnimation = new KineticAnimation(0.2 /* MinScrollSpeed */, 7 /* MaxScrollSpeed */, 0.997 /* DumpingCoeff */, 15 /* ScrollMinMove */);
+                    this._private__scrollXAnimation._internal_addPosition(this._private__startScrollingPos._internal_localX, this._private__startScrollingPos._internal_timestamp);
+                    this._private__scrollXAnimation._internal_addPosition(event._internal_localX, now);
+                }
+                if (!priceScale._internal_isEmpty()) {
+                    model._internal_startScrollPrice(this._private__state, priceScale, event._internal_localY);
+                }
+                model._internal_startScrollTime(event._internal_localX);
+                this._private__isScrolling = true;
+            }
+            if (this._private__isScrolling) {
+                // this allows scrolling not default price scales
+                if (!priceScale._internal_isEmpty()) {
+                    model._internal_scrollPriceTo(this._private__state, priceScale, event._internal_localY);
+                }
+                model._internal_scrollTimeTo(event._internal_localX);
+            }
         };
         PaneWidget.prototype._internal_mouseUpEvent = function (event) {
             if (this._private__state === null) {
                 return;
             }
             this._private__onMouseEvent();
+            this._private__propagateEvent(10 /* MouseUp */, event);
             this._private__longTap = false;
             this._private__endScroll(event);
         };
         PaneWidget.prototype._internal_longTapEvent = function (event) {
             this._private__longTap = true;
-            if (this._private__startTrackPoint === null) {
-                var point = { x: event._internal_localX, y: event._internal_localY };
+            if (this._private__startTrackPoint === null && trackCrosshairOnlyAfterLongTap) {
+                var point = new Point(event._internal_localX, event._internal_localY);
                 this._private__startTrackingMode(point, point);
             }
         };
@@ -9900,8 +14424,8 @@
             this._private__mouseTouchDownEvent();
             if (this._private__startTrackPoint !== null) {
                 var crosshair = this._private__model()._internal_crosshairSource();
-                this._private__initCrosshairPosition = { x: crosshair._internal_appliedX(), y: crosshair._internal_appliedY() };
-                this._private__startTrackPoint = { x: event._internal_localX, y: event._internal_localY };
+                this._private__initCrosshairPosition = new Point(crosshair._internal_appliedX(), crosshair._internal_appliedY());
+                this._private__startTrackPoint = new Point(event._internal_localX, event._internal_localY);
             }
         };
         PaneWidget.prototype._internal_touchMoveEvent = function (event) {
@@ -9929,26 +14453,27 @@
             this._private__endScroll(event);
         };
         PaneWidget.prototype._internal_hitTest = function (x, y) {
-            var state = this._private__state;
-            if (state === null) {
-                return null;
-            }
-            var sources = state._internal_orderedSources();
-            for (var _i = 0, sources_1 = sources; _i < sources_1.length; _i++) {
-                var source = sources_1[_i];
-                var sourceResult = this._private__hitTestPaneView(source._internal_paneViews(state), x, y);
-                if (sourceResult !== null) {
-                    return {
-                        _internal_source: source,
-                        _internal_view: sourceResult._internal_view,
-                        _internal_object: sourceResult._internal_object,
-                    };
-                }
-            }
+            // const state = this._state;
+            // if (state === null) {
+            // 	return null;
+            // }
+            // const sources = state.orderedSources();
+            // for (const source of sources) {
+            // 	const sourceResult = this._hitTestPaneView(source.paneViews(state), x, y);
+            // 	if (sourceResult !== null) {
+            // 		return {
+            // 			source: source,
+            // 			view: sourceResult.view,
+            // 			object: sourceResult.object,
+            // 		};
+            // 	}
+            // }
             return null;
         };
         PaneWidget.prototype._internal_setPriceAxisSize = function (width, position) {
-            var priceAxisWidget = position === 'left' ? this._private__leftPriceAxisWidget : this._private__rightPriceAxisWidget;
+            var priceAxisWidget = position === 'left'
+                ? this._private__leftPriceAxisWidget
+                : this._private__rightPriceAxisWidget;
             ensureNotNull(priceAxisWidget)._internal_setSize(new Size(width, this._private__size._internal_h));
         };
         PaneWidget.prototype._internal_getSize = function () {
@@ -9962,10 +14487,8 @@
                 return;
             }
             this._private__size = size;
-            this._private__isSettingSize = true;
             this._private__canvasBinding.resizeCanvas({ width: size._internal_w, height: size._internal_h });
             this._private__topCanvasBinding.resizeCanvas({ width: size._internal_w, height: size._internal_h });
-            this._private__isSettingSize = false;
             this._private__paneCell.style.width = size._internal_w + 'px';
             this._private__paneCell.style.height = size._internal_h + 'px';
         };
@@ -10007,25 +14530,59 @@
             }
             if (type !== 1 /* Cursor */) {
                 var ctx = getContext2D(this._private__canvasBinding.canvas);
+                var renderParams_1 = this._internal_canvasRenderParams(this._private__canvasBinding);
                 ctx.save();
-                this._private__drawBackground(ctx, this._private__canvasBinding.pixelRatio);
+                this._private__drawBackground(ctx, renderParams_1);
                 if (this._private__state) {
-                    this._private__drawGrid(ctx, this._private__canvasBinding.pixelRatio);
-                    this._private__drawWatermark(ctx, this._private__canvasBinding.pixelRatio);
-                    this._private__drawSources(ctx, this._private__canvasBinding.pixelRatio, sourcePaneViews);
+                    this._private__drawGrid(ctx, renderParams_1);
+                    this._private__drawWatermark(ctx, renderParams_1);
+                    this._private__drawSources(ctx, renderParams_1, sourcePaneViews);
                 }
                 ctx.restore();
             }
             var topCtx = getContext2D(this._private__topCanvasBinding.canvas);
+            var renderParams = this._internal_canvasRenderParams(this._private__topCanvasBinding);
             topCtx.clearRect(0, 0, Math.ceil(this._private__size._internal_w * this._private__topCanvasBinding.pixelRatio), Math.ceil(this._private__size._internal_h * this._private__topCanvasBinding.pixelRatio));
-            this._private__drawSources(topCtx, this._private__canvasBinding.pixelRatio, sourceTopPaneViews);
-            this._private__drawCrosshair(topCtx, this._private__topCanvasBinding.pixelRatio);
+            this._private__drawSources(topCtx, renderParams, sourceTopPaneViews);
+            this._private__drawCrosshair(topCtx, renderParams);
         };
         PaneWidget.prototype._internal_leftPriceAxisWidget = function () {
             return this._private__leftPriceAxisWidget;
         };
+        PaneWidget.prototype._internal_getPaneCell = function () {
+            return this._private__paneCell;
+        };
         PaneWidget.prototype._internal_rightPriceAxisWidget = function () {
             return this._private__rightPriceAxisWidget;
+        };
+        PaneWidget.prototype._internal_canvasRenderParams = function (canvasBindings) {
+            canvasBindings || (canvasBindings = this._private__canvasBinding);
+            return {
+                _internal_pixelRatio: canvasBindings.pixelRatio,
+                _internal_physicalWidth: canvasBindings.canvas.width,
+                _internal_physicalHeight: canvasBindings.canvas.height,
+                _internal_cssWidth: this._internal_chart()._internal_model()._internal_timeScale()._internal_width(),
+                _internal_cssHeight: this._internal_state()._internal_height(),
+            };
+        };
+        PaneWidget.prototype._private__propagateEvent = function (type, event) {
+            var _this = this;
+            if (this._private__state === null) {
+                return;
+            }
+            this._internal_setCursor(PaneCursorType._internal_Crosshair);
+            // if (this._model().lineToolCreator().hasActiveToolLine()) {
+            this._private__model()._internal_lineToolCreator()._internal_onInputEvent(this, type, event);
+            // }
+            var sources = this._private__state._internal_orderedSources();
+            for (var index = sources.length - 1; index >= 0; index--) {
+                var paneViews = sources[index]._internal_paneViews();
+                paneViews.forEach(function (pane) {
+                    if (isInputEventListener(pane)) {
+                        pane._internal_onInputEvent(_this, type, event);
+                    }
+                });
+            }
         };
         PaneWidget.prototype._private__onStateDestroyed = function () {
             if (this._private__state !== null) {
@@ -10033,9 +14590,9 @@
             }
             this._private__state = null;
         };
-        PaneWidget.prototype._private__drawBackground = function (ctx, pixelRatio) {
+        PaneWidget.prototype._private__drawBackground = function (ctx, renderParams) {
             var _this = this;
-            drawScaled(ctx, pixelRatio, function () {
+            drawScaled(ctx, renderParams._internal_pixelRatio, function () {
                 var model = _this._private__model();
                 var topColor = model._internal_backgroundTopColor();
                 var bottomColor = model._internal_backgroundBottomColor();
@@ -10047,72 +14604,71 @@
                 }
             });
         };
-        PaneWidget.prototype._private__drawGrid = function (ctx, pixelRatio) {
+        PaneWidget.prototype._private__drawGrid = function (ctx, renderParams) {
             var state = ensureNotNull(this._private__state);
             var paneView = state._internal_grid()._internal_paneView();
-            var renderer = paneView._internal_renderer(state._internal_height(), state._internal_width());
+            var renderer = paneView._internal_renderer(state._internal_height(), state._internal_width(), state);
             if (renderer !== null) {
                 ctx.save();
-                renderer._internal_draw(ctx, pixelRatio, false);
+                renderer._internal_draw(ctx, renderParams);
                 ctx.restore();
             }
         };
-        PaneWidget.prototype._private__drawWatermark = function (ctx, pixelRatio) {
+        PaneWidget.prototype._private__drawWatermark = function (ctx, renderParams) {
             var source = this._private__model()._internal_watermarkSource();
-            this._private__drawSourceImpl(ctx, pixelRatio, sourcePaneViews, drawBackground, source);
-            this._private__drawSourceImpl(ctx, pixelRatio, sourcePaneViews, drawForeground, source);
+            this._private__drawSourceImpl(ctx, renderParams, sourcePaneViews, drawBackground, source);
+            this._private__drawSourceImpl(ctx, renderParams, sourcePaneViews, drawForeground, source);
         };
-        PaneWidget.prototype._private__drawCrosshair = function (ctx, pixelRatio) {
-            this._private__drawSourceImpl(ctx, pixelRatio, sourcePaneViews, drawForeground, this._private__model()._internal_crosshairSource());
+        PaneWidget.prototype._private__drawCrosshair = function (ctx, renderParams) {
+            this._private__drawSourceImpl(ctx, renderParams, sourcePaneViews, drawForeground, this._private__model()._internal_crosshairSource());
         };
-        PaneWidget.prototype._private__drawSources = function (ctx, pixelRatio, paneViewsGetter) {
+        PaneWidget.prototype._private__drawSources = function (ctx, renderParams, paneViewsGetter) {
             var state = ensureNotNull(this._private__state);
             var sources = state._internal_orderedSources();
-            for (var _i = 0, sources_2 = sources; _i < sources_2.length; _i++) {
-                var source = sources_2[_i];
-                this._private__drawSourceImpl(ctx, pixelRatio, paneViewsGetter, drawBackground, source);
+            for (var _i = 0, sources_1 = sources; _i < sources_1.length; _i++) {
+                var source = sources_1[_i];
+                this._private__drawSourceImpl(ctx, renderParams, paneViewsGetter, drawBackground, source);
             }
-            for (var _a = 0, sources_3 = sources; _a < sources_3.length; _a++) {
-                var source = sources_3[_a];
-                this._private__drawSourceImpl(ctx, pixelRatio, paneViewsGetter, drawForeground, source);
+            for (var _a = 0, sources_2 = sources; _a < sources_2.length; _a++) {
+                var source = sources_2[_a];
+                this._private__drawSourceImpl(ctx, renderParams, paneViewsGetter, drawForeground, source);
             }
         };
-        PaneWidget.prototype._private__drawSourceImpl = function (ctx, pixelRatio, paneViewsGetter, drawFn, source) {
+        PaneWidget.prototype._private__drawSourceImpl = function (ctx, renderParams, paneViewsGetter, drawFn, source) {
             var state = ensureNotNull(this._private__state);
             var paneViews = paneViewsGetter(source, state);
             var height = state._internal_height();
             var width = state._internal_width();
-            var hoveredSource = state._internal_model()._internal_hoveredSource();
-            var isHovered = hoveredSource !== null && hoveredSource._internal_source === source;
-            var objecId = hoveredSource !== null && isHovered && hoveredSource._internal_object !== undefined
-                ? hoveredSource._internal_object._internal_hitTestData
-                : undefined;
             for (var _i = 0, paneViews_1 = paneViews; _i < paneViews_1.length; _i++) {
                 var paneView = paneViews_1[_i];
-                var renderer = paneView._internal_renderer(height, width);
+                var renderer = paneView._internal_renderer(height, width, state);
                 if (renderer !== null) {
                     ctx.save();
-                    drawFn(renderer, ctx, pixelRatio, isHovered, objecId);
+                    drawFn(renderer, ctx, renderParams);
                     ctx.restore();
                 }
             }
         };
-        PaneWidget.prototype._private__hitTestPaneView = function (paneViews, x, y) {
-            for (var _i = 0, paneViews_2 = paneViews; _i < paneViews_2.length; _i++) {
-                var paneView = paneViews_2[_i];
-                var renderer = paneView._internal_renderer(this._private__size._internal_h, this._private__size._internal_w);
-                if (renderer !== null && renderer._internal_hitTest) {
-                    var result = renderer._internal_hitTest(x, y);
-                    if (result !== null) {
-                        return {
-                            _internal_view: paneView,
-                            _internal_object: result,
-                        };
-                    }
-                }
-            }
-            return null;
-        };
+        // private _hitTestPaneView(
+        // 	paneViews: readonly IPaneView[],
+        // 	x: Coordinate,
+        // 	y: Coordinate
+        // ): HitTestPaneViewResult | null {
+        // 	// const state = ensureNotNull(this._state);
+        // 	// for (const paneView of paneViews) {
+        // 	// 	const renderer = paneView.renderer(this._size.h, this._size.w, state);
+        // 	// 	if (renderer !== null && renderer.hitTest) {
+        // 	// 		const result = renderer.hitTest(x, y);
+        // 	// 		if (result !== null) {
+        // 	// 			return {
+        // 	// 				view: paneView,
+        // 	// 				object: result,
+        // 	// 			};
+        // 	// 		}
+        // 	// 	}
+        // 	// }
+        // 	return null;
+        // }
         PaneWidget.prototype._private__recreatePriceAxisWidgets = function () {
             if (this._private__state === null) {
                 return;
@@ -10140,8 +14696,12 @@
                 this._private__rightAxisCell.appendChild(this._private__rightPriceAxisWidget._internal_getElement());
             }
         };
-        PaneWidget.prototype._private__preventScroll = function (event) {
-            return event._internal_isTouch && this._private__longTap || this._private__startTrackPoint !== null;
+        PaneWidget.prototype._private__preventCrosshairMove = function () {
+            return trackCrosshairOnlyAfterLongTap && this._private__startTrackPoint === null;
+        };
+        PaneWidget.prototype._private__preventScroll = function () {
+            return ((trackCrosshairOnlyAfterLongTap && this._private__longTap) ||
+                this._private__startTrackPoint !== null);
         };
         PaneWidget.prototype._private__correctXCoord = function (x) {
             return Math.max(0, Math.min(x, this._private__size._internal_w - 1));
@@ -10166,7 +14726,7 @@
             this._private__exitTrackingModeOnNextTry = false;
             this._private__setCrosshairPosition(crossHairPosition.x, crossHairPosition.y);
             var crosshair = this._private__model()._internal_crosshairSource();
-            this._private__initCrosshairPosition = { x: crosshair._internal_appliedX(), y: crosshair._internal_appliedY() };
+            this._private__initCrosshairPosition = new Point(crosshair._internal_appliedX(), crosshair._internal_appliedY());
         };
         PaneWidget.prototype._private__model = function () {
             return this._private__chart._internal_model();
@@ -10189,7 +14749,8 @@
             if (this._private__scrollXAnimation !== null) {
                 this._private__scrollXAnimation._internal_start(event._internal_localX, startAnimationTime);
             }
-            if ((this._private__scrollXAnimation === null || this._private__scrollXAnimation._internal_finished(startAnimationTime))) {
+            if (this._private__scrollXAnimation === null ||
+                this._private__scrollXAnimation._internal_finished(startAnimationTime)) {
                 // animation is not needed
                 this._private__finishScroll();
                 return;
@@ -10198,7 +14759,7 @@
             var timeScale = model._internal_timeScale();
             var scrollXAnimation = this._private__scrollXAnimation;
             var animationFn = function () {
-                if ((scrollXAnimation._internal_terminated())) {
+                if (scrollXAnimation._internal_terminated()) {
                     // animation terminated, see _terminateKineticAnimation
                     return;
                 }
@@ -10262,14 +14823,11 @@
             }
             var priceScale = this._private__state._internal_defaultPriceScale();
             var now = performance.now();
-            if (this._private__startScrollingPos === null && !this._private__preventScroll(event)) {
-                this._private__startScrollingPos = {
-                    x: event._internal_clientX,
-                    y: event._internal_clientY,
-                    _internal_timestamp: now,
-                    _internal_localX: event._internal_localX,
-                    _internal_localY: event._internal_localY,
-                };
+            if (this._private__startScrollingPos === null && !this._private__preventScroll()) {
+                this._private__startScrollingPos = new Point(event._internal_clientX, event._internal_clientY);
+                this._private__startScrollingPos._internal_timestamp = now;
+                this._private__startScrollingPos._internal_localX = event._internal_localX;
+                this._private__startScrollingPos._internal_localY = event._internal_localY;
             }
             if (this._private__scrollXAnimation !== null) {
                 this._private__scrollXAnimation._internal_addPosition(event._internal_localX, now);
@@ -10363,17 +14921,19 @@
             }
             this._private__invalidated = false;
             var ctx = getContext2D(this._private__canvasBinding.canvas);
-            this._private__drawBackground(ctx, this._private__canvasBinding.pixelRatio);
-            this._private__drawBorder(ctx, this._private__canvasBinding.pixelRatio);
+            var renderParams = { _internal_pixelRatio: this._private__canvasBinding.pixelRatio };
+            this._private__drawBackground(ctx, renderParams);
+            this._private__drawBorder(ctx, renderParams);
         };
         PriceAxisStub.prototype._internal_getImage = function () {
             return this._private__canvasBinding.canvas;
         };
-        PriceAxisStub.prototype._private__drawBorder = function (ctx, pixelRatio) {
+        PriceAxisStub.prototype._private__drawBorder = function (ctx, renderParams) {
             if (!this._private__borderVisible()) {
                 return;
             }
             var width = this._private__size._internal_w;
+            var pixelRatio = renderParams._internal_pixelRatio;
             ctx.save();
             ctx.fillStyle = this._private__options.timeScale.borderColor;
             var borderSize = Math.floor(this._private__rendererOptionsProvider._internal_options()._internal_borderSize * pixelRatio);
@@ -10381,9 +14941,9 @@
             ctx.fillRect(left, 0, borderSize, borderSize);
             ctx.restore();
         };
-        PriceAxisStub.prototype._private__drawBackground = function (ctx, pixelRatio) {
+        PriceAxisStub.prototype._private__drawBackground = function (ctx, renderParams) {
             var _this = this;
-            drawScaled(ctx, pixelRatio, function () {
+            drawScaled(ctx, renderParams._internal_pixelRatio, function () {
                 clearRect(ctx, 0, 0, _this._private__size._internal_w, _this._private__size._internal_h, _this._private__bottomColor());
             });
         };
@@ -10549,6 +15109,7 @@
                 this._private__canvasBinding.resizeCanvas({ width: timeAxisSize._internal_w, height: timeAxisSize._internal_h });
                 this._private__topCanvasBinding.resizeCanvas({ width: timeAxisSize._internal_w, height: timeAxisSize._internal_h });
                 this._private__isSettingSize = false;
+                this._private__cell.style.minWidth = timeAxisSize._internal_w + 'px';
                 this._private__cell.style.width = timeAxisSize._internal_w + 'px';
                 this._private__cell.style.height = timeAxisSize._internal_h + 'px';
                 this._private__sizeChanged._internal_fire(timeAxisSize);
@@ -10583,12 +15144,12 @@
             }
             if (type !== 1 /* Cursor */) {
                 var ctx = getContext2D(this._private__canvasBinding.canvas);
-                this._private__drawBackground(ctx, this._private__canvasBinding.pixelRatio);
-                this._private__drawBorder(ctx, this._private__canvasBinding.pixelRatio);
-                this._private__drawTickMarks(ctx, this._private__canvasBinding.pixelRatio);
-                // atm we don't have sources to be drawn on time axis except crosshair which is rendered on top level canvas
-                // so let's don't call this code at all for now
-                // this._drawLabels(this._chart.model().dataSources(), ctx, pixelRatio);
+                var renderParams_1 = this._private__chart._internal_paneWidgets()[0]._internal_canvasRenderParams(this._private__canvasBinding);
+                this._private__drawBackground(ctx, renderParams_1);
+                this._private__drawBorder(ctx, renderParams_1);
+                this._private__drawSources(this._private__chart._internal_model()._internal_dataSources(), ctx, renderParams_1, true);
+                this._private__drawTickMarks(ctx, renderParams_1);
+                this._private__drawSources(this._private__chart._internal_model()._internal_dataSources(), ctx, renderParams_1);
                 if (this._private__leftStub !== null) {
                     this._private__leftStub._internal_paint(type);
                 }
@@ -10597,31 +15158,34 @@
                 }
             }
             var topCtx = getContext2D(this._private__topCanvasBinding.canvas);
+            var renderParams = this._private__chart._internal_paneWidgets()[0]._internal_canvasRenderParams(this._private__topCanvasBinding);
             var pixelRatio = this._private__topCanvasBinding.pixelRatio;
             topCtx.clearRect(0, 0, Math.ceil(this._private__size._internal_w * pixelRatio), Math.ceil(this._private__size._internal_h * pixelRatio));
-            this._private__drawLabels([this._private__chart._internal_model()._internal_crosshairSource()], topCtx, pixelRatio);
+            this._private__drawSources([this._private__chart._internal_model()._internal_crosshairSource()], topCtx, renderParams);
         };
-        TimeAxisWidget.prototype._private__drawBackground = function (ctx, pixelRatio) {
+        TimeAxisWidget.prototype._private__drawBackground = function (ctx, renderParams) {
             var _this = this;
-            drawScaled(ctx, pixelRatio, function () {
+            drawScaled(ctx, renderParams._internal_pixelRatio, function () {
                 clearRect(ctx, 0, 0, _this._private__size._internal_w, _this._private__size._internal_h, _this._private__chart._internal_model()._internal_backgroundBottomColor());
             });
         };
-        TimeAxisWidget.prototype._private__drawBorder = function (ctx, pixelRatio) {
+        TimeAxisWidget.prototype._private__drawBorder = function (ctx, renderParams) {
             if (this._private__chart._internal_options().timeScale.borderVisible) {
                 ctx.save();
                 ctx.fillStyle = this._private__lineColor();
+                var pixelRatio = renderParams._internal_pixelRatio;
                 var borderSize = Math.max(1, Math.floor(this._private__getRendererOptions()._internal_borderSize * pixelRatio));
                 ctx.fillRect(0, 0, Math.ceil(this._private__size._internal_w * pixelRatio), borderSize);
                 ctx.restore();
             }
         };
-        TimeAxisWidget.prototype._private__drawTickMarks = function (ctx, pixelRatio) {
+        TimeAxisWidget.prototype._private__drawTickMarks = function (ctx, renderParams) {
             var _this = this;
             var tickMarks = this._private__chart._internal_model()._internal_timeScale()._internal_marks();
             if (!tickMarks || tickMarks.length === 0) {
                 return;
             }
+            var pixelRatio = renderParams._internal_pixelRatio;
             var maxWeight = tickMarks.reduce(markWithGreaterWeight, tickMarks[0])._internal_weight;
             // special case: it looks strange if 15:00 is bold but 14:00 is not
             // so if maxWeight > TickMarkWeight.Hour1 and < TickMarkWeight.Day reduce it to TickMarkWeight.Hour1
@@ -10651,7 +15215,7 @@
                 ctx.fill();
             }
             ctx.fillStyle = this._private__textColor();
-            drawScaled(ctx, pixelRatio, function () {
+            drawScaled(ctx, renderParams._internal_pixelRatio, function () {
                 // draw base marks
                 ctx.font = _this._private__baseFont();
                 for (var _i = 0, tickMarks_1 = tickMarks; _i < tickMarks_1.length; _i++) {
@@ -10684,14 +15248,20 @@
             }
             return coordinate;
         };
-        TimeAxisWidget.prototype._private__drawLabels = function (sources, ctx, pixelRatio) {
+        TimeAxisWidget.prototype._private__drawSources = function (sources, ctx, renderParams, background) {
             var rendererOptions = this._private__getRendererOptions();
             for (var _i = 0, sources_1 = sources; _i < sources_1.length; _i++) {
                 var source = sources_1[_i];
                 for (var _a = 0, _b = source._internal_timeAxisViews(); _a < _b.length; _a++) {
                     var view = _b[_a];
+                    var renderer = view._internal_renderer();
                     ctx.save();
-                    view._internal_renderer()._internal_draw(ctx, rendererOptions, pixelRatio);
+                    if (background && renderer._internal_drawBackground) {
+                        renderer._internal_drawBackground(ctx, rendererOptions, renderParams);
+                    }
+                    else if (renderer._internal_draw) {
+                        renderer._internal_draw(ctx, rendererOptions, renderParams);
+                    }
                     ctx.restore();
                 }
             }
@@ -10778,6 +15348,7 @@
     var ChartWidget = /** @class */ (function () {
         function ChartWidget(container, options) {
             this._private__paneWidgets = [];
+            this._private__paneSeparators = [];
             this._private__drawRafId = 0;
             this._private__height = 0;
             this._private__width = 0;
@@ -10798,7 +15369,9 @@
             this._private__tableElement.setAttribute('cellspacing', '0');
             this._private__element.appendChild(this._private__tableElement);
             this._private__onWheelBound = this._private__onMousewheel.bind(this);
-            this._private__element.addEventListener('wheel', this._private__onWheelBound, { passive: false });
+            this._private__element.addEventListener('wheel', this._private__onWheelBound, {
+                passive: false,
+            });
             this._private__model = new ChartModel(this._private__invalidateHandler.bind(this), this._private__options);
             this._internal_model()._internal_crosshairMoved()._internal_subscribe(this._private__onPaneWidgetCrosshairMoved.bind(this), this);
             this._private__timeAxisWidget = new TimeAxisWidget(this);
@@ -10857,10 +15430,11 @@
                 paneWidget._internal_destroy();
             }
             this._private__paneWidgets = [];
-            // for (const paneSeparator of this._paneSeparators) {
-            // 	this._destroySeparator(paneSeparator);
-            // }
-            // this._paneSeparators = [];
+            for (var _b = 0, _c = this._private__paneSeparators; _b < _c.length; _b++) {
+                var paneSeparator = _c[_b];
+                this._private__destroySeparator(paneSeparator);
+            }
+            this._private__paneSeparators = [];
             ensureNotNull(this._private__timeAxisWidget)._internal_destroy();
             if (this._private__element.parentElement !== null) {
                 this._private__element.parentElement.removeChild(this._private__element);
@@ -10933,17 +15507,19 @@
                     for (var paneIndex = 0; paneIndex < _this._private__paneWidgets.length; paneIndex++) {
                         var paneWidget = _this._private__paneWidgets[paneIndex];
                         var paneWidgetHeight = paneWidget._internal_getSize()._internal_h;
-                        var priceAxisWidget = ensureNotNull(position === 'left' ? paneWidget._internal_leftPriceAxisWidget() : paneWidget._internal_rightPriceAxisWidget());
+                        var priceAxisWidget = ensureNotNull(position === 'left'
+                            ? paneWidget._internal_leftPriceAxisWidget()
+                            : paneWidget._internal_rightPriceAxisWidget());
                         var image = priceAxisWidget._internal_getImage();
                         ctx.drawImage(image, targetX, targetY, priceAxisWidget._internal_getWidth(), paneWidgetHeight);
                         targetY += paneWidgetHeight;
-                        // if (paneIndex < this._paneWidgets.length - 1) {
-                        // 	const separator = this._paneSeparators[paneIndex];
-                        // 	const separatorSize = separator.getSize();
-                        // 	const separatorImage = separator.getImage();
-                        // 	ctx.drawImage(separatorImage, targetX, targetY, separatorSize.w, separatorSize.h);
-                        // 	targetY += separatorSize.h;
-                        // }
+                        if (paneIndex < _this._private__paneWidgets.length - 1) {
+                            var separator = _this._private__paneSeparators[paneIndex];
+                            var separatorSize = separator._internal_getSize();
+                            var separatorImage = separator._internal_getImage();
+                            ctx.drawImage(separatorImage, targetX, targetY, separatorSize._internal_w, separatorSize._internal_h);
+                            targetY += separatorSize._internal_h;
+                        }
                     }
                 };
                 // draw left price scale if exists
@@ -10958,13 +15534,13 @@
                     var image = paneWidget._internal_getImage();
                     ctx.drawImage(image, targetX, targetY, paneWidgetSize._internal_w, paneWidgetSize._internal_h);
                     targetY += paneWidgetSize._internal_h;
-                    // if (paneIndex < this._paneWidgets.length - 1) {
-                    // 	const separator = this._paneSeparators[paneIndex];
-                    // 	const separatorSize = separator.getSize();
-                    // 	const separatorImage = separator.getImage();
-                    // 	ctx.drawImage(separatorImage, targetX, targetY, separatorSize.w, separatorSize.h);
-                    // 	targetY += separatorSize.h;
-                    // }
+                    if (paneIndex < _this._private__paneWidgets.length - 1) {
+                        var separator = _this._private__paneSeparators[paneIndex];
+                        var separatorSize = separator._internal_getSize();
+                        var separatorImage = separator._internal_getImage();
+                        ctx.drawImage(separatorImage, targetX, targetY, separatorSize._internal_w, separatorSize._internal_h);
+                        targetY += separatorSize._internal_h;
+                    }
                 }
                 targetX += firstPane._internal_getSize()._internal_w;
                 if (_this._private__isRightAxisVisible()) {
@@ -10972,7 +15548,9 @@
                     drawPriceAxises('right');
                 }
                 var drawStub = function (position) {
-                    var stub = ensureNotNull(position === 'left' ? _this._private__timeAxisWidget._internal_leftStub() : _this._private__timeAxisWidget._internal_rightStub());
+                    var stub = ensureNotNull(position === 'left'
+                        ? _this._private__timeAxisWidget._internal_leftStub()
+                        : _this._private__timeAxisWidget._internal_rightStub());
                     var size = stub._internal_getSize();
                     var image = stub._internal_getImage();
                     ctx.drawImage(image, targetX, targetY, size._internal_w, size._internal_h);
@@ -11017,29 +15595,39 @@
                 : this._private__paneWidgets[0]._internal_rightPriceAxisWidget();
             return ensureNotNull(priceAxisWidget)._internal_getWidth();
         };
+        ChartWidget.prototype._internal_adjustSize = function () {
+            this._private__adjustSizeImpl();
+        };
         // eslint-disable-next-line complexity
         ChartWidget.prototype._private__adjustSizeImpl = function () {
+            var _a;
             var totalStretch = 0;
             var leftPriceAxisWidth = 0;
             var rightPriceAxisWidth = 0;
-            for (var _i = 0, _a = this._private__paneWidgets; _i < _a.length; _i++) {
-                var paneWidget = _a[_i];
+            var leftPriceAxisFloating = false;
+            var rightPriceAxisFloating = false;
+            for (var _i = 0, _b = this._private__paneWidgets; _i < _b.length; _i++) {
+                var paneWidget = _b[_i];
                 if (this._private__isLeftAxisVisible()) {
                     leftPriceAxisWidth = Math.max(leftPriceAxisWidth, ensureNotNull(paneWidget._internal_leftPriceAxisWidget())._internal_optimalWidth());
+                    leftPriceAxisFloating = ensureNotNull(paneWidget._internal_leftPriceAxisWidget())._internal_floating();
                 }
                 if (this._private__isRightAxisVisible()) {
                     rightPriceAxisWidth = Math.max(rightPriceAxisWidth, ensureNotNull(paneWidget._internal_rightPriceAxisWidget())._internal_optimalWidth());
+                    rightPriceAxisFloating = ensureNotNull(paneWidget._internal_rightPriceAxisWidget())._internal_floating();
                 }
                 totalStretch += paneWidget._internal_stretchFactor();
             }
             var width = this._private__width;
             var height = this._private__height;
-            var paneWidth = Math.max(width - leftPriceAxisWidth - rightPriceAxisWidth, 0);
-            // const separatorCount = this._paneSeparators.length;
-            // const separatorHeight = SEPARATOR_HEIGHT;
-            var separatorsHeight = 0; // separatorHeight * separatorCount;
+            var paneWidth = Math.max(width - (leftPriceAxisFloating ? 0 : leftPriceAxisWidth) - (rightPriceAxisFloating ? 0 : rightPriceAxisWidth), 0);
+            var separatorCount = this._private__paneSeparators.length;
+            var separatorHeight = SEPARATOR_HEIGHT;
+            var separatorsHeight = separatorHeight * separatorCount;
             var timeAxisVisible = this._private__options.timeScale.visible;
-            var timeAxisHeight = timeAxisVisible ? this._private__timeAxisWidget._internal_optimalHeight() : 0;
+            var timeAxisHeight = this._private__options.timeScale.visible
+                ? this._private__timeAxisWidget._internal_optimalHeight()
+                : 0;
             // TODO: Fix it better
             // on Hi-DPI CSS size * Device Pixel Ratio should be integer to avoid smoothing
             if (timeAxisHeight % 2) {
@@ -11049,16 +15637,21 @@
             var totalPaneHeight = height < otherWidgetHeight ? 0 : height - otherWidgetHeight;
             var stretchPixels = totalPaneHeight / totalStretch;
             var accumulatedHeight = 0;
+            var pixelRatio = ((_a = document.body.ownerDocument.defaultView) === null || _a === void 0 ? void 0 : _a.devicePixelRatio) || 1;
             for (var paneIndex = 0; paneIndex < this._private__paneWidgets.length; ++paneIndex) {
                 var paneWidget = this._private__paneWidgets[paneIndex];
                 paneWidget._internal_setState(this._private__model._internal_panes()[paneIndex]);
                 var paneHeight = 0;
                 var calculatePaneHeight = 0;
                 if (paneIndex === this._private__paneWidgets.length - 1) {
-                    calculatePaneHeight = totalPaneHeight - accumulatedHeight;
+                    calculatePaneHeight =
+                        Math.ceil((totalPaneHeight - accumulatedHeight) * pixelRatio) /
+                            pixelRatio;
                 }
                 else {
-                    calculatePaneHeight = Math.round(paneWidget._internal_stretchFactor() * stretchPixels);
+                    calculatePaneHeight =
+                        Math.round(paneWidget._internal_stretchFactor() * stretchPixels * pixelRatio) /
+                            pixelRatio;
                 }
                 paneHeight = Math.max(calculatePaneHeight, 2);
                 accumulatedHeight += paneHeight;
@@ -11073,7 +15666,7 @@
                     this._private__model._internal_setPaneHeight(paneWidget._internal_state(), paneHeight);
                 }
             }
-            this._private__timeAxisWidget._internal_setSizes(new Size(timeAxisVisible ? paneWidth : 0, timeAxisHeight), timeAxisVisible ? leftPriceAxisWidth : 0, timeAxisVisible ? rightPriceAxisWidth : 0);
+            this._private__timeAxisWidget._internal_setSizes(new Size(timeAxisVisible ? paneWidth : 0, timeAxisHeight), timeAxisVisible && !leftPriceAxisFloating ? leftPriceAxisWidth : 0, timeAxisVisible && !rightPriceAxisFloating ? rightPriceAxisWidth : 0);
             this._private__model._internal_setWidth(paneWidth);
             if (this._private__leftPriceAxisWidth !== leftPriceAxisWidth) {
                 this._private__leftPriceAxisWidth = leftPriceAxisWidth;
@@ -11110,7 +15703,7 @@
                 this._internal_model()._internal_zoomTime(scrollPosition, zoomScale);
             }
             if (deltaX !== 0 && this._private__options.handleScroll.mouseWheel) {
-                this._internal_model()._internal_scrollChart(deltaX * -80); // 80 is a made up coefficient, and minus is for the "natural" scroll
+                this._internal_model()._internal_scrollChart((deltaX * -80)); // 80 is a made up coefficient, and minus is for the "natural" scroll
             }
         };
         ChartWidget.prototype._private__drawImpl = function (invalidateMask) {
@@ -11203,10 +15796,10 @@
         ChartWidget.prototype._private__updateGui = function () {
             this._private__syncGuiWithModel();
         };
-        // private _destroySeparator(separator: PaneSeparator): void {
-        // 	this._tableElement.removeChild(separator.getElement());
-        // 	separator.destroy();
-        // }
+        ChartWidget.prototype._private__destroySeparator = function (separator) {
+            this._private__tableElement.removeChild(separator._internal_getElement());
+            separator._internal_destroy();
+        };
         ChartWidget.prototype._private__syncGuiWithModel = function () {
             var panes = this._private__model._internal_panes();
             var targetPaneWidgetsCount = panes.length;
@@ -11217,10 +15810,10 @@
                 this._private__tableElement.removeChild(paneWidget._internal_getElement());
                 paneWidget._internal_clicked()._internal_unsubscribeAll(this);
                 paneWidget._internal_destroy();
-                // const paneSeparator = this._paneSeparators.pop();
-                // if (paneSeparator !== undefined) {
-                // 	this._destroySeparator(paneSeparator);
-                // }
+                var paneSeparator = this._private__paneSeparators.pop();
+                if (paneSeparator !== undefined) {
+                    this._private__destroySeparator(paneSeparator);
+                }
             }
             // Create (if needed) new pane widgets and separators
             for (var i = actualPaneWidgetsCount; i < targetPaneWidgetsCount; i++) {
@@ -11228,11 +15821,11 @@
                 paneWidget._internal_clicked()._internal_subscribe(this._private__onPaneWidgetClicked.bind(this), this);
                 this._private__paneWidgets.push(paneWidget);
                 // create and insert separator
-                // if (i > 1) {
-                // 	const paneSeparator = new PaneSeparator(this, i - 1, i, true);
-                // 	this._paneSeparators.push(paneSeparator);
-                // 	this._tableElement.insertBefore(paneSeparator.getElement(), this._timeAxisWidget.getElement());
-                // }
+                if (i > 0) {
+                    var paneSeparator = new PaneSeparator(this, i - 1, i, false);
+                    this._private__paneSeparators.push(paneSeparator);
+                    this._private__tableElement.insertBefore(paneSeparator._internal_getElement(), this._private__timeAxisWidget._internal_getElement());
+                }
                 // insert paneWidget
                 this._private__tableElement.insertBefore(paneWidget._internal_getElement(), this._private__timeAxisWidget._internal_getElement());
             }
@@ -11249,7 +15842,7 @@
             this._private__updateTimeAxisVisibility();
             this._private__adjustSizeImpl();
         };
-        ChartWidget.prototype._private__getMouseEventParamsImpl = function (index, point) {
+        ChartWidget.prototype._private__getMouseEventParamsImpl = function (index, details) {
             var seriesPrices = new Map();
             if (index !== null) {
                 var serieses = this._private__model._internal_serieses();
@@ -11277,19 +15870,22 @@
                 : undefined;
             return {
                 _internal_time: clientTime,
-                _internal_point: point || undefined,
+                _internal_point: (details && new Point(details.x, details.y)) || undefined,
+                _internal_paneIndex: details === null || details === void 0 ? void 0 : details._internal_paneIndex,
                 _internal_hoveredSeries: hoveredSeries,
                 _internal_seriesPrices: seriesPrices,
                 _internal_hoveredObject: hoveredObject,
             };
         };
-        ChartWidget.prototype._private__onPaneWidgetClicked = function (time, point) {
+        ChartWidget.prototype._private__onPaneWidgetClicked = function (time, details) {
             var _this = this;
-            this._private__clicked._internal_fire(function () { return _this._private__getMouseEventParamsImpl(time, point); });
+            this._private__clicked._internal_fire(function () { return _this._private__getMouseEventParamsImpl(time, details); });
         };
-        ChartWidget.prototype._private__onPaneWidgetCrosshairMoved = function (time, point) {
+        ChartWidget.prototype._private__onPaneWidgetCrosshairMoved = function (time, details) {
             var _this = this;
-            this._private__crosshairMoved._internal_fire(function () { return _this._private__getMouseEventParamsImpl(time, point); });
+            this._private__crosshairMoved._internal_fire(function () {
+                return _this._private__getMouseEventParamsImpl(time, details);
+            });
         };
         ChartWidget.prototype._private__updateTimeAxisVisibility = function () {
             var display = this._private__options.timeScale.visible ? '' : 'none';
@@ -11858,42 +16454,50 @@
         if (!isFulfilledData(barItem)) {
             return;
         }
-        assert(
-        // eslint-disable-next-line @typescript-eslint/tslint/config
-        typeof barItem.open === 'number', "".concat(type, " series item data value of open must be a number, got=").concat(typeof barItem.open, ", value=").concat(barItem.open));
-        assert(
-        // eslint-disable-next-line @typescript-eslint/tslint/config
-        typeof barItem.high === 'number', "".concat(type, " series item data value of high must be a number, got=").concat(typeof barItem.high, ", value=").concat(barItem.high));
-        assert(
-        // eslint-disable-next-line @typescript-eslint/tslint/config
-        typeof barItem.low === 'number', "".concat(type, " series item data value of low must be a number, got=").concat(typeof barItem.low, ", value=").concat(barItem.low));
-        assert(
-        // eslint-disable-next-line @typescript-eslint/tslint/config
-        typeof barItem.close === 'number', "".concat(type, " series item data value of close must be a number, got=").concat(typeof barItem.close, ", value=").concat(barItem.close));
+        // assert(
+        // 	/// eslint-disable-next-line @typescript-eslint/tslint/config
+        // 	typeof barItem.open === 'number', `${type} series item data value of open must be a number, got=${typeof barItem.open}, value=${barItem.open}`
+        // );
+        // assert(
+        // 	/// eslint-disable-next-line @typescript-eslint/tslint/config
+        // 	typeof barItem.high === 'number', `${type} series item data value of high must be a number, got=${typeof barItem.high}, value=${barItem.high}`
+        // );
+        // assert(
+        // 	/// eslint-disable-next-line @typescript-eslint/tslint/config
+        // 	typeof barItem.low === 'number', `${type} series item data value of low must be a number, got=${typeof barItem.low}, value=${barItem.low}`
+        // );
+        // assert(
+        // 	/// eslint-disable-next-line @typescript-eslint/tslint/config
+        // 	typeof barItem.close === 'number', `${type} series item data value of close must be a number, got=${typeof barItem.close}, value=${barItem.close}`
+        // );
     }
     function checkLineItem(type, lineItem) {
         if (!isFulfilledData(lineItem)) {
             return;
         }
-        assert(
-        // eslint-disable-next-line @typescript-eslint/tslint/config
-        typeof lineItem.value === 'number', "".concat(type, " series item data value must be a number, got=").concat(typeof lineItem.value, ", value=").concat(lineItem.value));
+        // assert(
+        // 	// eslint-disable-next-line @typescript-eslint/tslint/config
+        // 	typeof lineItem.value === 'number',
+        // 	`${type} series item data value must be a number, got=${typeof lineItem.value}, value=${lineItem.value}`);
     }
     function checkCloudAreaItem(type, lineItem) {
         if (!isFulfilledData(lineItem)) {
             return;
         }
-        assert(
-        // eslint-disable-next-line @typescript-eslint/tslint/config
-        typeof lineItem.higherValue === 'number', "".concat(type, " series item data higher value must be a number, got=").concat(typeof lineItem.higherValue, ", value=").concat(lineItem.higherValue));
-        assert(
-        // eslint-disable-next-line @typescript-eslint/tslint/config
-        typeof lineItem.lowerValue === 'number', "".concat(type, " series item data lower value must be a number, got=").concat(typeof lineItem.lowerValue, ", value=").concat(lineItem.lowerValue));
+        // assert(
+        // 	// eslint-disable-next-line @typescript-eslint/tslint/config
+        // 	typeof lineItem.higherValue === 'number',
+        // 	`${type} series item data higher value must be a number, got=${typeof lineItem.higherValue}, value=${lineItem.higherValue}`);
+        // assert(
+        // 	// eslint-disable-next-line @typescript-eslint/tslint/config
+        // 	typeof lineItem.lowerValue === 'number',
+        // 	`${type} series item data lower value must be a number, got=${typeof lineItem.lowerValue}, value=${lineItem.lowerValue}`);
     }
 
     var priceLineOptionsDefaults = {
         color: '#FF0000',
         price: 0,
+        visible: true,
         lineStyle: 2 /* Dashed */,
         lineWidth: 1,
         lineVisible: true,
@@ -12050,6 +16654,25 @@
         return CandlestickSeriesApi;
     }(SeriesApi));
 
+    var LineToolApi = /** @class */ (function () {
+        function LineToolApi(lineTool) {
+            this._internal__lineTool = lineTool;
+        }
+        LineToolApi.prototype.setPoints = function (points) {
+            throw new Error('Method not implemented.');
+        };
+        LineToolApi.prototype.applyOptions = function (options) {
+            this._internal__lineTool._internal_applyOptions(options);
+        };
+        LineToolApi.prototype.options = function () {
+            return clone(this._internal__lineTool._internal_options());
+        };
+        LineToolApi.prototype.toolType = function () {
+            return this._internal__lineTool._internal_toolType();
+        };
+        return LineToolApi;
+    }());
+
     var crosshairOptionsDefaults = {
         vertLine: {
             color: '#758696',
@@ -12067,7 +16690,7 @@
             labelVisible: true,
             labelBackgroundColor: '#4c525e',
         },
-        mode: 1 /* Magnet */,
+        magnetThreshold: 14,
     };
 
     var gridOptionsDefaults = {
@@ -12102,7 +16725,8 @@
         borderColor: '#2B2B43',
         entireTextOnly: false,
         visible: false,
-        drawTicks: true,
+        floating: false,
+        drawTicks: false,
         scaleMargins: {
             bottom: 0.1,
             top: 0.2,
@@ -12119,6 +16743,7 @@
         rightBarStaysOnScroll: false,
         borderVisible: true,
         borderColor: '#2B2B43',
+        mode: 0 /* Normal */,
         visible: true,
         timeVisible: false,
         secondsVisible: true,
@@ -12145,6 +16770,7 @@
         overlayPriceScales: __assign({}, priceScaleOptionsDefaults),
         leftPriceScale: __assign(__assign({}, priceScaleOptionsDefaults), { visible: false }),
         rightPriceScale: __assign(__assign({}, priceScaleOptionsDefaults), { visible: true }),
+        nonPrimaryPriceScale: __assign(__assign({}, priceScaleOptionsDefaults), { visible: true }),
         timeScale: timeScaleOptionsDefaults,
         watermark: watermarkOptionsDefaults,
         localization: {
@@ -12246,6 +16872,7 @@
         bottomLineColor: 'rgba(239, 83, 80, 1)',
         lineWidth: 3,
         lineStyle: 0 /* Solid */,
+        lineType: 0 /* Simple */,
         crosshairMarkerVisible: true,
         crosshairMarkerRadius: 4,
         crosshairMarkerBorderColor: '',
@@ -12264,7 +16891,7 @@
         priceLineSource: 0 /* LastBar */,
         priceLineWidth: 1,
         priceLineColor: '',
-        priceLineStyle: 2 /* Dashed */,
+        priceLineStyle: 1 /* Dotted */,
         baseLineVisible: true,
         baseLineWidth: 1,
         baseLineColor: '#B2B5BE',
@@ -12678,6 +17305,14 @@
             this._private__seriesMap.delete(seriesApi);
             this._private__seriesMapReversed.delete(series);
         };
+        ChartApi.prototype.addLineTool = function (name, points, options) {
+            var strictOptions = merge(clone(LineToolsOptionDefaults[name]), options || {});
+            var tool = this._private__chartWidget._internal_model()._internal_createLineTool(name, strictOptions, points);
+            return new LineToolApi(tool);
+        };
+        ChartApi.prototype.setActiveLineTool = function (name, options) {
+            this._private__chartWidget._internal_model()._internal_lineToolCreator()._internal_setActiveLineTool(name, options);
+        };
         ChartApi.prototype._internal_applyNewData = function (series, data) {
             this._private__sendUpdateToChart(this._private__dataLayer._internal_setSeriesData(series, data));
         };
@@ -12721,6 +17356,15 @@
         ChartApi.prototype.fullUpdate = function () {
             return this._private__chartWidget._internal_model()._internal_fullUpdate();
         };
+        ChartApi.prototype.removePane = function (index) {
+            this._private__chartWidget._internal_model()._internal_removePane(index);
+        };
+        ChartApi.prototype.swapPane = function (first, second) {
+            this._private__chartWidget._internal_model()._internal_swapPane(first, second);
+        };
+        ChartApi.prototype.getPaneElements = function () {
+            return this._private__chartWidget._internal_paneWidgets().map(function (paneWidget) { return paneWidget._internal_getPaneCell(); });
+        };
         ChartApi.prototype._private__sendUpdateToChart = function (update) {
             var model = this._private__chartWidget._internal_model();
             model._internal_updateTimeScale(update._internal_timeScale._internal_baseIndex, update._internal_timeScale._internal_points, update._internal_timeScale._internal_firstChangedPointIndex);
@@ -12740,6 +17384,7 @@
             return {
                 time: param._internal_time && (param._internal_time._internal_businessDay || param._internal_time._internal_timestamp),
                 point: param._internal_point,
+                paneIndex: param._internal_paneIndex,
                 hoveredSeries: hoveredSeries,
                 hoveredMarkerId: param._internal_hoveredObject,
                 seriesPrices: seriesPrices,
@@ -12773,7 +17418,7 @@
      * Returns the current version as a string. For example `'3.3.0'`.
      */
     function version() {
-        return "3.8.0-dev+202207260052";
+        return "3.8.0-dev+202211041612";
     }
 
     var LightweightChartsModule = /*#__PURE__*/Object.freeze({
@@ -12784,11 +17429,16 @@
         get TrackingModeExitMode () { return TrackingModeExitMode; },
         get CrosshairMode () { return CrosshairMode; },
         get PriceScaleMode () { return PriceScaleMode; },
+        get TimeScaleMode () { return TimeScaleMode; },
         get PriceLineSource () { return PriceLineSource; },
         get LastPriceAnimationMode () { return LastPriceAnimationMode; },
         get LasPriceAnimationMode () { return LastPriceAnimationMode; },
+        get BoxHorizontalAlignment () { return BoxHorizontalAlignment; },
+        get BoxVerticalAlignment () { return BoxVerticalAlignment; },
         get TickMarkType () { return TickMarkType; },
         get ColorType () { return ColorType; },
+        get LineEnd () { return LineEnd; },
+        get TextAlignment () { return TextAlignment; },
         isBusinessDay: isBusinessDay,
         isUTCTimestamp: isUTCTimestamp,
         createChart: createChart

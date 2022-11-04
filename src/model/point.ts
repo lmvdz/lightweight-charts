@@ -4,23 +4,26 @@ import { Coordinate } from './coordinate';
 /**
  * Represents a point on the chart.
  */
-export interface Point {
-	/**
-	 * The x coordinate.
-	 */
-	x: Coordinate;
-	/**
-	 * The y coordinate.
-	 */
-	y: Coordinate;
+// export interface Point {
+// 	/**
+// 	 * The x coordinate.
+// 	 */
+// 	x: Coordinate;
+// 	/**
+// 	 * The y coordinate.
+// 	 */
+// 	y: Coordinate;
 
-	shiftKey?: boolean;
-	ctrlKey?: boolean;
-}
+// 	shiftKey?: boolean;
+// 	ctrlKey?: boolean;
+// }
 
 export interface IPoint {
 	x: Coordinate;
 	y: Coordinate;
+
+	shiftKey?: boolean;
+	ctrlKey?: boolean;
 }
 
 export class Point {

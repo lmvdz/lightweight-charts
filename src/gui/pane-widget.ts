@@ -134,7 +134,6 @@ export class PaneWidget implements IDestroyable, MouseEventHandlers {
 	private _exitTrackingModeOnNextTry: boolean = false;
 	private _initCrosshairPosition: Point | null = null;
 	private _scrollXAnimation: KineticAnimation | null = null;
-	private _isSettingSize: boolean = false;
 
 	public constructor(chart: ChartWidget, state: Pane) {
 		this._chart = chart;
@@ -634,10 +633,8 @@ export class PaneWidget implements IDestroyable, MouseEventHandlers {
 		}
 
 		this._size = size;
-		this._isSettingSize = true;
 		this._canvasBinding.resizeCanvas({ width: size.w, height: size.h });
 		this._topCanvasBinding.resizeCanvas({ width: size.w, height: size.h });
-		this._isSettingSize = false;
 		this._paneCell.style.width = size.w + 'px';
 		this._paneCell.style.height = size.h + 'px';
 	}

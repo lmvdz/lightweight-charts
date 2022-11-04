@@ -134,7 +134,6 @@ export class SeriesBarColorer {
 		};
 	}
 
-<<<<<<< HEAD
 	private _cloudAreaStyle(cloudAreaStyle: CloudAreaStyleOptions): BarColorerStyle {
 		return {
 			...emptyResult,
@@ -154,13 +153,6 @@ export class SeriesBarColorer {
 
 		return {
 			...emptyResult,
-=======
-	private _lineStyle(lineStyle: LineStyleOptions, barIndex: TimePointIndex, precomputedBars?: PrecomputedBars): BarColorerStyle {
-		const currentBar = ensureNotNull(this._findBar(barIndex, precomputedBars)) as SeriesPlotRow<'Line'>;
-
-		return {
-			...emptyResult,
->>>>>>> iosiftalmacel/master
 			barColor: currentBar.color ?? lineStyle.color,
 		};
 	}

@@ -39,15 +39,12 @@ export class SeriesLinePaneView extends LinePaneViewBase<'Line', LineItem> {
 		return this._lineRenderer;
 	}
 
-<<<<<<< HEAD
 	protected override _updateOptions(): void {
 		this._items.forEach((item: LineItem) => {
 			item.color = this._series.barColorer().barStyle(item.time).barColor;
 		});
 	}
 
-=======
->>>>>>> iosiftalmacel/master
 	protected _createRawItem(time: TimePointIndex, price: BarPrice, colorer: SeriesBarColorer): LineItem {
 		const item = this._createRawItemBase(time, price) as LineItem;
 		item.color = colorer.barStyle(time).barColor;
