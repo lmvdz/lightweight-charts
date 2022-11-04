@@ -314,7 +314,13 @@ export class TimeScale {
 		const time2 = this._points[index2]?.time.timestamp as number;
 		const firstTime = this._points[0]?.time.timestamp as number;
 		const lastTime = this._points[this._points.length - 1]?.time.timestamp as number;
-		const interval = this._points[1].time.timestamp - this._points[0].time.timestamp;
+		let interval = 0;
+
+		if (this._points.length >= 2) {
+			interval = this._points[1].time.timestamp - this._points[0].time.timestamp;
+		} else {
+			interval = 0 - this._points[0].time.timestamp;
+		}
 
 		if (index >= this._points.length - 1) {
 			return lastTime + interval * (index - this._points.length + 1);
@@ -557,7 +563,10 @@ export class TimeScale {
 	}
 
 	public coordinateToTime(x: Coordinate): TimePoint {
-		const interval = this._points[1].time.timestamp - this._points[0].time.timestamp;
+		let interval = 0 - this._points[0].time.timestamp;
+		if (this._points.length >= 2) {
+			interval = this._points[1].time.timestamp - this._points[0].time.timestamp;
+		}
 		const index = this.coordinateToIndex(x);
 
 		if (index >= this._points.length) {

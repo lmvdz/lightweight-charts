@@ -1,6 +1,6 @@
 /*!
  * @license
- * TradingView Lightweight Charts v3.8.0-dev+202211041630
+ * TradingView Lightweight Charts v3.8.0-dev+202211041707
  * Copyright (c) 2020 TradingView, Inc.
  * Licensed under Apache License 2.0 https://www.apache.org/licenses/LICENSE-2.0
  */
@@ -10761,7 +10761,13 @@ var TimeScale = /** @class */ (function () {
         var time2 = (_b = this._private__points[index2]) === null || _b === void 0 ? void 0 : _b._internal_time._internal_timestamp;
         var firstTime = (_c = this._private__points[0]) === null || _c === void 0 ? void 0 : _c._internal_time._internal_timestamp;
         var lastTime = (_d = this._private__points[this._private__points.length - 1]) === null || _d === void 0 ? void 0 : _d._internal_time._internal_timestamp;
-        var interval = this._private__points[1]._internal_time._internal_timestamp - this._private__points[0]._internal_time._internal_timestamp;
+        var interval = 0;
+        if (this._private__points.length >= 2) {
+            interval = this._private__points[1]._internal_time._internal_timestamp - this._private__points[0]._internal_time._internal_timestamp;
+        }
+        else {
+            interval = 0 - this._private__points[0]._internal_time._internal_timestamp;
+        }
         if (index >= this._private__points.length - 1) {
             return lastTime + interval * (index - this._private__points.length + 1);
         }
@@ -10970,7 +10976,10 @@ var TimeScale = /** @class */ (function () {
         return Math.ceil(this._private__coordinateToFloatIndex(x));
     };
     TimeScale.prototype._internal_coordinateToTime = function (x) {
-        var interval = this._private__points[1]._internal_time._internal_timestamp - this._private__points[0]._internal_time._internal_timestamp;
+        var interval = 0 - this._private__points[0]._internal_time._internal_timestamp;
+        if (this._private__points.length >= 2) {
+            interval = this._private__points[1]._internal_time._internal_timestamp - this._private__points[0]._internal_time._internal_timestamp;
+        }
         var index = this._internal_coordinateToIndex(x);
         if (index >= this._private__points.length) {
             var extraTime = interval * (index - this._private__points.length + 1);
@@ -17309,7 +17318,7 @@ function createChart(container, options) {
  * Returns the current version as a string. For example `'3.3.0'`.
  */
 function version() {
-    return "3.8.0-dev+202211041630";
+    return "3.8.0-dev+202211041707";
 }
 
 export { BoxHorizontalAlignment, BoxVerticalAlignment, ColorType, CrosshairMode, LastPriceAnimationMode as LasPriceAnimationMode, LastPriceAnimationMode, LineEnd, LineStyle, LineType, PriceLineSource, PriceScaleMode, TextAlignment, TickMarkType, TimeScaleMode, TrackingModeExitMode, createChart, isBusinessDay, isUTCTimestamp, version };
