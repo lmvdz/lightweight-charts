@@ -1,7 +1,7 @@
 import { DateFormatter } from '../formatters/date-formatter';
 import { DateTimeFormatter } from '../formatters/date-time-formatter';
 
-import { lowerbound } from '../helpers/algorithms';
+import { findLastIndex, lowerbound } from '../helpers/algorithms';
 import { ensureNotNull } from '../helpers/assertions';
 import { Delegate } from '../helpers/delegate';
 import { ISubscription } from '../helpers/isubscription';
@@ -174,6 +174,13 @@ export interface TimeScaleOptions {
 	timeVisible: boolean;
 
 	/**
+	 * Price scale mode.
+	 *
+	 * @defaultValue {@link TimeScaleMode.Normal}
+	 */
+	mode: TimeScaleMode;
+
+	/**
 	 * Show seconds in the time scale and vertical crosshair label in `hh:mm:ss` format for intraday data.
 	 *
 	 * @defaultValue `true`
@@ -197,6 +204,20 @@ export interface TimeScaleOptions {
 	tickMarkFormatter?: TickMarkFormatter;
 }
 
+/**
+ * Represents the time scale mode.
+ */
+export const enum TimeScaleMode {
+	/**
+	 * Time scale shows every signle time on a new bar
+	 */
+	Normal,
+	/**
+	 * Price range changes based on the distance between the different time points
+	 */
+	Euclidean,
+}
+
 export class TimeScale {
 	private readonly _options: TimeScaleOptions;
 	private readonly _model: ChartModel;
@@ -215,6 +236,7 @@ export class TimeScale {
 	private _formattedByWeight: Map<number, FormattedLabelsCache> = new Map();
 
 	private _visibleRange: TimeScaleVisibleRange = TimeScaleVisibleRange.invalid();
+	private _visibleValueRange: TimeScaleVisibleRange = TimeScaleVisibleRange.invalid();
 	private _visibleRangeInvalidated: boolean = true;
 
 	private readonly _visibleBarsChanged: Delegate = new Delegate();
@@ -284,6 +306,27 @@ export class TimeScale {
 		return this._points[index]?.time || null;
 	}
 
+	public floatIndexToTime(index: TimePointIndex): number | null {
+		const index1 = Math.floor(index);
+		const index2 = Math.ceil(index);
+
+		const time1 = this._points[index1]?.time.timestamp as number;
+		const time2 = this._points[index2]?.time.timestamp as number;
+		const firstTime = this._points[0]?.time.timestamp as number;
+		const lastTime = this._points[this._points.length - 1]?.time.timestamp as number;
+		const interval = this._points[1].time.timestamp - this._points[0].time.timestamp;
+
+		if (index >= this._points.length - 1) {
+			return lastTime + interval * (index - this._points.length + 1);
+		} else if (index < 0) {
+			return firstTime - interval * -index;
+		} else if (time1 && time2) {
+			return time1 + (time2 - time1) * (index - index1);
+		} else {
+			return null;
+		}
+	}
+
 	public timeToIndex(time: TimePoint, findNearest: boolean): TimePointIndex | null {
 		if (this._points.length < 1) {
 			// no time points available
@@ -302,6 +345,20 @@ export class TimeScale {
 		}
 
 		return index as TimePointIndex;
+	}
+
+	public timeToFloatIndex(time: TimePoint, findNearest: boolean): TimePointIndex | null {
+		const toIndex = this.timeToIndex(time, findNearest);
+
+		if (toIndex === null) {
+			return null;
+		}
+
+		const fromIndex = Math.max(toIndex - 1, 0);
+		const fromValue = this._points[fromIndex].time.timestamp;
+		const toValue = this._points[toIndex].time.timestamp;
+
+		return (fromIndex + (1 - (toValue - time.timestamp) / (toValue - fromValue))) as TimePointIndex;
 	}
 
 	public isEmpty(): boolean {
@@ -348,8 +405,8 @@ export class TimeScale {
 
 	public logicalRangeForTimeRange(range: TimePointsRange): LogicalRange {
 		return {
-			from: ensureNotNull(this.timeToIndex(range.from, true)) as number as Logical,
-			to: ensureNotNull(this.timeToIndex(range.to, true)) as number as Logical,
+			from: ensureNotNull(this.timeToFloatIndex(range.from, true)) as number as Logical,
+			to: ensureNotNull(this.timeToFloatIndex(range.to, true)) as number as Logical,
 		};
 	}
 
@@ -399,26 +456,78 @@ export class TimeScale {
 	}
 
 	public indexToCoordinate(index: TimePointIndex): Coordinate {
-		if (this.isEmpty() || !isInteger(index)) {
+		if (this.isEmpty()) {
 			return 0 as Coordinate;
 		}
 
-		const baseIndex = this.baseIndex();
-		const deltaFromRight = baseIndex + this._rightOffset - index;
-		const coordinate = this._width - (deltaFromRight + 0.5) * this._barSpacing - 1;
-		return coordinate as Coordinate;
-	}
+		if (this._options.mode === TimeScaleMode.Euclidean) {
+			const time = this.indexToTime(index);
+			if (!time) {
+				return 0 as Coordinate;
+			}
 
-	public indexesToCoordinates<T extends TimedValue>(points: T[], visibleRange?: SeriesItemsIndexesRange): void {
-		const baseIndex = this.baseIndex();
-		const indexFrom = (visibleRange === undefined) ? 0 : visibleRange.from;
-		const indexTo = (visibleRange === undefined) ? points.length : visibleRange.to;
+			return this.timeToCoordinate(time);
+		} else {
+			if (!isInteger(index)) {
+				return 0 as Coordinate;
+			}
 
-		for (let i = indexFrom; i < indexTo; i++) {
-			const index = points[i].time;
+			const baseIndex = this.baseIndex();
 			const deltaFromRight = baseIndex + this._rightOffset - index;
 			const coordinate = this._width - (deltaFromRight + 0.5) * this._barSpacing - 1;
-			points[i].x = coordinate as Coordinate;
+			return coordinate as Coordinate;
+		}
+	}
+
+	public indexesToCoordinates<T extends TimedValue>(
+		points: T[],
+		visibleRange?: SeriesItemsIndexesRange
+	): void {
+		if (this._options.mode === TimeScaleMode.Euclidean) {
+			const intervalRange = this._visibleValueRange.logicalRange();
+			const start = intervalRange?.left() || 0;
+			const end = intervalRange?.right() || 0;
+
+			for (let i = 0; i < points.length; i++) {
+				const utc = (this.indexToTime(points[i].time)?.timestamp || 0) as number;
+				points[i].x = this._width * ((utc - start) / (end - start)) as Coordinate;
+			}
+		} else {
+			const baseIndex = this.baseIndex();
+
+			const indexFrom = (visibleRange === undefined) ? 0 : visibleRange.from;
+			const indexTo = (visibleRange === undefined) ? points.length : visibleRange.to;
+
+			for (let i = indexFrom; i < indexTo; i++) {
+				const index = points[i].time;
+				const deltaFromRight = baseIndex + this._rightOffset - index;
+				const coordinate = this._width - (deltaFromRight + 0.5) * this._barSpacing - 1;
+				points[i].x = coordinate as Coordinate;
+			}
+		}
+	}
+
+	public timeToCoordinate(timePoint: TimePoint): Coordinate {
+		if (this._options.mode === TimeScaleMode.Euclidean) {
+			const intervalRange = this._visibleValueRange.logicalRange();
+			const start = intervalRange?.left() || 0;
+			const end = intervalRange?.right() || 0;
+			const utc = timePoint.timestamp as number;
+			return this._width * ((utc - start) / (end - start)) as Coordinate;
+		} else {
+			const index = this.timeToIndex(timePoint, true);
+			const timestamp = this._points[index as number].time.timestamp;
+			const x = this.indexToCoordinate(index as TimePointIndex);
+			if (timestamp === timePoint.timestamp) {
+				return x;
+			} else if (index === 0 || index === this._points.length - 1) {
+				const interval = this._points[1].time.timestamp - this._points[0].time.timestamp;
+				const timeDiff = timePoint.timestamp - timestamp;
+				const bars = timeDiff / interval;
+				return x + (bars * this.barSpacing()) as Coordinate;
+			} else {
+				return x;
+			}
 		}
 	}
 
@@ -445,6 +554,21 @@ export class TimeScale {
 
 	public coordinateToIndex(x: Coordinate): TimePointIndex {
 		return Math.ceil(this._coordinateToFloatIndex(x)) as TimePointIndex;
+	}
+
+	public coordinateToTime(x: Coordinate): TimePoint {
+		const interval = this._points[1].time.timestamp - this._points[0].time.timestamp;
+		const index = this.coordinateToIndex(x);
+
+		if (index >= this._points.length) {
+			const extraTime = interval * (index - this._points.length + 1);
+			return { timestamp: this._points[this._points.length - 1].time.timestamp + extraTime as UTCTimestamp };
+		} else if (index < 0) {
+			const extraTime = interval * -index;
+			return { timestamp: this._points[0].time.timestamp - extraTime as UTCTimestamp };
+		}
+
+		return this._points[index].time;
 	}
 
 	public setRightOffset(offset: number): void {
@@ -486,7 +610,7 @@ export class TimeScale {
 		const spacing = this._barSpacing;
 		const fontSize = this._model.options().layout.fontSize;
 
-		const maxLabelWidth = (fontSize + 4) * 5;
+		const maxLabelWidth = (fontSize + 4) * (this._options.mode === TimeScaleMode.Euclidean ? 12 : 5);
 		const indexPerLabel = Math.round(maxLabelWidth / spacing);
 
 		const visibleBars = ensureNotNull(this.visibleStrictRange());
@@ -508,22 +632,30 @@ export class TimeScale {
 
 		let targetIndex = 0;
 		for (const tm of items) {
-			if (!(firstBar <= tm.index && tm.index <= lastBar)) {
+			const index = this._options.mode === TimeScaleMode.Euclidean
+				? this.timeToFloatIndex(tm.time, true) as TimePointIndex
+				: tm.index;
+
+			if (!(firstBar <= index && index <= lastBar)) {
 				continue;
 			}
 
 			let label: TimeMark;
 			if (targetIndex < this._labels.length) {
 				label = this._labels[targetIndex];
-				label.coord = this.indexToCoordinate(tm.index);
 				label.label = this._formatLabel(tm.time, tm.weight);
 				label.weight = tm.weight;
+				label.coord = this._options.mode === TimeScaleMode.Euclidean
+					? this.timeToCoordinate(tm.time)
+					: this.indexToCoordinate(index);
 			} else {
 				label = {
 					needAlignCoordinate: false,
-					coord: this.indexToCoordinate(tm.index),
 					label: this._formatLabel(tm.time, tm.weight),
 					weight: tm.weight,
+					coord: this._options.mode === TimeScaleMode.Euclidean
+						? this.timeToCoordinate(tm.time)
+						: this.indexToCoordinate(index),
 				};
 
 				this._labels.push(label);
@@ -692,9 +824,27 @@ export class TimeScale {
 
 	public update(newPoints: readonly TimeScalePoint[], firstChangedPointIndex: number): void {
 		this._visibleRangeInvalidated = true;
-
 		this._points = newPoints;
-		this._tickMarks.setTimeScalePoints(newPoints, firstChangedPointIndex);
+
+		if (this._options.mode === TimeScaleMode.Euclidean) {
+			const to = newPoints[newPoints.length - 1].time.timestamp as number;
+			const from = newPoints[0].time.timestamp as number;
+			const tickSize = (to - from) / newPoints.length;
+
+			const interval = Math.pow(10, Math.floor(Math.log10(tickSize)));
+			const start = Math.floor(from / interval) * interval;
+			const end = Math.ceil(to / interval) * interval;
+
+			const points: TimeScalePoint[] = [];
+
+			for (let index = start; index < end; index += interval) {
+				points.push({ time: { timestamp: index as UTCTimestamp }, timeWeight: TickMarkWeight.Day });
+			}
+			this._tickMarks.setTimeScalePoints(points, 0);
+		} else {
+			this._tickMarks.setTimeScalePoints(newPoints, firstChangedPointIndex);
+		}
+
 		this._correctOffset();
 	}
 
@@ -719,9 +869,33 @@ export class TimeScale {
 	}
 
 	public setVisibleRange(range: RangeImpl<TimePointIndex>): void {
-		const length = range.count();
-		this._setBarSpacing(this._width / length);
-		this._rightOffset = range.right() - this.baseIndex();
+		if (this._options.mode === TimeScaleMode.Euclidean) {
+			const leftValue = this.floatIndexToTime(range.left());
+			const rightValue = this.floatIndexToTime(range.right());
+
+			if (!leftValue || !rightValue) {
+				return;
+			}
+
+			const lastValue = this._points[this._points.length - 1].time.timestamp;
+			const firstValue = this._points[0].time.timestamp;
+			const avg = (lastValue - firstValue) / this._points.length;
+
+			const right = (rightValue - firstValue) / avg;
+			const left = (leftValue - firstValue) / avg;
+
+			const offset = right - this.baseIndex();
+			const barsLength = right - left + 1;
+			const space = this._width / barsLength;
+
+			this._setBarSpacing(space);
+			this._rightOffset = (offset);
+		} else {
+			const length = range.count();
+			this._setBarSpacing(this._width / length);
+			this._rightOffset = range.right() - this.baseIndex();
+		}
+
 		this._correctOffset();
 		this._visibleRangeInvalidated = true;
 		this._model.recalculateAllPanes();
@@ -779,13 +953,20 @@ export class TimeScale {
 	}
 
 	private _coordinateToFloatIndex(x: Coordinate): number {
-		const deltaFromRight = this._rightOffsetForCoordinate(x);
-		const baseIndex = this.baseIndex();
-		const index = baseIndex + this._rightOffset - deltaFromRight;
+		const valueRange = this._visibleValueRange.logicalRange();
 
-		// JavaScript uses very strange rounding
-		// we need rounding to avoid problems with calculation errors
-		return Math.round(index * 1000000) / 1000000;
+		if (this._options.mode === TimeScaleMode.Euclidean && valueRange) {
+			const value = valueRange.valueAt(x / this._width) as number;
+			return this.timeToFloatIndex({ timestamp: value as UTCTimestamp }, true) || 0;
+		} else {
+			const deltaFromRight = this._rightOffsetForCoordinate(x);
+			const baseIndex = this.baseIndex();
+			const index = baseIndex + this._rightOffset - deltaFromRight;
+
+			// JavaScript uses very strange rounding
+			// we need rounding to avoid problems with calculation errors
+			return Math.round(index * 1000000) / 1000000;
+		}
 	}
 
 	private _setBarSpacing(newBarSpacing: number): void {
@@ -814,8 +995,27 @@ export class TimeScale {
 
 		const baseIndex = this.baseIndex();
 		const newBarsLength = this._width / this._barSpacing;
-		const rightBorder = this._rightOffset + baseIndex;
-		const leftBorder = rightBorder - newBarsLength + 1;
+		let rightBorder = this._rightOffset + baseIndex;
+		let leftBorder = rightBorder - newBarsLength + 1;
+
+		if (this._options.mode === TimeScaleMode.Euclidean && this._points.length) {
+			const lastValue = this._points[this._points.length - 1].time.timestamp;
+			const firstValue = this._points[0].time.timestamp;
+			const avg = (lastValue - firstValue) / this._points.length;
+
+			const leftValue = firstValue + leftBorder * avg as Logical;
+			const rightValue = firstValue + rightBorder * avg as Logical;
+
+			this._visibleValueRange = new TimeScaleVisibleRange(new RangeImpl(leftValue, rightValue));
+
+			leftBorder = leftValue < firstValue
+				? (leftValue - firstValue) / avg
+				: this._points.findIndex((e: TimeScalePoint, i: number) => this._points[i + 1].time.timestamp >= leftValue);
+
+			rightBorder = rightValue > lastValue
+				? this._points.length - 1 + (rightValue - lastValue) / avg
+				: findLastIndex(this._points, (e: TimeScalePoint) => e.time.timestamp <= rightValue);
+		}
 
 		const logicalRange = new RangeImpl(leftBorder as Logical, rightBorder as Logical);
 		this._setVisibleRange(new TimeScaleVisibleRange(logicalRange));

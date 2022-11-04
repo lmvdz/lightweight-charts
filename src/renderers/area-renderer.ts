@@ -20,7 +20,9 @@ export interface PaneRendererAreaDataBase {
 	visibleRange: SeriesItemsIndexesRange | null;
 }
 
-export abstract class PaneRendererAreaBase<TData extends PaneRendererAreaDataBase> extends ScaledRenderer {
+export abstract class PaneRendererAreaBase<
+	TData extends PaneRendererAreaDataBase
+> extends ScaledRenderer {
 	protected _data: TData | null = null;
 
 	public setData(data: TData): void {
@@ -28,7 +30,11 @@ export abstract class PaneRendererAreaBase<TData extends PaneRendererAreaDataBas
 	}
 
 	protected _drawImpl(ctx: CanvasRenderingContext2D): void {
-		if (this._data === null || this._data.items.length === 0 || this._data.visibleRange === null) {
+		if (
+			this._data === null ||
+			this._data.items.length === 0 ||
+			this._data.visibleRange === null
+		) {
 			return;
 		}
 
@@ -50,14 +56,31 @@ export abstract class PaneRendererAreaBase<TData extends PaneRendererAreaDataBas
 			ctx.lineTo(point.x + halfBarWidth, point.y);
 			ctx.lineTo(point.x + halfBarWidth, this._data.baseLevelCoordinate);
 		} else {
-			ctx.moveTo(this._data.items[this._data.visibleRange.from].x, this._data.baseLevelCoordinate);
-			ctx.lineTo(this._data.items[this._data.visibleRange.from].x, this._data.items[this._data.visibleRange.from].y);
+			ctx.moveTo(
+				this._data.items[this._data.visibleRange.from].x,
+				this._data.baseLevelCoordinate
+			);
+			ctx.lineTo(
+				this._data.items[this._data.visibleRange.from].x,
+				this._data.items[this._data.visibleRange.from].y
+			);
 
-			walkLine(ctx, this._data.items, this._data.lineType, this._data.visibleRange);
+			walkLine(
+				ctx,
+				this._data.items,
+				this._data.lineType,
+				this._data.visibleRange
+			);
 
 			if (this._data.visibleRange.to > this._data.visibleRange.from) {
-				ctx.lineTo(this._data.items[this._data.visibleRange.to - 1].x, this._data.baseLevelCoordinate);
-				ctx.lineTo(this._data.items[this._data.visibleRange.from].x, this._data.baseLevelCoordinate);
+				ctx.lineTo(
+					this._data.items[this._data.visibleRange.to - 1].x,
+					this._data.baseLevelCoordinate
+				);
+				ctx.lineTo(
+					this._data.items[this._data.visibleRange.from].x,
+					this._data.baseLevelCoordinate
+				);
 			}
 		}
 		ctx.closePath();
@@ -66,7 +89,9 @@ export abstract class PaneRendererAreaBase<TData extends PaneRendererAreaDataBas
 		ctx.fill();
 	}
 
-	protected abstract _fillStyle(ctx: CanvasRenderingContext2D): CanvasRenderingContext2D['fillStyle'];
+	protected abstract _fillStyle(
+		ctx: CanvasRenderingContext2D
+	): CanvasRenderingContext2D['fillStyle'];
 }
 
 export interface PaneRendererAreaData extends PaneRendererAreaDataBase {
@@ -75,7 +100,9 @@ export interface PaneRendererAreaData extends PaneRendererAreaDataBase {
 }
 
 export class PaneRendererArea extends PaneRendererAreaBase<PaneRendererAreaData> {
-	protected override _fillStyle(ctx: CanvasRenderingContext2D): CanvasRenderingContext2D['fillStyle'] {
+	protected override _fillStyle(
+		ctx: CanvasRenderingContext2D
+	): CanvasRenderingContext2D['fillStyle'] {
 		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 		const data = this._data!;
 

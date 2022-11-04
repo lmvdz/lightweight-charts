@@ -77,6 +77,21 @@ export interface SingleValueData {
 }
 
 /**
+ * A base interface for a data point of single-value series.
+ */
+export interface SingleValueData {
+	/**
+	 * The time of the data.
+	 */
+	time: Time;
+
+	/**
+	 * Price value of the data.
+	 */
+	value: number;
+}
+
+/**
  * Structure describing a single item of data for line series
  */
 export interface LineData extends SingleValueData {

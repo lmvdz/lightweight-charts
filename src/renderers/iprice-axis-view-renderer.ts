@@ -1,22 +1,5 @@
+import { CanvasRenderParams } from '../model/canvas-render-params';
 import { TextWidthCache } from '../model/text-width-cache';
-import { LineWidth } from '../renderers/draw-line';
-
-export interface PriceAxisViewRendererCommonData {
-	activeBackground?: string;
-	background: string;
-	color: string;
-	coordinate: number;
-	fixedCoordinate?: number;
-}
-
-export interface PriceAxisViewRendererData {
-	visible: boolean;
-	text: string;
-	tickVisible: boolean;
-	moveTextToInvisibleTick: boolean;
-	borderColor: string;
-	lineWidth?: LineWidth;
-}
 
 export interface PriceAxisViewRendererOptions {
 	baselineOffset: number;
@@ -30,20 +13,12 @@ export interface PriceAxisViewRendererOptions {
 	paddingOuter: number;
 	paddingTop: number;
 	tickLength: number;
+
+	widthCache: TextWidthCache;
+	align: 'left' | 'right';
 }
 
 export interface IPriceAxisViewRenderer {
-	draw(
-		ctx: CanvasRenderingContext2D,
-		rendererOptions: PriceAxisViewRendererOptions,
-		textWidthCache: TextWidthCache,
-		width: number,
-		align: 'left' | 'right',
-		pixelRatio: number
-	): void;
-
-	height(rendererOptions: PriceAxisViewRendererOptions, useSecondLine: boolean): number;
-	setData(data: PriceAxisViewRendererData, commonData: PriceAxisViewRendererCommonData): void;
+	draw?(ctx: CanvasRenderingContext2D, rendererOptions: PriceAxisViewRendererOptions, renderParams: CanvasRenderParams): void;
+	drawBackground?(ctx: CanvasRenderingContext2D, rendererOptions: PriceAxisViewRendererOptions, renderParams: CanvasRenderParams): void;
 }
-
-export type IPriceAxisViewRendererConstructor = new(data: PriceAxisViewRendererData, commonData: PriceAxisViewRendererCommonData) => IPriceAxisViewRenderer;

@@ -20,6 +20,7 @@ export interface CandlestickPlotRow extends PlotRow {
 	readonly wickColor?: string;
 }
 
+<<<<<<< HEAD
 export interface BrokenAreaPlotRow extends PlotRow {
 	readonly color?: string;
 	readonly label?: string;
@@ -27,13 +28,18 @@ export interface BrokenAreaPlotRow extends PlotRow {
 	readonly id?: string;
 }
 
+=======
+>>>>>>> iosiftalmacel/master
 export interface SeriesPlotRowTypeAtTypeMap {
 	Bar: BarPlotRow;
 	Candlestick: CandlestickPlotRow;
 	Area: PlotRow;
 	Baseline: PlotRow;
+<<<<<<< HEAD
 	CloudArea: PlotRow;
 	BrokenArea: BrokenAreaPlotRow;
+=======
+>>>>>>> iosiftalmacel/master
 	Line: LinePlotRow;
 	Histogram: HistogramPlotRow;
 }

@@ -5,10 +5,43 @@ import { IDestroyable } from '../helpers/idestroyable';
 
 import { Coordinate } from '../model/coordinate';
 
+<<<<<<< HEAD
 export type HandlerMouseEventCallback = (event: MouseEventHandlerMouseEvent) => void;
 export type HandlerTouchEventCallback = (event: MouseEventHandlerTouchEvent) => void;
+=======
+import { PaneWidget } from './pane-widget';
+import { mobileTouch } from './support-touch';
+
+export type HandlerEventCallback = (event: TouchMouseEvent) => void;
+>>>>>>> iosiftalmacel/master
 export type EmptyCallback = () => void;
 export type PinchEventCallback = (middlePoint: Position, scale: number) => void;
+
+export interface IInputEventListener {
+	onInputEvent(paneWidget: PaneWidget, eventType: InputEventType, event?: TouchMouseEvent): void;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function isInputEventListener(object: any): object is IInputEventListener {
+	// eslint-disable-next-line @typescript-eslint/tslint/config
+	return (object as IInputEventListener).onInputEvent !== undefined;
+}
+
+export const enum InputEventType {
+	Pinch,
+	PinchEnd,
+	PinchStart,
+	MouseClick,
+	MouseDoubleClick,
+	MouseDownOutside,
+	MouseDown,
+	MouseEnter,
+	MouseLeave,
+	MouseMove,
+	MouseUp,
+	PressedMouseMove,
+	LongTap,
+}
 
 export interface MouseEventHandlers {
 	pinchStartEvent?: EmptyCallback;
@@ -56,7 +89,14 @@ export interface MouseEventHandlerEventBase {
 	readonly metaKey: boolean;
 	readonly srcType: string;
 
+<<<<<<< HEAD
 	target: MouseEvent['target'];
+=======
+	consumed?: boolean;
+	// TODO: remove this after rewriting MouseEventHandler to handle touch and mouse event separately
+	readonly type: 'touch' | 'mouse';
+
+>>>>>>> iosiftalmacel/master
 	view: MouseEvent['view'];
 
 	preventDefault(): void;

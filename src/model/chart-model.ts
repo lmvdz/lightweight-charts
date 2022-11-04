@@ -8,18 +8,23 @@ import { ISubscription } from '../helpers/isubscription';
 import { DeepPartial, merge } from '../helpers/strict-type-checks';
 
 import { PriceAxisViewRendererOptions } from '../renderers/iprice-axis-view-renderer';
-import { PriceAxisRendererOptionsProvider } from '../renderers/price-axis-renderer-options-provider';
+import { PriceAxisRendererOptionsProvider } from '../renderers/price-axis-label-renderer-options-provider';
 
 import { Coordinate } from './coordinate';
 import { Crosshair, CrosshairOptions } from './crosshair';
 import { DefaultPriceScaleId, isDefaultPriceScale } from './default-price-scale';
 import { GridOptions } from './grid';
+import { IDataSource } from './idata-source';
 import { InvalidateMask, InvalidationLevel } from './invalidate-mask';
 import { IPriceDataSource } from './iprice-data-source';
 import { ColorType, LayoutOptions, LayoutOptionsInternal } from './layout-options';
+import { LineTool, LineToolPoint } from './line-tool';
+import { LineToolCreator } from './line-tool-creator';
+import { LineToolOptionsMap, LineToolType } from './line-tool-options';
+import { LineTools } from './line-tools';
 import { LocalizationOptions } from './localization-options';
 import { Magnet } from './magnet';
-import { DEFAULT_STRETCH_FACTOR, Pane } from './pane';
+import { DEFAULT_STRETCH_FACTOR, Pane, PaneInfo } from './pane';
 import { Point } from './point';
 import { PriceScale, PriceScaleOptions } from './price-scale';
 import { Series, SeriesOptionsInternal } from './series';
@@ -261,12 +266,12 @@ export interface ChartOptions {
 	 * Overlay price scale options
 	 */
 	overlayPriceScales: OverlayPriceScaleOptions;
-
+	/** Structure describing price scale options for non-primary pane */
+	nonPrimaryPriceScale: VisiblePriceScaleOptions;
 	/**
 	 * Time scale options
 	 */
 	timeScale: TimeScaleOptions;
-
 	/**
 	 * The crosshair shows the intersection of the price and time scale values at any point on the chart.
 	 *
@@ -330,9 +335,11 @@ export class ChartModel implements IDestroyable {
 
 	private readonly _timeScale: TimeScale;
 	private readonly _panes: Pane[] = [];
+	private readonly _panesToIndex: Map<Pane, number> = new Map<Pane, number>();
+	private readonly _lineToolCreator: LineToolCreator;
 	private readonly _crosshair: Crosshair;
-	private readonly _magnet: Magnet;
 	private readonly _watermark: Watermark;
+	private readonly _magnet: Magnet;
 
 	private _serieses: Series[] = [];
 
@@ -340,7 +347,9 @@ export class ChartModel implements IDestroyable {
 	private _initialTimeScrollPos: number | null = null;
 	private _hoveredSource: HoveredSource | null = null;
 	private readonly _priceScalesOptionsChanged: Delegate = new Delegate();
-	private _crosshairMoved: Delegate<TimePointIndex | null, Point | null> = new Delegate();
+	private _crosshairMoved: Delegate<TimePointIndex | null, Point & PaneInfo | null> = new Delegate();
+
+	private _suppressSeriesMoving: boolean = false;
 
 	private _backgroundTopColor: string;
 	private _backgroundBottomColor: string;
@@ -354,8 +363,9 @@ export class ChartModel implements IDestroyable {
 
 		this._timeScale = new TimeScale(this, options.timeScale, this._options.localization);
 		this._crosshair = new Crosshair(this, options.crosshair);
-		this._magnet = new Magnet(options.crosshair);
 		this._watermark = new Watermark(this, options.watermark);
+		this._magnet = new Magnet(options.crosshair.magnetThreshold);
+		this._lineToolCreator = new LineToolCreator(this);
 
 		this.createPane();
 		this._panes[0].setStretchFactor(DEFAULT_STRETCH_FACTOR * 2);
@@ -376,13 +386,23 @@ export class ChartModel implements IDestroyable {
 		this._invalidate(new InvalidateMask(InvalidationLevel.Cursor));
 	}
 
-	public updateSource(source: IPriceDataSource): void {
+	public updateSource(source: IDataSource): void {
 		const inv = this._invalidationMaskForSource(source);
 		this._invalidate(inv);
 	}
 
 	public hoveredSource(): HoveredSource | null {
 		return this._hoveredSource;
+	}
+
+	public dataSources(): IDataSource[] {
+		const sources: IDataSource[] = [];
+		for (const pane of this._panes) {
+			for (const paneSource of pane.dataSources()) {
+				sources.push(paneSource);
+			}
+		}
+		return sources;
 	}
 
 	public setHoveredSource(source: HoveredSource | null): void {
@@ -475,11 +495,19 @@ export class ChartModel implements IDestroyable {
 		return this._watermark;
 	}
 
+	public lineToolCreator(): LineToolCreator {
+		return this._lineToolCreator;
+	}
+
 	public crosshairSource(): Crosshair {
 		return this._crosshair;
 	}
 
-	public crosshairMoved(): ISubscription<TimePointIndex | null, Point | null> {
+	public magnet(): Magnet {
+		return this._magnet;
+	}
+
+	public crosshairMoved(): ISubscription<TimePointIndex | null, (Point & PaneInfo) | null> {
 		return this._crosshairMoved;
 	}
 
@@ -496,7 +524,19 @@ export class ChartModel implements IDestroyable {
 	}
 
 	public createPane(index?: number): Pane {
-		const pane = new Pane(this._timeScale, this);
+		if (index !== undefined) {
+			if (index > this._panes.length) {
+				for (let i = this._panes.length; i < index; i++) {
+					this.createPane(i);
+				}
+			} else if (index < this._panes.length) {
+				return this._panes[index];
+			}
+		}
+
+		const actualIndex = (index === undefined) ? (this._panes.length - 1) + 1 : index;
+
+		const pane = new Pane(this._timeScale, this, actualIndex);
 
 		if (index !== undefined) {
 			this._panes.splice(index, 0, pane);
@@ -505,8 +545,7 @@ export class ChartModel implements IDestroyable {
 			this._panes.push(pane);
 		}
 
-		const actualIndex = (index === undefined) ? this._panes.length - 1 : index;
-
+		this._buildPaneIndexMapping();
 		// we always do autoscaling on the creation
 		// if autoscale option is true, it is ok, just recalculate by invalidation mask
 		// if autoscale option is false, autoscale anyway on the first draw
@@ -517,8 +556,64 @@ export class ChartModel implements IDestroyable {
 			autoScale: true,
 		});
 		this._invalidate(mask);
-
 		return pane;
+	}
+
+	public removePane(index: number): void {
+		if (index === 0) {
+			// we don't support removing the first pane.
+			return;
+		}
+
+		const paneToRemove = this._panes[index];
+		paneToRemove.orderedSources().forEach((source: IDataSource) => {
+			if (source instanceof Series) {
+				this.removeSeries(source);
+			}
+		});
+
+		this._suppressSeriesMoving = true;
+		if (index !== this._panes.length - 1) {
+			// this is not the last pane
+			for (let i = index + 1; i < this._panes.length; i++) {
+				const pane = this._panes[i];
+				pane.orderedSources().forEach((source: IDataSource) => {
+					if (source instanceof Series) {
+						(source as Series).applyOptions({ pane: i - 1 });
+					}
+				});
+			}
+		}
+
+		this._panes.splice(index, 1);
+		this._suppressSeriesMoving = false;
+		this._buildPaneIndexMapping();
+		const mask = new InvalidateMask(InvalidationLevel.Full);
+		this._invalidate(mask);
+	}
+
+	public swapPane(first: number, second: number): void {
+		const firstPane = this._panes[first];
+		const secondPane = this._panes[second];
+
+		this._suppressSeriesMoving = true;
+		firstPane.orderedSources().forEach((source: IDataSource) => {
+			if (source instanceof Series) {
+				(source as Series).applyOptions({ pane: second });
+			}
+		});
+		secondPane.orderedSources().forEach((source: IDataSource) => {
+			if (source instanceof Series) {
+				(source as Series).applyOptions({ pane: first });
+			}
+		});
+
+		this._panes[first] = secondPane;
+		this._panes[second] = firstPane;
+
+		this._suppressSeriesMoving = false;
+		this._buildPaneIndexMapping();
+		this._invalidate(new InvalidateMask(InvalidationLevel.Full));
 	}
 
 	public startScalePrice(pane: Pane, priceScale: PriceScale, x: number): void {
@@ -651,9 +746,11 @@ export class ChartModel implements IDestroyable {
 		price = this._magnet.align(price, index, pane);
 
 		this._crosshair.setPosition(index, price, pane);
-
 		this.cursorUpdate();
-		this._crosshairMoved.fire(this._crosshair.appliedIndex(), { x, y });
+
+		const point = new Point(x, y) as Point & PaneInfo;
+		point.paneIndex = this.getPaneIndex(pane);
+		this._crosshairMoved.fire(this._crosshair.appliedIndex(), point);
 	}
 
 	public clearCurrentPosition(): void {
@@ -712,7 +809,7 @@ export class ChartModel implements IDestroyable {
 		}
 	}
 
-	public paneForSource(source: IPriceDataSource): Pane | null {
+	public paneForSource(source: IDataSource): Pane | null {
 		const pane = this._panes.find((p: Pane) => p.orderedSources().includes(source));
 		return pane === undefined ? null : pane;
 	}
@@ -736,7 +833,7 @@ export class ChartModel implements IDestroyable {
 		return this._rendererOptionsProvider;
 	}
 
-	public priceAxisRendererOptions(): Readonly<PriceAxisViewRendererOptions> {
+	public priceAxisRendererOptions(): PriceAxisViewRendererOptions {
 		return this._rendererOptionsProvider.options();
 	}
 
@@ -745,7 +842,11 @@ export class ChartModel implements IDestroyable {
 	}
 
 	public createSeries<T extends SeriesType>(seriesType: T, options: SeriesOptionsMap[T]): Series<T> {
-		const pane = this._panes[0];
+		const paneIndex = options.pane || 0;
+		if (this._panes.length - 1 <= paneIndex) {
+			this.createPane(paneIndex);
+		}
+		const pane = this._panes[paneIndex];
 		const series = this._createSeries(options, seriesType, pane);
 		this._serieses.push(series);
 
@@ -770,6 +871,13 @@ export class ChartModel implements IDestroyable {
 		if (series.destroy) {
 			series.destroy();
 		}
+	}
+
+	public createLineTool<T extends LineToolType>(lineToolType: T, options: LineToolOptionsMap[T], points: LineToolPoint[]): LineTool<T> {
+		const lineTool = new LineTools[lineToolType](this, options, points) as LineTool<T>;
+		// TODO: iosif add to ownerSourceId pane
+		this._panes[0].addDataSource(lineTool, this.defaultVisiblePriceScaleId());
+		return lineTool;
 	}
 
 	public moveSeriesToScale(series: Series, targetScaleId: string): void {
@@ -824,6 +932,22 @@ export class ChartModel implements IDestroyable {
 		return this._options.rightPriceScale.visible ? DefaultPriceScaleId.Right : DefaultPriceScaleId.Left;
 	}
 
+	public moveSeriesToPane(series: Series, fromPaneIndex: number, newPaneIndex: number): void {
+		if (newPaneIndex === fromPaneIndex || this._suppressSeriesMoving) {
+			// no change
+			return;
+		}
+
+		if (series.options().pane !== newPaneIndex) {
+			series.applyOptions({ pane: newPaneIndex });
+		}
+
+		const previousPane = this.paneForSource(series);
+		previousPane?.removeDataSource(series);
+		const newPane = this.createPane(newPaneIndex);
+		this._addSeriesToPane(series, newPane);
+	}
+
 	public backgroundBottomColor(): string {
 		return this._backgroundBottomColor;
 	}
@@ -865,6 +989,10 @@ export class ChartModel implements IDestroyable {
 		return result;
 	}
 
+	public getPaneIndex(pane: Pane): number {
+		return this._panesToIndex.get(pane) ?? 0;
+	}
+
 	private _paneInvalidationMask(pane: Pane | null, level: InvalidationLevel): InvalidateMask {
 		const inv = new InvalidateMask(level);
 		if (pane !== null) {
@@ -876,7 +1004,7 @@ export class ChartModel implements IDestroyable {
 		return inv;
 	}
 
-	private _invalidationMaskForSource(source: IPriceDataSource, invalidateType?: InvalidationLevel): InvalidateMask {
+	private _invalidationMaskForSource(source: IDataSource, invalidateType?: InvalidationLevel): InvalidateMask {
 		if (invalidateType === undefined) {
 			invalidateType = InvalidationLevel.Light;
 		}
@@ -894,16 +1022,20 @@ export class ChartModel implements IDestroyable {
 
 	private _createSeries<T extends SeriesType>(options: SeriesOptionsInternal<T>, seriesType: T, pane: Pane): Series<T> {
 		const series = new Series<T>(this, options, seriesType);
+		this._addSeriesToPane(series, pane);
 
-		const targetScaleId = options.priceScaleId !== undefined ? options.priceScaleId : this.defaultVisiblePriceScaleId();
+		return series;
+	}
+
+	private _addSeriesToPane(series: Series, pane: Pane): void {
+		const priceScaleId = series.options().priceScaleId;
+		const targetScaleId: string = priceScaleId !== undefined ? priceScaleId : this.defaultVisiblePriceScaleId();
 		pane.addDataSource(series, targetScaleId);
 
 		if (!isDefaultPriceScale(targetScaleId)) {
 			// let's apply that options again to apply margins
-			series.applyOptions(options);
+			series.applyOptions(series.options());
 		}
-
-		return series;
 	}
 
 	private _getBackgroundColor(side: BackgroundColorSide): string {
@@ -916,5 +1048,12 @@ export class ChartModel implements IDestroyable {
 		}
 
 		return layoutOptions.background.color;
+	}
+
+	private _buildPaneIndexMapping(): void {
+		this._panesToIndex.clear();
+		for (let i = 0; i < this._panes.length; i++) {
+			this._panesToIndex.set(this._panes[i], i);
+		}
 	}
 }

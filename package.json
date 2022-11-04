@@ -34,6 +34,9 @@
   "dependencies": {
     "fancy-canvas": "0.2.2"
   },
+  "prettier": {
+    "singleQuote": true
+  },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "~13.1.3",
     "@rollup/plugin-replace": "~3.0.1",
@@ -90,7 +93,7 @@
     "bundle-dts": "tsc --noEmit --allowJs dts-config.js && dts-bundle-generator --config dts-config.js",
     "tsc": "ttsc -p tsconfig.prod.json",
     "tsc-watch": "npm run tsc -- --watch --preserveWatchOutput",
-    "tsc-verify": "tsc -b tsconfig.composite.json",
+    "tsc-verify": "tsc -b",
     "lint": "npm-run-all -p lint:**",
     "lint:js": "eslint --format=unix --ext .js,.md,.javascript ./",
     "lint:ts": "eslint --format=unix --ext .ts,.typescript,.tsx ./",

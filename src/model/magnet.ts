@@ -1,25 +1,31 @@
 import { ensure } from '../helpers/assertions';
 
 import { Coordinate } from './coordinate';
-import { CrosshairMode, CrosshairOptions } from './crosshair';
-import { IPriceDataSource } from './iprice-data-source';
+import { IDataSource } from './idata-source';
 import { Pane } from './pane';
 import { PlotRowValueIndex } from './plot-data';
 import { Series } from './series';
 import { TimePointIndex } from './time-data';
 
 export class Magnet {
-	private readonly _options: CrosshairOptions;
+	private _enabled: boolean = false;
+	private _threashold: number;
 
-	public constructor(options: CrosshairOptions) {
-		this._options = options;
+	public constructor(threashold: number) {
+		this._threashold = threashold;
+	}
+
+	public enable(): void {
+		this._enabled = true;
+	}
+
+	public disable(): void {
+		this._enabled = false;
 	}
 
 	public align(price: number, index: TimePointIndex, pane: Pane): number {
+		if (!this._enabled) { return price; }
 		let res = price;
-		if (this._options.mode === CrosshairMode.Normal) {
-			return res;
-		}
 
 		const defaultPriceScale = pane.defaultPriceScale();
 		const firstValue = defaultPriceScale.firstValue();
@@ -32,7 +38,7 @@ export class Magnet {
 
 		// get all serieses from the pane
 		const serieses: readonly Series[] = pane.dataSources().filter(
-			((ds: IPriceDataSource) => (ds instanceof Series)) as (ds: IPriceDataSource) => ds is Series);
+			((ds: IDataSource) => (ds instanceof Series)) as (ds: IDataSource) => ds is Series);
 
 		const candidates = serieses.reduce(
 			(acc: Coordinate[], series: Series) => {
@@ -52,7 +58,14 @@ export class Magnet {
 
 				// convert bar to pixels
 				const firstPrice = ensure(series.firstValue());
-				return acc.concat([ps.priceToCoordinate(bar.value[PlotRowValueIndex.Close], firstPrice.value)]);
+
+				acc.push(
+					ps.priceToCoordinate(bar.value[PlotRowValueIndex.Close], firstPrice.value),
+					ps.priceToCoordinate(bar.value[PlotRowValueIndex.Low], firstPrice.value),
+					ps.priceToCoordinate(bar.value[PlotRowValueIndex.High], firstPrice.value),
+					ps.priceToCoordinate(bar.value[PlotRowValueIndex.Open], firstPrice.value)
+				);
+				return acc;
 			},
 			[] as Coordinate[]);
 
@@ -63,7 +76,10 @@ export class Magnet {
 		candidates.sort((y1: Coordinate, y2: Coordinate) => Math.abs(y1 - y) - Math.abs(y2 - y));
 
 		const nearest = candidates[0];
-		res = defaultPriceScale.coordinateToPrice(nearest, firstValue);
+
+		if (Math.abs(nearest - y) < this._threashold) {
+			res = defaultPriceScale.coordinateToPrice(nearest, firstValue);
+		}
 
 		return res;
 	}

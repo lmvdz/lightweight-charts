@@ -1,3 +1,4 @@
+/* eslint-disable complexity */
 import { ensureNever } from '../../helpers/assertions';
 import { isNumber } from '../../helpers/strict-type-checks';
 
@@ -5,21 +6,15 @@ import { AutoScaleMargins } from '../../model/autoscale-info-impl';
 import { BarPrice, BarPrices } from '../../model/bar';
 import { ChartModel } from '../../model/chart-model';
 import { Coordinate } from '../../model/coordinate';
+import { Pane } from '../../model/pane';
 import { PriceScale } from '../../model/price-scale';
 import { Series } from '../../model/series';
 import { InternalSeriesMarker, SeriesMarker } from '../../model/series-markers';
 import { TimePointIndex, visibleTimedValues } from '../../model/time-data';
 import { TimeScale } from '../../model/time-scale';
 import { IPaneRenderer } from '../../renderers/ipane-renderer';
-import {
-	SeriesMarkerRendererData,
-	SeriesMarkerRendererDataItem,
-	SeriesMarkersRenderer,
-} from '../../renderers/series-markers-renderer';
-import {
-	calculateShapeHeight,
-	shapeMargin as calculateShapeMargin,
-} from '../../renderers/series-markers-utils';
+import { SeriesMarkerRendererData, SeriesMarkerRendererDataItem, SeriesMarkersRenderer } from '../../renderers/series-markers-renderer';
+import { calculateShapeHeight, shapeMargin as calculateShapeMargin } from '../../renderers/series-markers-utils';
 
 import { IUpdatablePaneView, UpdateType } from './iupdatable-pane-view';
 
@@ -53,17 +48,32 @@ function fillSizeAndY(
 	rendererItem.size = shapeSize;
 
 	switch (marker.position) {
+		case 'price': {
+			const markerPrice = marker.price || inBarPrice;
+			const anchor = marker.anchor || 'center';
+
+			const displaceY = anchor === 'top' ? 1 : anchor === 'bottom' ? -1 : 0;
+			const displaceX = anchor === 'left' ? 1 : anchor === 'right' ? -1 : 0;
+
+			rendererItem.y = (priceScale.priceToCoordinate(markerPrice, firstValue) + halfSize * displaceY) as Coordinate;
+			rendererItem.x = (rendererItem.x + halfSize * displaceX) as Coordinate;
+			if (rendererItem.text !== undefined) {
+				rendererItem.text.y = (rendererItem.y + (halfSize + shapeMargin + textHeight * (0.5 + Constants.TextMargin)) * displaceY ||
+					1) as Coordinate;
+			}
+			return;
+		}
 		case 'inBar': {
 			rendererItem.y = priceScale.priceToCoordinate(inBarPrice, firstValue);
 			if (rendererItem.text !== undefined) {
-				rendererItem.text.y = rendererItem.y + halfSize + shapeMargin + textHeight * (0.5 + Constants.TextMargin) as Coordinate;
+				rendererItem.text.y = (rendererItem.y + halfSize + shapeMargin + textHeight * (0.5 + Constants.TextMargin)) as Coordinate;
 			}
 			return;
 		}
 		case 'aboveBar': {
 			rendererItem.y = (priceScale.priceToCoordinate(highPrice, firstValue) - halfSize - offsets.aboveBar) as Coordinate;
 			if (rendererItem.text !== undefined) {
-				rendererItem.text.y = rendererItem.y - halfSize - textHeight * (0.5 + Constants.TextMargin) as Coordinate;
+				rendererItem.text.y = (rendererItem.y - halfSize - textHeight * (0.5 + Constants.TextMargin)) as Coordinate;
 				offsets.aboveBar += textHeight * (1 + 2 * Constants.TextMargin);
 			}
 			offsets.aboveBar += shapeSize + shapeMargin;
@@ -72,7 +82,7 @@ function fillSizeAndY(
 		case 'belowBar': {
 			rendererItem.y = (priceScale.priceToCoordinate(lowPrice, firstValue) + halfSize + offsets.belowBar) as Coordinate;
 			if (rendererItem.text !== undefined) {
-				rendererItem.text.y = rendererItem.y + halfSize + shapeMargin + textHeight * (0.5 + Constants.TextMargin) as Coordinate;
+				rendererItem.text.y = (rendererItem.y + halfSize + shapeMargin + textHeight * (0.5 + Constants.TextMargin)) as Coordinate;
 				offsets.belowBar += textHeight * (1 + 2 * Constants.TextMargin);
 			}
 			offsets.belowBar += shapeSize + shapeMargin;
@@ -113,7 +123,7 @@ export class SeriesMarkersPaneView implements IUpdatablePaneView {
 		}
 	}
 
-	public renderer(height: number, width: number, addAnchors?: boolean): IPaneRenderer | null {
+	public renderer(height: number, width: number, pane: Pane): IPaneRenderer | null {
 		if (!this._series.visible()) {
 			return null;
 		}
@@ -159,8 +169,11 @@ export class SeriesMarkersPaneView implements IUpdatablePaneView {
 				x: 0 as Coordinate,
 				y: 0 as Coordinate,
 				size: 0,
+				stroke: marker.stroke,
 				shape: marker.shape,
+				anchor: marker.anchor,
 				color: marker.color,
+				rotation: marker.rotation,
 				internalId: marker.internalId,
 				externalId: marker.id,
 				text: undefined,

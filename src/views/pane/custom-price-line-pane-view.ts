@@ -12,12 +12,17 @@ export class CustomPriceLinePaneView extends SeriesHorizontalLinePaneView {
 	}
 
 	protected _updateImpl(height: number, width: number): void {
+		const lineOptions = this._priceLine.options();
 		const data = this._lineRendererData;
 		data.visible = false;
 
+<<<<<<< HEAD
 		const lineOptions = this._priceLine.options();
 
 		if (!this._series.visible() || !lineOptions.lineVisible) {
+=======
+		if (!this._series.visible() || !lineOptions.visible) {
+>>>>>>> iosiftalmacel/master
 			return;
 		}
 
@@ -26,12 +31,15 @@ export class CustomPriceLinePaneView extends SeriesHorizontalLinePaneView {
 			return;
 		}
 
+<<<<<<< HEAD
 		let x;
 
 		if (lineOptions.index !== undefined) {
 			x = this._model.timeScale().indexToCoordinate(lineOptions.index);
 		}
 
+=======
+>>>>>>> iosiftalmacel/master
 		data.visible = true;
 		data.y = y;
 		data.x = x;

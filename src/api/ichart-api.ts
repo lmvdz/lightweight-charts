@@ -2,6 +2,8 @@ import { DeepPartial } from '../helpers/strict-type-checks';
 
 import { BarPrice, BarPrices } from '../model/bar';
 import { ChartOptions } from '../model/chart-model';
+import { LineToolPoint } from '../model/line-tool';
+import { LineToolPartialOptionsMap, LineToolType } from '../model/line-tool-options';
 import { Point } from '../model/point';
 import { SeriesMarker } from '../model/series-markers';
 import {
@@ -18,6 +20,7 @@ import {
 import { BusinessDay, UTCTimestamp } from '../model/time-data';
 
 import { Time } from './data-consumer';
+import { ILineToolApi } from './iline-tool-api';
 import { IPriceScaleApi } from './iprice-scale-api';
 import { ISeriesApi } from './iseries-api';
 import { ITimeScaleApi } from './itime-scale-api';
@@ -38,6 +41,8 @@ export interface MouseEventParams {
 	 * The value will be `undefined` if the event is fired outside the chart, for example a mouse leave event.
 	 */
 	point?: Point;
+
+	paneIndex?: number;
 	/**
 	 * Prices of all series at the location of the event in the chart.
 	 *
@@ -167,6 +172,16 @@ export interface IChartApi {
 	addLineSeries(lineOptions?: LineSeriesPartialOptions): ISeriesApi<'Line'>;
 
 	/**
+	 * Creates a line tool with specified parameters.
+	 */
+	addLineTool<T extends LineToolType>(name: T, points: LineToolPoint[], options: LineToolPartialOptionsMap[T]): ILineToolApi<T>;
+
+	/**
+	 * Sets the active line tool with specified parameters.
+	 */
+	setActiveLineTool<T extends LineToolType>(name: T, options: LineToolPartialOptionsMap[T]): void;
+
+	/**
 	 * Removes a series of any type. This is an irreversible operation, you cannot do anything with the series after removing it.
 	 *
 	 * @example
@@ -282,4 +297,20 @@ export interface IChartApi {
 	 *
 	 */
 	fullUpdate(): void;
+	/**
+	 * Removes a pane with index
+	 *
+	 * @param index - the pane to be removed
+	 */
+	removePane(index: number): void;
+
+	/**
+	 * swap the position of two panes.
+	 *
+	 * @param first - the first index
+	 * @param second - the second index
+	 */
+	swapPane(first: number, second: number): void;
+
+	getPaneElements(): HTMLElement[];
 }

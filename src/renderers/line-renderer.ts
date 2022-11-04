@@ -1,11 +1,19 @@
+import { IPoint } from '../model/point';
 import { PricedValue } from '../model/price-scale';
 import { SeriesItemsIndexesRange, TimedValue } from '../model/time-data';
 
-import { LinePoint, LineStyle, LineType, LineWidth, setLineStyle } from './draw-line';
+import {
+	LineStyle,
+	LineType,
+	LineWidth,
+	setLineStyle,
+} from './draw-line';
 import { ScaledRenderer } from './scaled-renderer';
 import { walkLine } from './walk-line';
 
-export type LineItem = TimedValue & PricedValue & LinePoint & { color?: string };
+export type LineItem = TimedValue &
+	PricedValue &
+	IPoint & { color?: string };
 
 export interface PaneRendererLineDataBase {
 	lineType: LineType;
@@ -20,7 +28,9 @@ export interface PaneRendererLineDataBase {
 	visibleRange: SeriesItemsIndexesRange | null;
 }
 
-export abstract class PaneRendererLineBase<TData extends PaneRendererLineDataBase> extends ScaledRenderer {
+export abstract class PaneRendererLineBase<
+	TData extends PaneRendererLineDataBase
+> extends ScaledRenderer {
 	protected _data: TData | null = null;
 
 	public setData(data: TData): void {
@@ -28,7 +38,11 @@ export abstract class PaneRendererLineBase<TData extends PaneRendererLineDataBas
 	}
 
 	protected _drawImpl(ctx: CanvasRenderingContext2D): void {
-		if (this._data === null || this._data.items.length === 0 || this._data.visibleRange === null) {
+		if (
+			this._data === null ||
+			this._data.items.length === 0 ||
+			this._data.visibleRange === null
+		) {
 			return;
 		}
 
@@ -40,8 +54,11 @@ export abstract class PaneRendererLineBase<TData extends PaneRendererLineDataBas
 		ctx.strokeStyle = this._strokeStyle(ctx);
 		ctx.lineJoin = 'round';
 
+		ctx.beginPath();
+
+		// TODO: implement drawing a colored line, see https://github.com/tradingview/lightweight-charts/issues/195#issuecomment-961850692
+
 		if (this._data.items.length === 1) {
-			ctx.beginPath();
 
 			const point = this._data.items[0];
 			ctx.moveTo(point.x - this._data.barWidth / 2, point.y);
@@ -50,10 +67,13 @@ export abstract class PaneRendererLineBase<TData extends PaneRendererLineDataBas
 			if (point.color !== undefined) {
 				ctx.strokeStyle = point.color;
 			}
-
-			ctx.stroke();
 		} else {
-			this._drawLine(ctx, this._data);
+			walkLine(
+				ctx,
+				this._data.items,
+				this._data.lineType,
+				this._data.visibleRange
+			);
 		}
 	}
 
@@ -63,7 +83,9 @@ export abstract class PaneRendererLineBase<TData extends PaneRendererLineDataBas
 		ctx.stroke();
 	}
 
-	protected abstract _strokeStyle(ctx: CanvasRenderingContext2D): CanvasRenderingContext2D['strokeStyle'];
+	protected abstract _strokeStyle(
+		ctx: CanvasRenderingContext2D
+	): CanvasRenderingContext2D['strokeStyle'];
 }
 
 export interface PaneRendererLineData extends PaneRendererLineDataBase {

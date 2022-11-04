@@ -19,6 +19,10 @@ export class RangeImpl<T extends number> {
 		return this._right;
 	}
 
+	public valueAt(position: number): T {
+		return (this._left + (this._right - this._left) * position) as T;
+	}
+
 	public count(): number {
 		return this._right - this._left + 1;
 	}

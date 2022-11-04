@@ -1,8 +1,9 @@
-import { HoveredObject } from '../model/chart-model';
-import { Coordinate } from '../model/coordinate';
+import { CanvasRenderParams } from '../model/canvas-render-params';
+import { HitTestResult } from '../model/hit-test-result';
+import { Point } from '../model/point';
 
 export interface IPaneRenderer {
-	draw(ctx: CanvasRenderingContext2D, pixelRatio: number, isHovered: boolean, hitTestData?: unknown): void;
-	drawBackground?(ctx: CanvasRenderingContext2D, pixelRatio: number, isHovered: boolean, hitTestData?: unknown): void;
-	hitTest?(x: Coordinate, y: Coordinate): HoveredObject | null;
+	draw(ctx: CanvasRenderingContext2D, renderParams: CanvasRenderParams): void;
+	drawBackground?(ctx: CanvasRenderingContext2D, renderParams: CanvasRenderParams): void;
+	hitTest?(point: Point, renderParams: CanvasRenderParams): HitTestResult<unknown> | null;
 }

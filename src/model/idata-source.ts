@@ -7,8 +7,11 @@ import { PriceScale } from './price-scale';
 
 export interface IDataSource {
 	seriesType?(): string;
+	id(): string;
+	setId(value: string): void;
 	zorder(): number | null;
 	setZorder(value: number): void;
+
 	priceScale(): PriceScale | null;
 	setPriceScale(scale: PriceScale | null): void;
 
@@ -16,7 +19,7 @@ export interface IDataSource {
 
 	priceAxisViews(pane?: Pane, priceScale?: PriceScale): readonly IPriceAxisView[];
 	timeAxisViews(): readonly ITimeAxisView[];
-	paneViews(pane: Pane): readonly IPaneView[];
+	paneViews(): readonly IPaneView[];
 
 	/**
 	 * Pane views that are painted on the most top layer

@@ -58,10 +58,3 @@ export function createBoundCanvas(parentElement: HTMLElement, size: Size): Canva
 	});
 	return binding;
 }
-
-export function drawScaled(ctx: CanvasRenderingContext2D, ratio: number, func: () => void): void {
-	ctx.save();
-	ctx.scale(ratio, ratio);
-	func();
-	ctx.restore();
-}

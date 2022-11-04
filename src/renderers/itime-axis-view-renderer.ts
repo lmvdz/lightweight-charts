@@ -1,3 +1,4 @@
+import { CanvasRenderParams } from '../model/canvas-render-params';
 import { TextWidthCache } from '../model/text-width-cache';
 
 export interface TimeAxisViewRendererOptions {
@@ -13,5 +14,6 @@ export interface TimeAxisViewRendererOptions {
 }
 
 export interface ITimeAxisViewRenderer {
-	draw(ctx: CanvasRenderingContext2D, rendererOptions: TimeAxisViewRendererOptions, pixelRatio: number): void;
+	draw?(ctx: CanvasRenderingContext2D, rendererOptions: TimeAxisViewRendererOptions, renderParams: CanvasRenderParams): void;
+	drawBackground?(ctx: CanvasRenderingContext2D, rendererOptions: TimeAxisViewRendererOptions, renderParams: CanvasRenderParams): void;
 }

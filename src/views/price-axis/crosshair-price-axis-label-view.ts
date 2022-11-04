@@ -2,18 +2,18 @@ import { generateContrastColors } from '../../helpers/color';
 
 import { Crosshair, CrosshairPriceAndCoordinate } from '../../model/crosshair';
 import { PriceScale } from '../../model/price-scale';
-import { PriceAxisViewRendererCommonData, PriceAxisViewRendererData } from '../../renderers/iprice-axis-view-renderer';
+import { PriceAxisViewRendererCommonData, PriceAxisViewRendererData } from '../../renderers/price-axis-label-renderer';
 
-import { PriceAxisView } from './price-axis-view';
+import { PriceAxisLabelView } from './price-axis-label-view';
 
-export type CrosshairPriceAxisViewValueProvider = (priceScale: PriceScale) => CrosshairPriceAndCoordinate;
+export type CrosshairPriceAxisLabelValueProvider = (priceScale: PriceScale) => CrosshairPriceAndCoordinate;
 
-export class CrosshairPriceAxisView extends PriceAxisView {
+export class CrosshairPriceAxisLabelView extends PriceAxisLabelView {
 	private _source: Crosshair;
 	private readonly _priceScale: PriceScale;
-	private readonly _valueProvider: CrosshairPriceAxisViewValueProvider;
+	private readonly _valueProvider: CrosshairPriceAxisLabelValueProvider;
 
-	public constructor(source: Crosshair, priceScale: PriceScale, valueProvider: CrosshairPriceAxisViewValueProvider) {
+	public constructor(source: Crosshair, priceScale: PriceScale, valueProvider: CrosshairPriceAxisLabelValueProvider) {
 		super();
 		this._source = source;
 		this._priceScale = priceScale;

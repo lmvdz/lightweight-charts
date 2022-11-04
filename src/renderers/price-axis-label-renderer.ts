@@ -1,13 +1,29 @@
 import { drawScaled } from '../helpers/canvas-helpers';
 
-import { TextWidthCache } from '../model/text-width-cache';
+import { CanvasRenderParams } from '../model/canvas-render-params';
 
+import { LineWidth } from './draw-line';
 import {
 	IPriceAxisViewRenderer,
-	PriceAxisViewRendererCommonData,
-	PriceAxisViewRendererData,
 	PriceAxisViewRendererOptions,
 } from './iprice-axis-view-renderer';
+
+export interface PriceAxisViewRendererCommonData {
+	activeBackground?: string;
+	background: string;
+	color: string;
+	coordinate: number;
+	fixedCoordinate?: number;
+}
+
+export interface PriceAxisViewRendererData {
+	visible: boolean;
+	text: string;
+	tickVisible: boolean;
+	moveTextToInvisibleTick: boolean;
+	borderColor: string;
+	lineWidth?: LineWidth;
+}
 
 export class PriceAxisViewRenderer implements IPriceAxisViewRenderer {
 	private _data!: PriceAxisViewRendererData;
@@ -25,10 +41,7 @@ export class PriceAxisViewRenderer implements IPriceAxisViewRenderer {
 	public draw(
 		ctx: CanvasRenderingContext2D,
 		rendererOptions: PriceAxisViewRendererOptions,
-		textWidthCache: TextWidthCache,
-		width: number,
-		align: 'left' | 'right',
-		pixelRatio: number
+		renderParams: CanvasRenderParams
 	): void {
 		if (!this._data.visible) {
 			return;
@@ -43,7 +56,7 @@ export class PriceAxisViewRenderer implements IPriceAxisViewRenderer {
 		const paddingInner = rendererOptions.paddingInner;
 		const paddingOuter = rendererOptions.paddingOuter;
 		const text = this._data.text;
-		const textWidth = Math.ceil(textWidthCache.measureText(ctx, text));
+		const textWidth = Math.ceil(rendererOptions.widthCache.measureText(ctx, text));
 		const baselineOffset = rendererOptions.baselineOffset;
 		const totalHeight = rendererOptions.fontSize + paddingTop + paddingBottom;
 		const halfHeigth = Math.ceil(totalHeight * 0.5);
@@ -59,7 +72,9 @@ export class PriceAxisViewRenderer implements IPriceAxisViewRenderer {
 		const yTop = yMid - halfHeigth;
 		const yBottom = yTop + totalHeight;
 
-		const alignRight = align === 'right';
+		const alignRight = rendererOptions.align === 'right';
+		const pixelRatio = renderParams.pixelRatio;
+		const width = renderParams.cssWidth;
 
 		const xInside = alignRight ? width : 0;
 		const rightScaled = Math.ceil(width * pixelRatio);

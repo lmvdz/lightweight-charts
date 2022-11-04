@@ -1,11 +1,13 @@
 {
     "files.exclude": {
-        "dist/**": true,
-        "lib/**": true,
+        // "dist/**": true,
+        // "lib/**": true,
         "tests/e2e/graphics/.gendata/**": true,
         "website/.docusaurus/**": true,
         "website/build/**": true,
         "website/docs/api/**": true,
     },
+    // "editor.formatOnSave": true,
+    "prettier.singleQuote": true,
     "typescript.tsdk": "node_modules\\typescript\\lib"
 }

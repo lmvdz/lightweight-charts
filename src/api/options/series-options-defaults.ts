@@ -91,6 +91,7 @@ export const baselineStyleDefaults: BaselineStyleOptions = {
 
 	lineWidth: 3,
 	lineStyle: LineStyle.Solid,
+	lineType: LineType.Simple,
 
 	crosshairMarkerVisible: true,
 	crosshairMarkerRadius: 4,
@@ -113,7 +114,7 @@ export const seriesOptionsDefaults: SeriesOptionsCommon = {
 	priceLineSource: PriceLineSource.LastBar,
 	priceLineWidth: 1,
 	priceLineColor: '',
-	priceLineStyle: LineStyle.Dashed,
+	priceLineStyle: LineStyle.Dotted,
 	baseLineVisible: true,
 	baseLineWidth: 1,
 	baseLineColor: '#B2B5BE',

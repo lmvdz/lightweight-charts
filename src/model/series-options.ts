@@ -402,6 +402,13 @@ export interface BaselineStyleOptions {
 	lineStyle: LineStyle;
 
 	/**
+	 * Line type.
+	 *
+	 * @defaultValue {@link LineType.Simple}
+	 */
+	lineType: LineType;
+
+	/**
 	 * Show the crosshair marker.
 	 *
 	 * @defaultValue `true`
@@ -756,6 +763,8 @@ export interface SeriesOptionsCommon {
 	 * @deprecated Use {@link ISeriesApi.priceScale} method of the series to apply options instead.
 	 */
 	scaleMargins?: PriceScaleMargins;
+	/** Panel this series to be added */
+	pane?: number;
 }
 
 /**

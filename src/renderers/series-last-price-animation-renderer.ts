@@ -1,3 +1,4 @@
+import { CanvasRenderParams } from '../model/canvas-render-params';
 import { Point } from '../model/point';
 
 import { IPaneRenderer } from './ipane-renderer';
@@ -22,7 +23,7 @@ export class SeriesLastPriceAnimationRenderer implements IPaneRenderer {
 		return this._data;
 	}
 
-	public draw(ctx: CanvasRenderingContext2D, pixelRatio: number, isHovered: boolean, hitTestData?: unknown): void {
+	public draw(ctx: CanvasRenderingContext2D, renderParams: CanvasRenderParams): void {
 		const data = this._data;
 		if (data === null) {
 			return;
@@ -30,6 +31,7 @@ export class SeriesLastPriceAnimationRenderer implements IPaneRenderer {
 
 		ctx.save();
 
+		const pixelRatio = renderParams.pixelRatio;
 		const tickWidth = Math.max(1, Math.floor(pixelRatio));
 
 		const correction = (tickWidth % 2) / 2;
